@@ -533,9 +533,13 @@ function renderPlacasGrid() {
     const topoCls   = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
     const topoTxt   = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
 
-    // Resumo de destinos únicos
+    // Cliente(s) da operação — vem do campo _cliente (extraído da coluna Coleta/Entrega/...)
+    const clientes = [...new Set(vehicles.map(v=>(v._cliente||'').trim().toUpperCase()).filter(Boolean))];
+    const clienteStr = clientes.slice(0,2).join(' / ') + (clientes.length>2?` +${clientes.length-2}`:'');
+
+    // Cidades destino para rodapé
     const destinos = [...new Set(vehicles.map(v=>(v['Cidade Destino']||'').trim()).filter(Boolean))];
-    const destinoStr = destinos.slice(0,2).join(' / ') + (destinos.length>2?` +${destinos.length-2}`:'');
+    const destinoStr = destinos.slice(0,1).join(' / ') + (destinos.length>1?` +${destinos.length-1}`:'');
 
     // Badge de múltiplas NFs
     const nfCount = vehicles.length;
@@ -550,10 +554,10 @@ function renderPlacasGrid() {
       <div class="placa-topo ${topoCls}">${topoTxt}</div>
       <div class="placa-numero">${placa}</div>
       ${badgeHtml}
-      <div class="placa-motorista">${motorista||'—'}</div>
+      <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
         <span>${destinoStr||'—'}</span>
-        <span>${isDone?'✔ OK':isAndam?'em andamento':''}</span>
+        <span>${isDone?'✔':isAndam?'…':''}</span>
       </div>`;
     el.addEventListener('click', ()=>openConferencia(group));
     grid.appendChild(el);
