@@ -71,6 +71,14 @@ async function fetchSheetVehicles(tabName) {
   return [];
 }
 
+// Letras de coluna para acesso por posição (A=0, B=1, ...)
+const _COL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** Retorna o valor de uma coluna pelo índice posicional (0=A, 1=B, ...) */
+function colByIdx(obj, idx) {
+  return (obj['_C' + (_COL_LETTERS[idx] || idx)] || '').trim();
+}
+
 function parseGvizTable(table) {
   const cols = table.cols.map(c => (c.label || '').trim());
   const placaIdx = cols.findIndex(c => c.toLowerCase() === 'placa');
@@ -81,9 +89,19 @@ function parseGvizTable(table) {
     const obj = { _rowIdx: rowIdx };
     cols.forEach((col, i) => {
       const cell = row.c[i];
-      obj[col] = cell && cell.v !== null ? String(cell.v).trim() : '';
+      // Valor da célula — prefere formato legível (f) para datas/horas, senão usa v
+      const rawV = cell ? cell.v : null;
+      const rawF = cell ? cell.f : null;
+      const val  = rawV !== null && rawV !== undefined
+        ? (typeof rawV === 'number' && rawF ? rawF : String(rawV)).trim()
+        : '';
+      if (col) obj[col] = val;                          // por nome do cabeçalho
+      obj['_C' + (_COL_LETTERS[i] || i)] = val;        // por letra de coluna (ex: _CA, _CB)
     });
-    const placa = (placaIdx >= 0 && row.c[placaIdx]?.v ? String(row.c[placaIdx].v) : obj['Placa'] || '').trim();
+    // Placa: tenta coluna rotulada "Placa", depois coluna C (índice 2)
+    const placa = (placaIdx >= 0 && row.c[placaIdx]?.v
+      ? String(row.c[placaIdx].v)
+      : obj['Placa'] || obj['_CC'] || '').trim();
     if (placa.length >= 3) {
       obj['Placa'] = placa;
       const opInfo = getOperationInfo(obj);
@@ -98,17 +116,34 @@ function parseGvizTable(table) {
 function parseCsv(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  // Parser CSV robusto — respeita campos entre aspas (ex: "R$ 10.300,53")
+  function splitCsvLine(line) {
+    const result = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const headers  = splitCsvLine(lines[0]).map(h => h.replace(/^"|"$/g,'').trim());
   const placaIdx = headers.findIndex(h => h.toLowerCase() === 'placa');
   if (placaIdx < 0) return [];
 
   const vehicles = [];
   for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim());
-    const placa = cells[placaIdx] || '';
+    const cells = splitCsvLine(lines[i]).map(c => c.replace(/^"|"$/g,'').trim());
+    const placa  = (cells[placaIdx] || '').trim();
     if (placa.length < 3) continue;
     const obj = { _rowIdx: i };
-    headers.forEach((h, idx) => { obj[h] = cells[idx] || ''; });
+    headers.forEach((h, idx) => {
+      const val = cells[idx] || '';
+      if (h) obj[h] = val;                              // por nome do cabeçalho
+      obj['_C' + (_COL_LETTERS[idx] || idx)] = val;    // por letra de coluna
+    });
     obj['Placa'] = placa;
     const opInfo = getOperationInfo(obj);
     obj._operationType = opInfo.tipo;
@@ -131,8 +166,8 @@ function findOpColValue(row) {
       if (val) return val;
     }
   }
-  // Fallback: coluna Serviço
-  return (row['Serviço'] || row['Servico'] || '').trim();
+  // Fallback: coluna Serviço ou coluna A por posição (sempre é a col de operação)
+  return (row['Serviço'] || row['Servico'] || row['_CA'] || '').trim();
 }
 
 /**
