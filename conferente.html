@@ -634,40 +634,52 @@ function renderCamposConferencia(vehicles) {
   container.innerHTML = '';
 
   // ── Helpers de leitura de coluna ──
-  // Busca o primeiro valor não-vazio dentre os nomes de coluna fornecidos
+
+  // Busca por nome de cabeçalho (exato, case-insensitive)
   function colVal(v, ...cols) {
     for (const c of cols) {
-      // Correspondência exata
       if (v[c] && v[c].toString().trim()) return v[c].toString().trim();
-      // Correspondência parcial (caso o header tenha espaços extras ou acento diferente)
-      const k = Object.keys(v).find(key => !key.startsWith('_') && key.trim().toLowerCase() === c.toLowerCase());
+      const k = Object.keys(v).find(key =>
+        !key.startsWith('_') && key.trim().toLowerCase() === c.toLowerCase()
+      );
       if (k && v[k] && v[k].toString().trim()) return v[k].toString().trim();
     }
     return '';
   }
 
-  // Nº NF: col M "NF" → col Q "OC" → col R "MD" → col N "DI/Cotação / R$ / Prazo"
-  function nfFallback(v) {
-    return colVal(v, 'NF', 'Nº NF')
-        || colVal(v, 'OC')
-        || colVal(v, 'MD')
-        || colVal(v, 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
+  // Busca por letra de coluna (A, B, C...) — garantido independente do cabeçalho
+  function colLetter(v, letter) {
+    return (v['_C' + letter.toUpperCase()] || '').toString().trim();
   }
 
-  // Campos fixos e suas colunas na planilha
+  // Retorna primeiro valor não-vazio: tenta nome → fallback por letra
+  function col(v, letter, ...names) {
+    return colVal(v, ...names) || colLetter(v, letter);
+  }
+
+  // Nº NF: col M → col Q → col R → col N  (com fallback por letra em cada passo)
+  function nfFallback(v) {
+    return col(v, 'M', 'NF', 'Nº NF')
+        || col(v, 'Q', 'OC')
+        || col(v, 'R', 'MD')
+        || col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
+  }
+
+  // Campos fixos com mapeamento exato de coluna
+  //   col E = Volume | col H = Destinatário | col L = Cidade Destino | col M..N = NF
   const camposConfig = [
-    { nome:'Volume',         fn: v => colVal(v, 'Volume') },
+    { nome:'Volume',         fn: v => col(v, 'E', 'Volume') },
     { nome:'Nº NF',         fn: v => nfFallback(v) },
-    { nome:'Destinatário',  fn: v => colVal(v, 'Destinatário', 'Destinatario') },
-    { nome:'Cidade Destino',fn: v => colVal(v, 'Cidade Destino') },
+    { nome:'Destinatário',  fn: v => col(v, 'H', 'Destinatário', 'Destinatario') },
+    { nome:'Cidade Destino',fn: v => col(v, 'L', 'Cidade Destino') },
   ];
 
   vehicles.forEach((v, idx) => {
     const nfVal     = nfFallback(v);
-    const destVal   = colVal(v, 'Destinatário', 'Destinatario');
-    const cidadeVal = colVal(v, 'Cidade Destino');
-    const volVal    = colVal(v, 'Volume');
-    const motorista = colVal(v, 'Motorista');
+    const destVal   = col(v, 'H', 'Destinatário', 'Destinatario');
+    const cidadeVal = col(v, 'L', 'Cidade Destino');
+    const volVal    = col(v, 'E', 'Volume');
+    const motorista = col(v, 'B', 'Motorista');
 
     // Sub-título do bloco
     const titulo = nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`;
@@ -829,17 +841,22 @@ async function submeterConferencia() {
         const obsText= obsEl?.querySelectorAll('input')[1]?.value||'';
         campos.push({ nome, status, quantidadeAveriguada:qtd?parseInt(qtd):null, observacao:obsText });
       });
-      // Usa a mesma lógica de fallback de NF da tela de conferência
-      const nfSalvo = (v['NF']||v['Nº NF']||'').trim()
-        || (v['OC']||'').trim()
-        || (v['MD']||'').trim()
-        || (v['DI/Cotação / R$ / Prazo']||v['DI/Cotação']||v['DI']||'').trim();
+      // Reutiliza helpers col/nfFallback definidos em renderCamposConferencia
+      // (replicados inline aqui pois estamos fora daquele escopo)
+      function _col(letter, ...names) {
+        for (const n of names) { if ((v[n]||'').trim()) return v[n].trim(); }
+        return (v['_C'+letter.toUpperCase()]||'').trim();
+      }
+      const nfSalvo = _col('M','NF','Nº NF')
+                   || _col('Q','OC')
+                   || _col('R','MD')
+                   || _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
       nfsData.push({
         nf:           nfSalvo,
-        destinatario: (v['Destinatário']||v['Destinatario']||'').trim(),
-        cidadeDestino:(v['Cidade Destino']||'').trim(),
-        volume:       (v['Volume']||'').trim(),
-        servico:      (v['Serviço']||'').trim(),
+        destinatario: _col('H','Destinatário','Destinatario'),
+        cidadeDestino:_col('L','Cidade Destino'),
+        volume:       _col('E','Volume'),
+        servico:      (v['Serviço']||v['_CA']||'').trim(),
         campos
       });
     });
