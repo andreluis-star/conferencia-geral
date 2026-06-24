@@ -475,7 +475,6 @@ async function loadPlacas() {
   const dateVal = document.getElementById('sel-date').value;
   if (!dateVal) return;
 
-  // Formata para DD/MM/AAAA (nome da aba)
   const [y,m,d] = dateVal.split('-');
   const tabName = `${d}/${m}/${y}`;
 
@@ -484,7 +483,14 @@ async function loadPlacas() {
   document.getElementById('erro-planilha').style.display='none';
   document.getElementById('loading-placas').style.display='block';
 
-  sheetVehicles = await fetchSheetVehicles(tabName);
+  try {
+    sheetVehicles = await fetchSheetVehicles(tabName);
+  } catch(e) {
+    document.getElementById('loading-placas').style.display='none';
+    document.getElementById('erro-planilha').style.display='block';
+    document.getElementById('erro-planilha-msg').textContent = 'Erro ao buscar planilha: ' + e.message;
+    return;
+  }
   document.getElementById('loading-placas').style.display='none';
 
   if (!sheetVehicles.length) {
@@ -493,19 +499,22 @@ async function loadPlacas() {
     return;
   }
 
-  // Busca operações concluídas no Firestore para colorir as placas
+  // Busca operações já realizadas para colorir as placas
   completedOps = {};
-  const today = dateVal;
-  const start = new Date(today+'T00:00:00');
-  const end   = new Date(today+'T23:59:59');
-  const opsSnap = await db.collection('operacoes')
-    .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
-    .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
-  opsSnap.docs.forEach(d=>{
-    const op=d.data();
-    const key = `${op.placa}_${op.tipoExecucao}`;
-    completedOps[key] = op.status;
-  });
+  try {
+    const start = new Date(dateVal+'T00:00:00');
+    const end   = new Date(dateVal+'T23:59:59');
+    const opsSnap = await db.collection('operacoes')
+      .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+      .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
+    opsSnap.docs.forEach(doc=>{
+      const op=doc.data();
+      completedOps[`${op.placa}_${op.tipoExecucao}`] = op.status;
+    });
+  } catch(e) {
+    console.warn('Aviso ao buscar operações:', e.message);
+    // Não bloqueia — mostra placas mesmo sem status de conclusão
+  }
 
   renderPlacasGrid();
 }
