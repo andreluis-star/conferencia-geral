@@ -633,26 +633,41 @@ function renderCamposConferencia(vehicles) {
   const container = document.getElementById('campos-conferencia');
   container.innerHTML = '';
 
-  // Campos que queremos conferir + de onde vêm na planilha
+  // ── Helpers de leitura de coluna ──
+  // Busca o primeiro valor não-vazio dentre os nomes de coluna fornecidos
+  function colVal(v, ...cols) {
+    for (const c of cols) {
+      // Correspondência exata
+      if (v[c] && v[c].toString().trim()) return v[c].toString().trim();
+      // Correspondência parcial (caso o header tenha espaços extras ou acento diferente)
+      const k = Object.keys(v).find(key => !key.startsWith('_') && key.trim().toLowerCase() === c.toLowerCase());
+      if (k && v[k] && v[k].toString().trim()) return v[k].toString().trim();
+    }
+    return '';
+  }
+
+  // Nº NF: col M "NF" → col Q "OC" → col R "MD" → col N "DI/Cotação / R$ / Prazo"
+  function nfFallback(v) {
+    return colVal(v, 'NF', 'Nº NF')
+        || colVal(v, 'OC')
+        || colVal(v, 'MD')
+        || colVal(v, 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
+  }
+
+  // Campos fixos e suas colunas na planilha
   const camposConfig = [
-    { nome:'Volume',         col:['Volume','Qtd','Quantidade'] },
-    { nome:'Nº NF',         col:['NF','Nº NF','Nota Fiscal','Número NF'] },
-    { nome:'Destinatário',  col:['Destinatário','Destinatario','Cliente','cliente'] },
-    { nome:'Cidade Destino',col:['Cidade Destino','Cidade','Destino'] },
+    { nome:'Volume',         fn: v => colVal(v, 'Volume') },
+    { nome:'Nº NF',         fn: v => nfFallback(v) },
+    { nome:'Destinatário',  fn: v => colVal(v, 'Destinatário', 'Destinatario') },
+    { nome:'Cidade Destino',fn: v => colVal(v, 'Cidade Destino') },
   ];
 
   vehicles.forEach((v, idx) => {
-    // Descobre o valor de cada campo na linha da planilha
-    function val(cols) {
-      for (const c of cols) { if (v[c] && v[c].toString().trim()) return v[c].toString().trim(); }
-      return '';
-    }
-
-    const nfVal    = val(['NF','Nº NF','Nota Fiscal','Número NF']);
-    const destVal  = val(['Destinatário','Destinatario','Cliente','cliente']);
-    const cidadeVal= val(['Cidade Destino','Cidade','Destino']);
-    const volVal   = val(['Volume','Qtd','Quantidade']);
-    const motorista= val(['Motorista']);
+    const nfVal     = nfFallback(v);
+    const destVal   = colVal(v, 'Destinatário', 'Destinatario');
+    const cidadeVal = colVal(v, 'Cidade Destino');
+    const volVal    = colVal(v, 'Volume');
+    const motorista = colVal(v, 'Motorista');
 
     // Sub-título do bloco
     const titulo = nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`;
@@ -664,7 +679,7 @@ function renderCamposConferencia(vehicles) {
 
     let camposHtml = '';
     camposConfig.forEach(cfg => {
-      const refVal = val(cfg.col);
+      const refVal = cfg.fn(v);
       const obsId  = campoObsId(idx, cfg.nome);
       const refHtml = refVal
         ? `<span class="campo-ref">▸ ${refVal}</span>`
@@ -746,9 +761,14 @@ function checkOutros(sel) {
 // ── INSUMOS ──
 function renderInsumosSel() {
   const list = document.getElementById('insumos-sel-list');
-  if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
+  // Insumos de IMPRESSÃO não aparecem na conferência de veículo
+  const visiveis = allInsumos.filter(ins =>
+    (ins.categoria||'').toLowerCase() !== 'impressão' &&
+    (ins.categoria||'').toLowerCase() !== 'impressao'
+  );
+  if (!visiveis.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
   let lastCat = '';
-  list.innerHTML = allInsumos.map(ins=>{
+  list.innerHTML = visiveis.map(ins=>{
     const header = ins.categoria!==lastCat
       ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
@@ -809,12 +829,17 @@ async function submeterConferencia() {
         const obsText= obsEl?.querySelectorAll('input')[1]?.value||'';
         campos.push({ nome, status, quantidadeAveriguada:qtd?parseInt(qtd):null, observacao:obsText });
       });
+      // Usa a mesma lógica de fallback de NF da tela de conferência
+      const nfSalvo = (v['NF']||v['Nº NF']||'').trim()
+        || (v['OC']||'').trim()
+        || (v['MD']||'').trim()
+        || (v['DI/Cotação / R$ / Prazo']||v['DI/Cotação']||v['DI']||'').trim();
       nfsData.push({
-        nf:           v['NF']||v['Nº NF']||'',
-        destinatario: v['Destinatário']||v['Destinatario']||'',
-        cidadeDestino:v['Cidade Destino']||'',
-        volume:       v['Volume']||'',
-        servico:      v['Serviço']||'',
+        nf:           nfSalvo,
+        destinatario: (v['Destinatário']||v['Destinatario']||'').trim(),
+        cidadeDestino:(v['Cidade Destino']||'').trim(),
+        volume:       (v['Volume']||'').trim(),
+        servico:      (v['Serviço']||'').trim(),
         campos
       });
     });
