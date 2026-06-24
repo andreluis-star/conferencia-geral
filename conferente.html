@@ -71,6 +71,8 @@
   .placa-motorista { font-size:0.65rem; color:#888; text-align:center; padding:0 4px 4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .placa-rodape { display:flex; justify-content:space-between; padding:3px 6px; background:#f8f8f8; border-top:1px solid #eee; }
   .placa-rodape span { font-size:0.62rem; color:#aaa; }
+  /* badge de NFs múltiplas */
+  .placa-nfs-badge { font-size:0.6rem; font-weight:700; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 6px; display:inline-block; margin:0 auto 4px; }
 
   .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
   .dot-done      { background:var(--green); }
@@ -100,17 +102,35 @@
   .form-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
   .form-card h4 { font-size:0.9rem; font-weight:700; color:var(--navy); margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
 
+  /* ── BLOCO POR NF ── */
+  .nf-block {
+    border:1px solid #e0e8f5; border-radius:10px; padding:12px;
+    margin-bottom:12px; background:#fafcff;
+  }
+  .nf-block:last-child { margin-bottom:0; }
+  .nf-header {
+    margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid #eaf0fa;
+  }
+  .nf-titulo {
+    font-size:0.85rem; font-weight:800; color:var(--navy);
+    display:flex; align-items:center; gap:6px;
+  }
+  .nf-detalhe { font-size:0.75rem; color:#888; margin-top:3px; line-height:1.5; }
+  .nf-detalhe strong { color:#555; }
+
   /* ── CAMPO OK/NÃO OK ── */
-  .campo-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
-  .campo-row:last-child { border-bottom:none; }
-  .campo-nome { flex:1; font-size:0.9rem; font-weight:500; color:#333; }
+  .campo-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #f0f0f0; }
+  .campo-row:last-of-type { border-bottom:none; }
+  .campo-info { flex:1; min-width:0; }
+  .campo-nome { font-size:0.82rem; font-weight:600; color:#333; }
+  .campo-ref  { font-size:0.75rem; color:#1a5c1a; font-weight:700; display:block; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
-  .toggle-btn { padding:5px 12px; border:none; font-size:0.78rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
+  .toggle-btn { padding:5px 10px; border:none; font-size:0.75rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
   .toggle-btn.ok-active    { background:var(--green); color:#fff; }
   .toggle-btn.naook-active { background:var(--red);   color:#fff; }
-  .campo-obs { margin-top:6px; display:none; }
+  .campo-obs { margin-top:5px; display:none; padding:6px 0 4px; }
   .campo-obs.show { display:block; }
-  .campo-obs input { width:100%; border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:0.85rem; color:#333; outline:none; }
+  .campo-obs input { width:100%; border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:0.83rem; color:#333; outline:none; margin-bottom:4px; }
   .campo-obs input:focus { border-color:var(--blue); }
 
   /* ── TIPO BAR (ENTRADA / SAÍDA) ── */
@@ -137,7 +157,7 @@
 
   /* ── FOTOS ── */
   .foto-area { display:flex; gap:8px; flex-wrap:wrap; }
-  .foto-thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; position:relative; }
+  .foto-thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; }
   .foto-upload { width:80px; height:80px; border:2px dashed #ccc; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-direction:column; color:#aaa; font-size:0.72rem; gap:4px; }
   .foto-upload:hover { border-color:var(--navy); color:var(--navy); }
   #foto-input { display:none; }
@@ -185,7 +205,9 @@
   <button class="btn-logout-sm" onclick="logout()">Sair</button>
 </div>
 
-<!-- ═══ TELA 1: LISTA DE PLACAS ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TELA 1: LISTA DE PLACAS
+═══════════════════════════════════════════════════ -->
 <div class="screen active" id="screen-placas">
   <div class="screen-inner">
     <div class="date-bar">
@@ -216,7 +238,9 @@
   INSUMOS
 </button>
 
-<!-- ═══ TELA 2: FORMULÁRIO DE CONFERÊNCIA ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TELA 2: FORMULÁRIO DE CONFERÊNCIA
+═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-form">
   <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
     <div class="form-header">
@@ -233,69 +257,19 @@
         <h4>Tipo de Operação</h4>
         <div class="tipo-bar" id="tipo-bar">
           <div class="tipo-opt e-active" id="tipo-entrada" onclick="setTipo('ENTRADA')">📥 ENTRADA</div>
-          <div class="tipo-opt" id="tipo-saida"  onclick="setTipo('SAIDA')">📤 SAÍDA</div>
+          <div class="tipo-opt" id="tipo-saida" onclick="setTipo('SAIDA')">📤 SAÍDA</div>
         </div>
       </div>
 
-      <!-- INFO DO VEÍCULO -->
-      <div class="form-card" id="veiculo-info-card">
-        <h4>Dados do Veículo (Planilha)</h4>
-        <div id="veiculo-info-body" style="font-size:0.82rem;color:#555;line-height:1.8;"></div>
-      </div>
-
-      <!-- CAMPOS DE CONFERÊNCIA -->
+      <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
       <div class="form-card">
-        <h4>Conferência de Campos</h4>
-        <div id="campos-conferencia">
-          <div class="campo-row" data-campo="Volume">
-            <span class="campo-nome">Volume</span>
-            <div class="toggle-bar">
-              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
-              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
-            </div>
-          </div>
-          <div class="campo-obs" id="obs-Volume">
-            <input type="number" placeholder="Qtd averiguada" min="0"/>
-            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
-          </div>
-          <div class="campo-row" data-campo="Nº NF">
-            <span class="campo-nome">Nº da NF</span>
-            <div class="toggle-bar">
-              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
-              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
-            </div>
-          </div>
-          <div class="campo-obs" id="obs-Nº NF">
-            <input type="number" placeholder="Qtd averiguada" min="0"/>
-            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
-          </div>
-          <div class="campo-row" data-campo="Destinatário">
-            <span class="campo-nome">Destinatário</span>
-            <div class="toggle-bar">
-              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
-              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
-            </div>
-          </div>
-          <div class="campo-obs" id="obs-Destinatário">
-            <input type="number" placeholder="Qtd averiguada" min="0"/>
-            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
-          </div>
-          <div class="campo-row" data-campo="Cidade Destino">
-            <span class="campo-nome">Cidade Destino</span>
-            <div class="toggle-bar">
-              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
-              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
-            </div>
-          </div>
-          <div class="campo-obs" id="obs-Cidade Destino">
-            <input type="number" placeholder="Qtd averiguada" min="0"/>
-            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
-          </div>
-        </div>
+        <h4>📋 Conferência de Campos</h4>
+        <!-- Os blocos por NF são renderizados aqui pelo JS -->
+        <div id="campos-conferencia"></div>
       </div>
 
       <!-- CLIENTE ÚNICO (só SAÍDA) -->
-      <div class="form-card" id="card-cliente-unico">
+      <div class="form-card" id="card-cliente-unico" style="display:none;">
         <h4>🏢 Cliente da Viagem</h4>
         <div style="margin-bottom:10px;">
           <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
@@ -316,7 +290,7 @@
         <button class="btn-add-palete" onclick="addPaleteRow()">+ Adicionar tipo de palete</button>
       </div>
 
-      <!-- INSUMOS -->
+      <!-- INSUMOS UTILIZADOS -->
       <div class="form-card">
         <h4>📦 Insumos <span id="insumos-tipo-label" style="font-size:0.78rem;color:#888;">(utilizados / enviados)</span></h4>
         <div id="insumos-sel-list"></div>
@@ -345,7 +319,9 @@
   </div>
 </div>
 
-<!-- ═══ TELA 3: INSUMOS AVULSO ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TELA 3: INSUMOS AVULSO
+═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-insumos">
   <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
     <div class="form-header">
@@ -395,6 +371,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
+// ═══════════════════════════════════════════════════════
+//  COMPRESSÃO DE IMAGEM
+// ═══════════════════════════════════════════════════════
 function compressImage(dataUrl, maxSize=700, quality=0.55) {
   return new Promise(resolve => {
     const img = new Image();
@@ -411,26 +390,40 @@ function compressImage(dataUrl, maxSize=700, quality=0.55) {
   });
 }
 
-let currentUser = null;
-let sheetVehicles = [];
-let completedOps = {};
-let currentVehicle = null;
-let currentTipo = 'ENTRADA';
-let insTipo = 'ENTRADA';
-let allInsumos = [];
-let fotosBase64 = [];
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let currentUser    = null;
+let sheetVehicles  = [];     // todas as linhas da planilha
+let groupedByPlate = [];     // [ { placa, tipo, vehicles:[] }, ... ]
+let completedOps   = {};     // `${placa}_${tipo}` → status
+let currentVehicles = [];    // grupo selecionado para conferência
+let currentTipo    = 'ENTRADA';
+let insTipo        = 'ENTRADA';
+let allInsumos     = [];
+let fotosBase64    = [];
 let insAv_fotosBase64 = [];
 
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href='index.html'; return; }
   const data = await getCurrentUserData();
   if (!data) { await auth.signOut(); window.location.href='index.html'; return; }
-  if (!data.ativo) { showToast('Conta desativada. Contate o admin.','error'); await auth.signOut(); setTimeout(()=>window.location.href='index.html',2500); return; }
+  if (!data.ativo) {
+    showToast('Conta desativada. Contate o admin.','error');
+    await auth.signOut();
+    setTimeout(()=>window.location.href='index.html',2500);
+    return;
+  }
   currentUser = data;
   document.getElementById('header-user').textContent = data.nome||data.email;
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('sel-date').value = today;
+
   await loadInsumos();
   await loadPlacas();
 });
@@ -445,6 +438,9 @@ function mostrarDebug() {
     : 'Nenhuma resposta capturada. Verifique se a planilha está pública.';
 }
 
+// ═══════════════════════════════════════════════════════
+//  INSUMOS DA BASE
+// ═══════════════════════════════════════════════════════
 async function loadInsumos() {
   try {
     const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
@@ -452,9 +448,13 @@ async function loadInsumos() {
   } catch(e) { console.warn('loadInsumos:', e.message); }
 }
 
+// ═══════════════════════════════════════════════════════
+//  TELA 1: PLACAS — carrega e agrupa por placa
+// ═══════════════════════════════════════════════════════
 async function loadPlacas() {
   const dateVal = document.getElementById('sel-date').value;
   if (!dateVal) return;
+
   const [y,m,d] = dateVal.split('-');
   const tabName = `${d}/${m}/${y}`;
 
@@ -479,6 +479,25 @@ async function loadPlacas() {
     return;
   }
 
+  // ── Agrupa por placa ──
+  const map = {};
+  sheetVehicles.forEach(v => {
+    const placa = formatPlaca(v['Placa']||'');
+    if (!placa) return;
+    if (!map[placa]) map[placa] = [];
+    map[placa].push(v);
+  });
+
+  groupedByPlate = Object.entries(map).map(([placa, vehicles]) => {
+    // Determina tipo consolidado do grupo
+    const tipos = [...new Set(vehicles.map(v=>v._operationType))];
+    let tipo;
+    if (tipos.length > 1 || tipos[0]==='ENTRADA_SAIDA') tipo='ENTRADA_SAIDA';
+    else tipo = tipos[0] || 'ENTRADA';
+    return { placa, tipo, vehicles };
+  });
+
+  // Busca operações já realizadas
   completedOps = {};
   try {
     const start = new Date(dateVal+'T00:00:00');
@@ -487,7 +506,7 @@ async function loadPlacas() {
       .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
       .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
     opsSnap.docs.forEach(doc=>{
-      const op=doc.data();
+      const op = doc.data();
       completedOps[`${op.placa}_${op.tipoExecucao}`] = op.status;
     });
   } catch(e) { console.warn('Aviso ao buscar operações:', e.message); }
@@ -498,64 +517,181 @@ async function loadPlacas() {
 function renderPlacasGrid() {
   const grid = document.getElementById('placas-grid');
   grid.innerHTML = '';
-  sheetVehicles.forEach((v, idx) => {
-    const placa = formatPlaca(v['Placa']||'');
-    const tipo  = v._operationType;
-    const motorista = (v['Motorista']||'').substring(0,20);
-    const isDoneE = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
-    const isDoneS = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
-    const isDone  = tipo==='ENTRADA'?isDoneE:tipo==='SAIDA'?isDoneS:(isDoneE&&isDoneS);
-    const isAndam = !isDone && (isDoneE||isDoneS);
+
+  groupedByPlate.forEach(group => {
+    const { placa, tipo, vehicles } = group;
+    const motorista = (vehicles[0]['Motorista']||'').substring(0,22);
+
+    // Status do grupo
+    const doneE = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
+    const doneS = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
+    const isDone = tipo==='ENTRADA'?doneE : tipo==='SAIDA'?doneS : (doneE&&doneS);
+    const isAndam = !isDone && (doneE||doneS);
+
     const statusCls = isDone?'done':isAndam?'andamento':'';
     const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
     const topoCls   = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
     const topoTxt   = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
+
+    // Resumo de destinos únicos
+    const destinos = [...new Set(vehicles.map(v=>(v['Cidade Destino']||'').trim()).filter(Boolean))];
+    const destinoStr = destinos.slice(0,2).join(' / ') + (destinos.length>2?` +${destinos.length-2}`:'');
+
+    // Badge de múltiplas NFs
+    const nfCount = vehicles.length;
+    const badgeHtml = nfCount > 1
+      ? `<div style="text-align:center;padding:2px 0;"><span class="placa-nfs-badge">${nfCount} NFs</span></div>`
+      : '';
+
     const el = document.createElement('div');
     el.className = `placa-card ${statusCls}`;
     el.innerHTML = `
       <div class="placa-status-dot ${dotCls}"></div>
       <div class="placa-topo ${topoCls}">${topoTxt}</div>
-      <div class="placa-numero">${placa||'???'}</div>
+      <div class="placa-numero">${placa}</div>
+      ${badgeHtml}
       <div class="placa-motorista">${motorista||'—'}</div>
       <div class="placa-rodape">
-        <span>${v['cliente']||v['Destinatário']||'—'}</span>
-        <span>${v['Cidade Destino']||''}</span>
+        <span>${destinoStr||'—'}</span>
+        <span>${isDone?'✔ OK':isAndam?'em andamento':''}</span>
       </div>`;
-    el.addEventListener('click', ()=>openConferencia(v, idx));
+    el.addEventListener('click', ()=>openConferencia(group));
     grid.appendChild(el);
   });
 }
 
-function openConferencia(vehicle, idx) {
-  currentVehicle = vehicle;
+// ═══════════════════════════════════════════════════════
+//  ID seguro para campo-obs (sem chars especiais)
+// ═══════════════════════════════════════════════════════
+function campoObsId(rowIdx, nomeCampo) {
+  return 'obs_' + rowIdx + '_' + nomeCampo.replace(/[^a-zA-Z0-9]/g,'_');
+}
+
+// ═══════════════════════════════════════════════════════
+//  TELA 2: FORMULÁRIO — abre com grupo de NFs
+// ═══════════════════════════════════════════════════════
+function openConferencia(group) {
+  currentVehicles = group.vehicles;
   fotosBase64 = [];
-  document.getElementById('foto-area').innerHTML = `<label class="foto-upload" for="foto-input"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tirar foto</label>`;
-  const placa = formatPlaca(vehicle['Placa']||'');
-  const tipo  = vehicle._operationType;
-  document.getElementById('form-placa-title').textContent = placa;
-  const inicialTipo = tipo==='SAIDA'?'SAIDA':'ENTRADA';
+
+  // Reset fotos
+  document.getElementById('foto-area').innerHTML = `
+    <label class="foto-upload" for="foto-input">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar foto
+    </label>`;
+
+  document.getElementById('form-placa-title').textContent = group.placa;
+
+  // Tipo operação
+  const inicialTipo = group.tipo==='SAIDA'?'SAIDA':'ENTRADA';
   setTipo(inicialTipo);
-  if (tipo!=='ENTRADA_SAIDA') {
-    document.getElementById('tipo-bar').style.opacity='0.6';
-    document.getElementById('tipo-bar').style.pointerEvents='none';
+
+  if (group.tipo!=='ENTRADA_SAIDA') {
+    document.getElementById('tipo-bar').style.opacity = '0.6';
+    document.getElementById('tipo-bar').style.pointerEvents = 'none';
   } else {
-    document.getElementById('tipo-bar').style.opacity='1';
-    document.getElementById('tipo-bar').style.pointerEvents='auto';
+    document.getElementById('tipo-bar').style.opacity = '1';
+    document.getElementById('tipo-bar').style.pointerEvents = 'auto';
   }
-  document.getElementById('form-op-sub').textContent = tipo==='ENTRADA'?'Operação de Entrada':tipo==='SAIDA'?'Operação de Saída':'Entrada e Saída';
-  const campos_info = ['Motorista','cliente','Destinatário','Cidade Destino','NF','Peso','Volume','Serviço'];
-  const info = campos_info.map(k=>{ const v=vehicle[k]; if(!v||!v.toString().trim()) return ''; return `<span style="font-weight:600;color:var(--navy);">${k}:</span> ${v}`; }).filter(Boolean).join(' &nbsp;|&nbsp; ');
-  document.getElementById('veiculo-info-body').innerHTML = info || 'Dados não disponíveis';
-  document.querySelectorAll('#campos-conferencia .toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
-  document.querySelectorAll('.campo-obs').forEach(o=>{ o.classList.remove('show'); o.querySelectorAll('input').forEach(i=>i.value=''); });
+
+  const subLabel = group.tipo==='ENTRADA'?'Operação de Entrada'
+    :group.tipo==='SAIDA'?'Operação de Saída'
+    :'Entrada e Saída';
+  document.getElementById('form-op-sub').textContent =
+    subLabel + (group.vehicles.length>1 ? ` · ${group.vehicles.length} NFs` : '');
+
+  // Renderiza blocos por NF com dados da planilha
+  renderCamposConferencia(group.vehicles);
+
+  // Cliente único
   document.getElementById('chk-cliente-unico').checked = false;
-  document.getElementById('cliente-unico-input').style.display='none';
-  document.getElementById('inp-cliente').value = vehicle['cliente']||vehicle['Destinatário']||'';
-  document.getElementById('paletes-list').innerHTML='';
+  document.getElementById('cliente-unico-input').style.display = 'none';
+  document.getElementById('inp-cliente').value = group.vehicles[0]['cliente']||group.vehicles[0]['Destinatário']||'';
+
+  // Paletes: reset + linha padrão
+  document.getElementById('paletes-list').innerHTML = '';
   addPaleteRow();
+
+  // Insumos
   renderInsumosSel();
-  document.getElementById('obs-geral').value='';
+
+  // Obs
+  document.getElementById('obs-geral').value = '';
+
   goTo('screen-form');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Gera blocos de conferência por NF com dados da planilha
+// ═══════════════════════════════════════════════════════
+function renderCamposConferencia(vehicles) {
+  const container = document.getElementById('campos-conferencia');
+  container.innerHTML = '';
+
+  // Campos que queremos conferir + de onde vêm na planilha
+  const camposConfig = [
+    { nome:'Volume',         col:['Volume','Qtd','Quantidade'] },
+    { nome:'Nº NF',         col:['NF','Nº NF','Nota Fiscal','Número NF'] },
+    { nome:'Destinatário',  col:['Destinatário','Destinatario','Cliente','cliente'] },
+    { nome:'Cidade Destino',col:['Cidade Destino','Cidade','Destino'] },
+  ];
+
+  vehicles.forEach((v, idx) => {
+    // Descobre o valor de cada campo na linha da planilha
+    function val(cols) {
+      for (const c of cols) { if (v[c] && v[c].toString().trim()) return v[c].toString().trim(); }
+      return '';
+    }
+
+    const nfVal    = val(['NF','Nº NF','Nota Fiscal','Número NF']);
+    const destVal  = val(['Destinatário','Destinatario','Cliente','cliente']);
+    const cidadeVal= val(['Cidade Destino','Cidade','Destino']);
+    const volVal   = val(['Volume','Qtd','Quantidade']);
+    const motorista= val(['Motorista']);
+
+    // Sub-título do bloco
+    const titulo = nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`;
+    const detalhe = [destVal, cidadeVal, volVal ? `Vol: ${volVal}` : ''].filter(Boolean).join(' · ');
+
+    const block = document.createElement('div');
+    block.className = 'nf-block';
+    block.dataset.idx = idx;
+
+    let camposHtml = '';
+    camposConfig.forEach(cfg => {
+      const refVal = val(cfg.col);
+      const obsId  = campoObsId(idx, cfg.nome);
+      const refHtml = refVal
+        ? `<span class="campo-ref">▸ ${refVal}</span>`
+        : '';
+      camposHtml += `
+        <div class="campo-row" data-idx="${idx}" data-campo="${cfg.nome}">
+          <div class="campo-info">
+            <span class="campo-nome">${cfg.nome}</span>
+            ${refHtml}
+          </div>
+          <div class="toggle-bar">
+            <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
+            <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
+          </div>
+        </div>
+        <div class="campo-obs" id="${obsId}">
+          <input type="number" placeholder="Qtd averiguada" min="0"/>
+          <input type="text" placeholder="Observação"/>
+        </div>`;
+    });
+
+    block.innerHTML = `
+      <div class="nf-header">
+        <div class="nf-titulo">📄 ${titulo}</div>
+        ${detalhe ? `<div class="nf-detalhe">${detalhe}</div>` : ''}
+        ${motorista ? `<div class="nf-detalhe"><strong>Motorista:</strong> ${motorista}</div>` : ''}
+      </div>
+      ${camposHtml}`;
+
+    container.appendChild(block);
+  });
 }
 
 function setTipo(t) {
@@ -563,51 +699,67 @@ function setTipo(t) {
   document.getElementById('tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
   document.getElementById('tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
   document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
-  document.getElementById('insumos-tipo-label').textContent = t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
+  document.getElementById('insumos-tipo-label').textContent =
+    t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
 }
 
 function setCampo(btn, status) {
   const row  = btn.closest('.campo-row');
   const nome = row.dataset.campo;
-  const obs  = document.getElementById('obs-'+nome);
-  const btns = row.querySelectorAll('.toggle-btn');
-  btns.forEach(b=>b.classList.remove('ok-active','naook-active'));
+  const idx  = row.dataset.idx;
+  const obsId = campoObsId(idx, nome);
+  const obs  = document.getElementById(obsId);
+  row.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
   if (status==='OK')     { btn.classList.add('ok-active');    obs?.classList.remove('show'); }
   if (status==='NAO_OK') { btn.classList.add('naook-active'); obs?.classList.add('show'); }
 }
 
 function toggleClienteUnico() {
-  const checked = document.getElementById('chk-cliente-unico').checked;
-  document.getElementById('cliente-unico-input').style.display = checked?'block':'none';
+  document.getElementById('cliente-unico-input').style.display =
+    document.getElementById('chk-cliente-unico').checked ? 'block' : 'none';
 }
 
+// ── PALETES ──
 function addPaleteRow() {
   const list = document.getElementById('paletes-list');
   const row  = document.createElement('div');
   row.className = 'palete-row';
-  row.innerHTML = `<select onchange="checkOutros(this)"><option value="PBR">Palete PBR</option><option value="DESCARTAVEL">Descartável</option><option value="OUTROS">Outros</option></select><input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/><input type="number" value="1" min="0" placeholder="Qtd"/><button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
+  row.innerHTML = `
+    <select onchange="checkOutros(this)">
+      <option value="PBR">Palete PBR</option>
+      <option value="DESCARTAVEL">Descartável</option>
+      <option value="OUTROS">Outros</option>
+    </select>
+    <input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
+    <input type="number" value="1" min="0" placeholder="Qtd"/>
+    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
   list.appendChild(row);
 }
 function checkOutros(sel) {
-  sel.nextElementSibling.style.display = sel.value==='OUTROS'?'block':'none';
+  sel.nextElementSibling.style.display = sel.value==='OUTROS' ? 'block' : 'none';
 }
 
+// ── INSUMOS ──
 function renderInsumosSel() {
   const list = document.getElementById('insumos-sel-list');
   if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
-  let lastCat='';
+  let lastCat = '';
   list.innerHTML = allInsumos.map(ins=>{
-    const header = ins.categoria!==lastCat ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
+    const header = ins.categoria!==lastCat
+      ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
-    return `${header}<div class="insumo-sel"><input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/><label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label><input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/></div>`;
+    return `${header}<div class="insumo-sel">
+      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/>
+      <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
+      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+    </div>`;
   }).join('');
 }
-
 function toggleInsQtd(id) {
-  const checked = document.getElementById('ins-chk-'+id).checked;
-  document.getElementById('ins-qtd-'+id).classList.toggle('show', checked);
+  document.getElementById('ins-qtd-'+id).classList.toggle('show', document.getElementById('ins-chk-'+id).checked);
 }
 
+// ── FOTOS ──
 function handleFotos(input) {
   Array.from(input.files).forEach(file=>{
     const reader = new FileReader();
@@ -622,64 +774,119 @@ function handleFotos(input) {
   input.value='';
 }
 
+// ═══════════════════════════════════════════════════════
+//  SUBMETER CONFERÊNCIA
+// ═══════════════════════════════════════════════════════
 async function submeterConferencia() {
   const btn = document.getElementById('btn-submit');
   btn.disabled=true; loading(true);
+
   try {
-    const placa = formatPlaca(currentVehicle['Placa']||'');
+    const placa   = formatPlaca(currentVehicles[0]['Placa']||'');
     const dateVal = document.getElementById('sel-date').value;
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
-    const campos = [];
-    document.querySelectorAll('#campos-conferencia .campo-row').forEach(row=>{
-      const nome=row.dataset.campo;
-      const okBtn=row.querySelector('.ok-active');
-      const noBtn=row.querySelector('.naook-active');
-      const status=okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
-      const obsEl=document.getElementById('obs-'+nome);
-      const qtd=obsEl?.querySelector('input[type=number]')?.value||'';
-      const obs=obsEl?.querySelectorAll('input')[1]?.value||'';
-      campos.push({nome,status,quantidadeAveriguada:qtd?parseInt(qtd):null,observacao:obs});
+
+    // ── Coleta campos por bloco de NF ──
+    const nfsData = [];
+    document.querySelectorAll('#campos-conferencia .nf-block').forEach(block=>{
+      const idx  = parseInt(block.dataset.idx);
+      const v    = currentVehicles[idx] || {};
+      const campos = [];
+      block.querySelectorAll('.campo-row').forEach(row=>{
+        const nome   = row.dataset.campo;
+        const rowIdx = row.dataset.idx;
+        const okBtn  = row.querySelector('.ok-active');
+        const noBtn  = row.querySelector('.naook-active');
+        const status = okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
+        const obsId  = campoObsId(rowIdx, nome);
+        const obsEl  = document.getElementById(obsId);
+        const qtd    = obsEl?.querySelector('input[type=number]')?.value||'';
+        const obsText= obsEl?.querySelectorAll('input')[1]?.value||'';
+        campos.push({ nome, status, quantidadeAveriguada:qtd?parseInt(qtd):null, observacao:obsText });
+      });
+      nfsData.push({
+        nf:           v['NF']||v['Nº NF']||'',
+        destinatario: v['Destinatário']||v['Destinatario']||'',
+        cidadeDestino:v['Cidade Destino']||'',
+        volume:       v['Volume']||'',
+        servico:      v['Serviço']||'',
+        campos
+      });
     });
+
+    // ── Coleta paletes ──
     const paletes = [];
     document.querySelectorAll('#paletes-list .palete-row').forEach(row=>{
-      const sel=row.querySelector('select');
-      const tipo=sel.value;
-      const tipoCustom=tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
-      const qtd=parseInt(row.querySelector('input[type=number]')?.value)||0;
-      if(qtd>0) paletes.push({tipo,tipoCustom,quantidade:qtd});
+      const sel  = row.querySelector('select');
+      const tipo = sel.value;
+      const tipoCustom = tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
+      const qtd  = parseInt(row.querySelector('input[type=number]')?.value)||0;
+      if (qtd>0) paletes.push({tipo,tipoCustom,quantidade:qtd});
     });
+
+    // ── Coleta insumos ──
     const insumosSel = [];
     allInsumos.forEach(ins=>{
-      if(document.getElementById('ins-chk-'+ins.id)?.checked){
-        const qtd=parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
-        if(qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
+      if (document.getElementById('ins-chk-'+ins.id)?.checked) {
+        const qtd = parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
+        if (qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
       }
     });
+
     const clienteUnico = document.getElementById('chk-cliente-unico').checked;
-    const cliente = clienteUnico ? document.getElementById('inp-cliente').value.trim() : (currentVehicle['cliente']||'');
+    const cliente = clienteUnico ? document.getElementById('inp-cliente').value.trim() : '';
     const observacoes = document.getElementById('obs-geral').value.trim();
-    let fotosUrls=[];
-    for(const b64 of fotosBase64){ fotosUrls.push(await compressImage(b64)); }
+
+    // ── Fotos ──
+    const fotosUrls = [];
+    for (const b64 of fotosBase64) { fotosUrls.push(await compressImage(b64)); }
+
+    // ── Salva operação ──
+    const tipoOp = currentVehicles[0]._operationType || currentTipo;
     const opRef = await db.collection('operacoes').add({
-      placa, tipoOperacao:currentVehicle._operationType, tipoExecucao:currentTipo,
+      placa, tipoOperacao:tipoOp, tipoExecucao:currentTipo,
       conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-      dataRef, cliente, clienteUnico, campos, paletes, insumos:insumosSel,
+      dataRef, cliente, clienteUnico,
+      nfs:nfsData,           // array com todos os NFs do grupo
+      totalNfs:nfsData.length,
+      paletes, insumos:insumosSel,
       fotos:fotosUrls, observacoes, status:'CONCLUIDA',
-      dadosPlanilha:{motorista:currentVehicle['Motorista']||'',nf:currentVehicle['NF']||'',destinatario:currentVehicle['Destinatário']||'',cidadeDestino:currentVehicle['Cidade Destino']||'',servico:currentVehicle['Serviço']||''}
+      motorista:currentVehicles[0]['Motorista']||''
     });
-    for(const ins of insumosSel){
-      const delta = currentTipo==='SAIDA'?-ins.quantidade:ins.quantidade;
+
+    // ── Atualiza saldos dos insumos ──
+    for (const ins of insumosSel) {
+      const delta = currentTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
       const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
       const novoSaldo = (insDoc.data().saldo||0)+delta;
-      if(novoSaldo>=0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
-      await db.collection('movimentacoes').add({insumoId:ins.insumoId,insumoNome:ins.insumoNome,tipo:currentTipo,quantidade:ins.quantidade,operacaoId:opRef.id,placa,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),observacao:`Operação de ${currentTipo} - ${placa}`});
+      if (novoSaldo >= 0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
+      await db.collection('movimentacoes').add({
+        insumoId:ins.insumoId, insumoNome:ins.insumoNome,
+        tipo:currentTipo, quantidade:ins.quantidade,
+        operacaoId:opRef.id, placa,
+        conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        observacao:`${currentTipo} - ${placa}`
+      });
     }
-    const disc = campos.filter(c=>c.status==='NAO_OK');
-    for(const c of disc){
-      await db.collection('discrepancias').add({operacaoId:opRef.id,placa,campo:c.nome,observacao:c.observacao||'',quantidadeAveriguada:c.quantidadeAveriguada,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),status:'PENDENTE'});
+
+    // ── Registra discrepâncias ──
+    for (const nf of nfsData) {
+      for (const c of nf.campos.filter(x=>x.status==='NAO_OK')) {
+        await db.collection('discrepancias').add({
+          operacaoId:opRef.id, placa,
+          nf:nf.nf, destinatario:nf.destinatario,
+          campo:c.nome, observacao:c.observacao||'',
+          quantidadeAveriguada:c.quantidadeAveriguada,
+          conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+          timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+          status:'PENDENTE'
+        });
+      }
     }
+
     loading(false);
     showToast('Conferência registrada! ✔');
     await loadPlacas();
@@ -691,9 +898,16 @@ async function submeterConferencia() {
   }
 }
 
+// ═══════════════════════════════════════════════════════
+//  TELA 3: INSUMOS AVULSO
+// ═══════════════════════════════════════════════════════
 function openInsumos() {
-  insAv_fotosBase64=[];
-  document.getElementById('ins-foto-area').innerHTML=`<label class="foto-upload" for="ins-foto-input"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tirar foto</label>`;
+  insAv_fotosBase64 = [];
+  document.getElementById('ins-foto-area').innerHTML = `
+    <label class="foto-upload" for="ins-foto-input">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar foto
+    </label>`;
   setInsTipo('SAIDA');
   renderInsumosAvulso();
   document.getElementById('ins-obs').value='';
@@ -701,32 +915,36 @@ function openInsumos() {
 }
 
 function setInsTipo(t) {
-  insTipo=t;
-  document.getElementById('ins-tipo-entrada').className='tipo-opt'+(t==='ENTRADA'?' e-active':'');
-  document.getElementById('ins-tipo-saida').className='tipo-opt'+(t==='SAIDA'?' s-active':'');
+  insTipo = t;
+  document.getElementById('ins-tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
+  document.getElementById('ins-tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
 }
 
 function renderInsumosAvulso() {
-  const list=document.getElementById('ins-av-list');
-  if(!allInsumos.length){list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>';return;}
-  let lastCat='';
-  list.innerHTML=allInsumos.map(ins=>{
-    const header=ins.categoria!==lastCat?`<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>`:'';
-    lastCat=ins.categoria;
-    return `${header}<div class="insumo-sel"><input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/><label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label><input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/></div>`;
+  const list = document.getElementById('ins-av-list');
+  if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
+  let lastCat = '';
+  list.innerHTML = allInsumos.map(ins=>{
+    const header = ins.categoria!==lastCat
+      ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
+    lastCat = ins.categoria;
+    return `${header}<div class="insumo-sel">
+      <input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/>
+      <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
+      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+    </div>`;
   }).join('');
 }
-
 function toggleInsAvQtd(id) {
   document.getElementById('ins-av-qtd-'+id).classList.toggle('show', document.getElementById('ins-av-chk-'+id).checked);
 }
 
 function handleInsumosAv_Fotos(input) {
   Array.from(input.files).forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
       insAv_fotosBase64.push(e.target.result);
-      const img=document.createElement('img');
+      const img = document.createElement('img');
       img.src=e.target.result; img.className='foto-thumb';
       document.getElementById('ins-foto-area').insertBefore(img,document.querySelector('#ins-foto-area .foto-upload'));
     };
@@ -746,25 +964,44 @@ async function submeterInsumosAvulso() {
       }
     });
     if(!insumosSel.length){loading(false);showToast('Selecione pelo menos um insumo.','warning');return;}
-    const obs=document.getElementById('ins-obs').value.trim();
-    let fotosUrls=[];
+    const obs = document.getElementById('ins-obs').value.trim();
+    const fotosUrls=[];
     for(const b64 of insAv_fotosBase64){fotosUrls.push(await compressImage(b64));}
-    const opRef=await db.collection('operacoes').add({placa:'—',tipoOperacao:insTipo,tipoExecucao:insTipo,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),dataRef:getTodayTabName(),cliente:'',clienteUnico:false,campos:[],paletes:[],insumos:insumosSel,fotos:fotosUrls,observacoes:obs,status:'CONCLUIDA',tipoRegistro:'INSUMOS_AVULSO'});
+    const opRef=await db.collection('operacoes').add({
+      placa:'—', tipoOperacao:insTipo, tipoExecucao:insTipo,
+      conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+      dataRef:getTodayTabName(), cliente:'', clienteUnico:false,
+      nfs:[], paletes:[], insumos:insumosSel,
+      fotos:fotosUrls, observacoes:obs, status:'CONCLUIDA',
+      tipoRegistro:'INSUMOS_AVULSO'
+    });
     for(const ins of insumosSel){
       const delta=insTipo==='SAIDA'?-ins.quantidade:ins.quantidade;
       const insDoc=await db.collection('insumos').doc(ins.insumoId).get();
       const novoSaldo=(insDoc.data().saldo||0)+delta;
       if(novoSaldo>=0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
-      await db.collection('movimentacoes').add({insumoId:ins.insumoId,insumoNome:ins.insumoNome,tipo:insTipo,quantidade:ins.quantidade,operacaoId:opRef.id,placa:'—',conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),observacao:obs||`Insumos avulsos - ${insTipo}`});
+      await db.collection('movimentacoes').add({
+        insumoId:ins.insumoId,insumoNome:ins.insumoNome,
+        tipo:insTipo,quantidade:ins.quantidade,
+        operacaoId:opRef.id,placa:'—',
+        conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        observacao:obs||`Insumos avulsos - ${insTipo}`
+      });
     }
     loading(false);
-    showToast('Movimentação de insumos registrada! ✔');
+    showToast('Movimentação registrada! ✔');
     await loadInsumos();
     goTo('screen-placas');
   } catch(e){loading(false);console.error(e);showToast('Erro ao salvar.','error');}
 }
 
+// ═══════════════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════
 let screenHistory = ['screen-placas'];
+
 function goTo(screenId) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
