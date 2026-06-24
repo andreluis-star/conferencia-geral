@@ -165,9 +165,7 @@
   .spin-big { width:48px; height:48px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
 
-  input[type=text], input[type=number], textarea, select {
-    font-family:inherit;
-  }
+  input[type=text], input[type=number], textarea, select { font-family:inherit; }
   textarea { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px; font-size:0.88rem; resize:vertical; min-height:70px; outline:none; }
   textarea:focus { border-color:var(--blue); }
   .form-label { font-size:0.8rem; font-weight:600; color:var(--navy); display:block; margin-bottom:5px; }
@@ -187,9 +185,7 @@
   <button class="btn-logout-sm" onclick="logout()">Sair</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TELA 1: LISTA DE PLACAS
-═══════════════════════════════════════════════════ -->
+<!-- ═══ TELA 1: LISTA DE PLACAS ═══ -->
 <div class="screen active" id="screen-placas">
   <div class="screen-inner">
     <div class="date-bar">
@@ -207,7 +203,9 @@
     <div id="empty-placas" class="empty-state" style="display:none;">
       <div class="icon">📋</div>
       <p>Nenhum veículo encontrado na planilha para esta data.</p>
-      <p style="margin-top:6px;font-size:0.78rem;">Verifique se a aba <b id="empty-tab-name"></b> existe.</p>
+      <p style="margin-top:6px;font-size:0.78rem;">Aba buscada: <b id="empty-tab-name"></b></p>
+      <button onclick="mostrarDebug()" style="margin-top:10px;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.8rem;cursor:pointer;">🔍 Ver diagnóstico</button>
+      <pre id="debug-box" style="display:none;margin-top:10px;background:#f0f4fa;border-radius:8px;padding:10px;font-size:0.72rem;text-align:left;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;"></pre>
     </div>
   </div>
 </div>
@@ -218,12 +216,9 @@
   INSUMOS
 </button>
 
-<!-- ═══════════════════════════════════════════════════
-     TELA 2: FORMULÁRIO DE CONFERÊNCIA DE VEÍCULO
-═══════════════════════════════════════════════════ -->
+<!-- ═══ TELA 2: FORMULÁRIO DE CONFERÊNCIA ═══ -->
 <div class="screen" id="screen-form">
   <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
-    <!-- Sub-header fixo com info da placa -->
     <div class="form-header">
       <button class="back-btn" onclick="goBack()">◀</button>
       <div>
@@ -242,7 +237,7 @@
         </div>
       </div>
 
-      <!-- INFO DO VEÍCULO (da planilha) -->
+      <!-- INFO DO VEÍCULO -->
       <div class="form-card" id="veiculo-info-card">
         <h4>Dados do Veículo (Planilha)</h4>
         <div id="veiculo-info-body" style="font-size:0.82rem;color:#555;line-height:1.8;"></div>
@@ -252,7 +247,6 @@
       <div class="form-card">
         <h4>Conferência de Campos</h4>
         <div id="campos-conferencia">
-          <!-- Volume -->
           <div class="campo-row" data-campo="Volume">
             <span class="campo-nome">Volume</span>
             <div class="toggle-bar">
@@ -264,7 +258,6 @@
             <input type="number" placeholder="Qtd averiguada" min="0"/>
             <input type="text" placeholder="Observação" style="margin-top:4px;"/>
           </div>
-          <!-- Nº NF -->
           <div class="campo-row" data-campo="Nº NF">
             <span class="campo-nome">Nº da NF</span>
             <div class="toggle-bar">
@@ -276,7 +269,6 @@
             <input type="number" placeholder="Qtd averiguada" min="0"/>
             <input type="text" placeholder="Observação" style="margin-top:4px;"/>
           </div>
-          <!-- Destinatário -->
           <div class="campo-row" data-campo="Destinatário">
             <span class="campo-nome">Destinatário</span>
             <div class="toggle-bar">
@@ -288,7 +280,6 @@
             <input type="number" placeholder="Qtd averiguada" min="0"/>
             <input type="text" placeholder="Observação" style="margin-top:4px;"/>
           </div>
-          <!-- Cidade Destino -->
           <div class="campo-row" data-campo="Cidade Destino">
             <span class="campo-nome">Cidade Destino</span>
             <div class="toggle-bar">
@@ -314,7 +305,7 @@
         </div>
         <div id="cliente-unico-input" style="display:none;">
           <label class="form-label">Cliente</label>
-          <input type="text" class="form-input" id="inp-cliente" placeholder="Nome do cliente (auto-preenchido se disponível)"/>
+          <input type="text" class="form-input" id="inp-cliente" placeholder="Nome do cliente"/>
         </div>
       </div>
 
@@ -325,7 +316,7 @@
         <button class="btn-add-palete" onclick="addPaleteRow()">+ Adicionar tipo de palete</button>
       </div>
 
-      <!-- INSUMOS UTILIZADOS -->
+      <!-- INSUMOS -->
       <div class="form-card">
         <h4>📦 Insumos <span id="insumos-tipo-label" style="font-size:0.78rem;color:#888;">(utilizados / enviados)</span></h4>
         <div id="insumos-sel-list"></div>
@@ -354,9 +345,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TELA 3: INSUMOS AVULSO
-═══════════════════════════════════════════════════ -->
+<!-- ═══ TELA 3: INSUMOS AVULSO ═══ -->
 <div class="screen" id="screen-insumos">
   <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
     <div class="form-header">
@@ -406,9 +395,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
-// ═══════════════════════════════════════════════════════
-//  COMPRESSÃO DE IMAGEM (salva no Firestore, sem Storage)
-// ═══════════════════════════════════════════════════════
 function compressImage(dataUrl, maxSize=700, quality=0.55) {
   return new Promise(resolve => {
     const img = new Image();
@@ -420,27 +406,21 @@ function compressImage(dataUrl, maxSize=700, quality=0.55) {
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => resolve(dataUrl); // fallback sem compressão
+    img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
 }
 
-// ═══════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════
 let currentUser = null;
-let sheetVehicles = [];   // dados da planilha
-let completedOps = {};    // placa+tipo → status
+let sheetVehicles = [];
+let completedOps = {};
 let currentVehicle = null;
 let currentTipo = 'ENTRADA';
 let insTipo = 'ENTRADA';
 let allInsumos = [];
-let fotosBase64 = [];       // fotos da conferência
-let insAv_fotosBase64 = []; // fotos dos insumos avulsos
+let fotosBase64 = [];
+let insAv_fotosBase64 = [];
 
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href='index.html'; return; }
   const data = await getCurrentUserData();
@@ -449,32 +429,32 @@ auth.onAuthStateChanged(async user => {
   currentUser = data;
   document.getElementById('header-user').textContent = data.nome||data.email;
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
-
-  // Data de hoje
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('sel-date').value = today;
-
   await loadInsumos();
   await loadPlacas();
 });
 
 function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
 
-// ═══════════════════════════════════════════════════════
-//  INSUMOS DA BASE
-// ═══════════════════════════════════════════════════════
-async function loadInsumos() {
-  const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
-  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+function mostrarDebug() {
+  const box = document.getElementById('debug-box');
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+  box.textContent = window._lastSheetRaw
+    ? 'Resposta do Google (primeiros 500 chars):\n' + window._lastSheetRaw
+    : 'Nenhuma resposta capturada. Verifique se a planilha está pública.';
 }
 
-// ═══════════════════════════════════════════════════════
-//  TELA 1: PLACAS
-// ═══════════════════════════════════════════════════════
+async function loadInsumos() {
+  try {
+    const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
+    allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+  } catch(e) { console.warn('loadInsumos:', e.message); }
+}
+
 async function loadPlacas() {
   const dateVal = document.getElementById('sel-date').value;
   if (!dateVal) return;
-
   const [y,m,d] = dateVal.split('-');
   const tabName = `${d}/${m}/${y}`;
 
@@ -499,7 +479,6 @@ async function loadPlacas() {
     return;
   }
 
-  // Busca operações já realizadas para colorir as placas
   completedOps = {};
   try {
     const start = new Date(dateVal+'T00:00:00');
@@ -511,10 +490,7 @@ async function loadPlacas() {
       const op=doc.data();
       completedOps[`${op.placa}_${op.tipoExecucao}`] = op.status;
     });
-  } catch(e) {
-    console.warn('Aviso ao buscar operações:', e.message);
-    // Não bloqueia — mostra placas mesmo sem status de conclusão
-  }
+  } catch(e) { console.warn('Aviso ao buscar operações:', e.message); }
 
   renderPlacasGrid();
 }
@@ -522,25 +498,18 @@ async function loadPlacas() {
 function renderPlacasGrid() {
   const grid = document.getElementById('placas-grid');
   grid.innerHTML = '';
-
   sheetVehicles.forEach((v, idx) => {
     const placa = formatPlaca(v['Placa']||'');
     const tipo  = v._operationType;
     const motorista = (v['Motorista']||'').substring(0,20);
-
-    const key = `${placa}_${tipo==='ENTRADA_SAIDA'?'ENTRADA':tipo}`;
-    const key2= `${placa}_SAIDA`;
-    const isDoneE = completedOps[`${placa}_ENTRADA`];
-    const isDoneS = completedOps[`${placa}_SAIDA`];
-    const isDone  = tipo==='ENTRADA'?isDoneE==='CONCLUIDA':tipo==='SAIDA'?isDoneS==='CONCLUIDA':(isDoneE==='CONCLUIDA'&&isDoneS==='CONCLUIDA');
+    const isDoneE = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
+    const isDoneS = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
+    const isDone  = tipo==='ENTRADA'?isDoneE:tipo==='SAIDA'?isDoneS:(isDoneE&&isDoneS);
     const isAndam = !isDone && (isDoneE||isDoneS);
-
     const statusCls = isDone?'done':isAndam?'andamento':'';
     const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
-
-    const topoCls = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
-    const topoTxt = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
-
+    const topoCls   = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
+    const topoTxt   = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
     const el = document.createElement('div');
     el.className = `placa-card ${statusCls}`;
     el.innerHTML = `
@@ -557,27 +526,15 @@ function renderPlacasGrid() {
   });
 }
 
-// ═══════════════════════════════════════════════════════
-//  TELA 2: FORMULÁRIO DE CONFERÊNCIA
-// ═══════════════════════════════════════════════════════
 function openConferencia(vehicle, idx) {
   currentVehicle = vehicle;
   fotosBase64 = [];
-  document.getElementById('foto-area').innerHTML = `
-    <label class="foto-upload" for="foto-input">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Tirar foto
-    </label>`;
-
+  document.getElementById('foto-area').innerHTML = `<label class="foto-upload" for="foto-input"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tirar foto</label>`;
   const placa = formatPlaca(vehicle['Placa']||'');
   const tipo  = vehicle._operationType;
   document.getElementById('form-placa-title').textContent = placa;
-
-  // Determina tipo inicial
   const inicialTipo = tipo==='SAIDA'?'SAIDA':'ENTRADA';
   setTipo(inicialTipo);
-
-  // Se só tem um tipo, esconde a escolha
   if (tipo!=='ENTRADA_SAIDA') {
     document.getElementById('tipo-bar').style.opacity='0.6';
     document.getElementById('tipo-bar').style.pointerEvents='none';
@@ -586,36 +543,18 @@ function openConferencia(vehicle, idx) {
     document.getElementById('tipo-bar').style.pointerEvents='auto';
   }
   document.getElementById('form-op-sub').textContent = tipo==='ENTRADA'?'Operação de Entrada':tipo==='SAIDA'?'Operação de Saída':'Entrada e Saída';
-
-  // Info do veículo
   const campos_info = ['Motorista','cliente','Destinatário','Cidade Destino','NF','Peso','Volume','Serviço'];
-  const info = campos_info.map(k=>{
-    const v = vehicle[k]; if (!v||!v.toString().trim()) return '';
-    return `<span style="font-weight:600;color:var(--navy);">${k}:</span> ${v}`;
-  }).filter(Boolean).join(' &nbsp;|&nbsp; ');
+  const info = campos_info.map(k=>{ const v=vehicle[k]; if(!v||!v.toString().trim()) return ''; return `<span style="font-weight:600;color:var(--navy);">${k}:</span> ${v}`; }).filter(Boolean).join(' &nbsp;|&nbsp; ');
   document.getElementById('veiculo-info-body').innerHTML = info || 'Dados não disponíveis';
-
-  // Reset campos OK/NÃO OK
-  document.querySelectorAll('#campos-conferencia .toggle-btn').forEach(b=>{
-    b.classList.remove('ok-active','naook-active');
-  });
+  document.querySelectorAll('#campos-conferencia .toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
   document.querySelectorAll('.campo-obs').forEach(o=>{ o.classList.remove('show'); o.querySelectorAll('input').forEach(i=>i.value=''); });
-
-  // Auto-preenche cliente se único
   document.getElementById('chk-cliente-unico').checked = false;
   document.getElementById('cliente-unico-input').style.display='none';
   document.getElementById('inp-cliente').value = vehicle['cliente']||vehicle['Destinatário']||'';
-
-  // Paletes: reset e adiciona uma linha padrão
   document.getElementById('paletes-list').innerHTML='';
   addPaleteRow();
-
-  // Insumos
   renderInsumosSel();
-
-  // Obs
   document.getElementById('obs-geral').value='';
-
   goTo('screen-form');
 }
 
@@ -623,7 +562,6 @@ function setTipo(t) {
   currentTipo = t;
   document.getElementById('tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
   document.getElementById('tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
-  // Mostra/oculta cliente único
   document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
   document.getElementById('insumos-tipo-label').textContent = t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
 }
@@ -633,7 +571,6 @@ function setCampo(btn, status) {
   const nome = row.dataset.campo;
   const obs  = document.getElementById('obs-'+nome);
   const btns = row.querySelectorAll('.toggle-btn');
-
   btns.forEach(b=>b.classList.remove('ok-active','naook-active'));
   if (status==='OK')     { btn.classList.add('ok-active');    obs?.classList.remove('show'); }
   if (status==='NAO_OK') { btn.classList.add('naook-active'); obs?.classList.add('show'); }
@@ -644,29 +581,17 @@ function toggleClienteUnico() {
   document.getElementById('cliente-unico-input').style.display = checked?'block':'none';
 }
 
-// ── PALETES ──
 function addPaleteRow() {
   const list = document.getElementById('paletes-list');
-  const idx  = list.children.length;
   const row  = document.createElement('div');
   row.className = 'palete-row';
-  row.innerHTML = `
-    <select onchange="checkOutros(this)">
-      <option value="PBR">Palete PBR</option>
-      <option value="DESCARTAVEL">Descartável</option>
-      <option value="OUTROS">Outros</option>
-    </select>
-    <input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
-    <input type="number" value="1" min="0" placeholder="Qtd"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
+  row.innerHTML = `<select onchange="checkOutros(this)"><option value="PBR">Palete PBR</option><option value="DESCARTAVEL">Descartável</option><option value="OUTROS">Outros</option></select><input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/><input type="number" value="1" min="0" placeholder="Qtd"/><button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
   list.appendChild(row);
 }
 function checkOutros(sel) {
-  const input = sel.nextElementSibling;
-  input.style.display = sel.value==='OUTROS'?'block':'none';
+  sel.nextElementSibling.style.display = sel.value==='OUTROS'?'block':'none';
 }
 
-// ── INSUMOS ──
 function renderInsumosSel() {
   const list = document.getElementById('insumos-sel-list');
   if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
@@ -674,29 +599,22 @@ function renderInsumosSel() {
   list.innerHTML = allInsumos.map(ins=>{
     const header = ins.categoria!==lastCat ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
-    return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/>
-      <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
-      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
-    </div>`;
+    return `${header}<div class="insumo-sel"><input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/><label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label><input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/></div>`;
   }).join('');
 }
 
 function toggleInsQtd(id) {
   const checked = document.getElementById('ins-chk-'+id).checked;
-  const qtdEl = document.getElementById('ins-qtd-'+id);
-  if (checked) qtdEl.classList.add('show'); else qtdEl.classList.remove('show');
+  document.getElementById('ins-qtd-'+id).classList.toggle('show', checked);
 }
 
-// ── FOTOS ──
 function handleFotos(input) {
   Array.from(input.files).forEach(file=>{
     const reader = new FileReader();
     reader.onload = e => {
       fotosBase64.push(e.target.result);
       const img = document.createElement('img');
-      img.src = e.target.result;
-      img.className = 'foto-thumb';
+      img.src = e.target.result; img.className = 'foto-thumb';
       document.getElementById('foto-area').insertBefore(img, document.querySelector('#foto-area .foto-upload'));
     };
     reader.readAsDataURL(file);
@@ -704,130 +622,78 @@ function handleFotos(input) {
   input.value='';
 }
 
-// ── SUBMETER ──
 async function submeterConferencia() {
   const btn = document.getElementById('btn-submit');
-  btn.disabled=true;
-  loading(true);
-
+  btn.disabled=true; loading(true);
   try {
     const placa = formatPlaca(currentVehicle['Placa']||'');
     const dateVal = document.getElementById('sel-date').value;
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
-
-    // Coleta campos
     const campos = [];
     document.querySelectorAll('#campos-conferencia .campo-row').forEach(row=>{
-      const nome  = row.dataset.campo;
-      const okBtn = row.querySelector('.ok-active');
-      const noBtn = row.querySelector('.naook-active');
-      const status = okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
-      const obsEl  = document.getElementById('obs-'+nome);
-      const qtd    = obsEl?.querySelector('input[type=number]')?.value||'';
-      const obs    = obsEl?.querySelectorAll('input')[1]?.value||'';
-      campos.push({ nome, status, quantidadeAveriguada: qtd?parseInt(qtd):null, observacao:obs });
+      const nome=row.dataset.campo;
+      const okBtn=row.querySelector('.ok-active');
+      const noBtn=row.querySelector('.naook-active');
+      const status=okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
+      const obsEl=document.getElementById('obs-'+nome);
+      const qtd=obsEl?.querySelector('input[type=number]')?.value||'';
+      const obs=obsEl?.querySelectorAll('input')[1]?.value||'';
+      campos.push({nome,status,quantidadeAveriguada:qtd?parseInt(qtd):null,observacao:obs});
     });
-
-    // Coleta paletes
     const paletes = [];
     document.querySelectorAll('#paletes-list .palete-row').forEach(row=>{
-      const sel  = row.querySelector('select');
-      const tipo = sel.value;
-      const tipoCustom = tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
-      const qtd  = parseInt(row.querySelector('input[type=number]')?.value)||0;
-      if (qtd>0) paletes.push({ tipo, tipoCustom, quantidade:qtd });
+      const sel=row.querySelector('select');
+      const tipo=sel.value;
+      const tipoCustom=tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
+      const qtd=parseInt(row.querySelector('input[type=number]')?.value)||0;
+      if(qtd>0) paletes.push({tipo,tipoCustom,quantidade:qtd});
     });
-
-    // Coleta insumos selecionados
     const insumosSel = [];
     allInsumos.forEach(ins=>{
-      if (document.getElementById('ins-chk-'+ins.id)?.checked) {
-        const qtd = parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
-        if (qtd>0) insumosSel.push({ insumoId:ins.id, insumoNome:ins.nome, quantidade:qtd });
+      if(document.getElementById('ins-chk-'+ins.id)?.checked){
+        const qtd=parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
+        if(qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
       }
     });
-
     const clienteUnico = document.getElementById('chk-cliente-unico').checked;
     const cliente = clienteUnico ? document.getElementById('inp-cliente').value.trim() : (currentVehicle['cliente']||'');
     const observacoes = document.getElementById('obs-geral').value.trim();
-
-    // Fotos: comprimir e salvar base64 direto no Firestore
-    let fotosUrls = [];
-    for (const b64 of fotosBase64) {
-      const compressed = await compressImage(b64);
-      fotosUrls.push(compressed);
-    }
-
-    // Salva operação
+    let fotosUrls=[];
+    for(const b64 of fotosBase64){ fotosUrls.push(await compressImage(b64)); }
     const opRef = await db.collection('operacoes').add({
-      placa, tipoOperacao: currentVehicle._operationType, tipoExecucao: currentTipo,
-      conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      dataRef, cliente, clienteUnico,
-      campos, paletes, insumos: insumosSel,
-      fotos: fotosUrls, observacoes, status:'CONCLUIDA',
-      dadosPlanilha: {
-        motorista: currentVehicle['Motorista']||'',
-        nf: currentVehicle['NF']||'',
-        destinatario: currentVehicle['Destinatário']||'',
-        cidadeDestino: currentVehicle['Cidade Destino']||'',
-        servico: currentVehicle['Serviço']||''
-      }
+      placa, tipoOperacao:currentVehicle._operationType, tipoExecucao:currentTipo,
+      conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+      dataRef, cliente, clienteUnico, campos, paletes, insumos:insumosSel,
+      fotos:fotosUrls, observacoes, status:'CONCLUIDA',
+      dadosPlanilha:{motorista:currentVehicle['Motorista']||'',nf:currentVehicle['NF']||'',destinatario:currentVehicle['Destinatário']||'',cidadeDestino:currentVehicle['Cidade Destino']||'',servico:currentVehicle['Serviço']||''}
     });
-
-    // Atualiza saldos dos insumos
-    for (const ins of insumosSel) {
-      const delta = currentTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
+    for(const ins of insumosSel){
+      const delta = currentTipo==='SAIDA'?-ins.quantidade:ins.quantidade;
       const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
       const novoSaldo = (insDoc.data().saldo||0)+delta;
-      if (novoSaldo >= 0) {
-        await db.collection('insumos').doc(ins.insumoId).update({ saldo: novoSaldo });
-      }
-      await db.collection('movimentacoes').add({
-        insumoId: ins.insumoId, insumoNome: ins.insumoNome,
-        tipo: currentTipo, quantidade: ins.quantidade,
-        operacaoId: opRef.id, placa,
-        conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        observacao: `Operação de ${currentTipo} - ${placa}`
-      });
+      if(novoSaldo>=0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
+      await db.collection('movimentacoes').add({insumoId:ins.insumoId,insumoNome:ins.insumoNome,tipo:currentTipo,quantidade:ins.quantidade,operacaoId:opRef.id,placa,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),observacao:`Operação de ${currentTipo} - ${placa}`});
     }
-
-    // Registra discrepâncias
     const disc = campos.filter(c=>c.status==='NAO_OK');
-    for (const c of disc) {
-      await db.collection('discrepancias').add({
-        operacaoId: opRef.id, placa, campo: c.nome,
-        observacao: c.observacao||'', quantidadeAveriguada: c.quantidadeAveriguada,
-        conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        status:'PENDENTE'
-      });
+    for(const c of disc){
+      await db.collection('discrepancias').add({operacaoId:opRef.id,placa,campo:c.nome,observacao:c.observacao||'',quantidadeAveriguada:c.quantidadeAveriguada,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),status:'PENDENTE'});
     }
-
     loading(false);
     showToast('Conferência registrada! ✔');
     await loadPlacas();
     goTo('screen-placas');
-  } catch (e) {
-    loading(false);
-    console.error(e);
+  } catch(e) {
+    loading(false); console.error(e);
     showToast('Erro ao salvar. Tente novamente.','error');
     btn.disabled=false;
   }
 }
 
-// ═══════════════════════════════════════════════════════
-//  TELA 3: INSUMOS AVULSO
-// ═══════════════════════════════════════════════════════
 function openInsumos() {
-  insAv_fotosBase64 = [];
-  document.getElementById('ins-foto-area').innerHTML = `
-    <label class="foto-upload" for="ins-foto-input">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Tirar foto
-    </label>`;
+  insAv_fotosBase64=[];
+  document.getElementById('ins-foto-area').innerHTML=`<label class="foto-upload" for="ins-foto-input"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tirar foto</label>`;
   setInsTipo('SAIDA');
   renderInsumosAvulso();
   document.getElementById('ins-obs').value='';
@@ -835,40 +701,34 @@ function openInsumos() {
 }
 
 function setInsTipo(t) {
-  insTipo = t;
-  document.getElementById('ins-tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
-  document.getElementById('ins-tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
+  insTipo=t;
+  document.getElementById('ins-tipo-entrada').className='tipo-opt'+(t==='ENTRADA'?' e-active':'');
+  document.getElementById('ins-tipo-saida').className='tipo-opt'+(t==='SAIDA'?' s-active':'');
 }
 
 function renderInsumosAvulso() {
-  const list = document.getElementById('ins-av-list');
-  if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
+  const list=document.getElementById('ins-av-list');
+  if(!allInsumos.length){list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>';return;}
   let lastCat='';
-  list.innerHTML = allInsumos.map(ins=>{
-    const header = ins.categoria!==lastCat ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
-    lastCat = ins.categoria;
-    return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/>
-      <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
-      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
-    </div>`;
+  list.innerHTML=allInsumos.map(ins=>{
+    const header=ins.categoria!==lastCat?`<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>`:'';
+    lastCat=ins.categoria;
+    return `${header}<div class="insumo-sel"><input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/><label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label><input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/></div>`;
   }).join('');
 }
 
 function toggleInsAvQtd(id) {
-  const checked = document.getElementById('ins-av-chk-'+id).checked;
-  document.getElementById('ins-av-qtd-'+id).classList.toggle('show',checked);
+  document.getElementById('ins-av-qtd-'+id).classList.toggle('show', document.getElementById('ins-av-chk-'+id).checked);
 }
 
 function handleInsumosAv_Fotos(input) {
   Array.from(input.files).forEach(file=>{
-    const reader = new FileReader();
-    reader.onload = e => {
+    const reader=new FileReader();
+    reader.onload=e=>{
       insAv_fotosBase64.push(e.target.result);
-      const img = document.createElement('img');
-      img.src = e.target.result;
-      img.className = 'foto-thumb';
-      document.getElementById('ins-foto-area').insertBefore(img, document.querySelector('#ins-foto-area .foto-upload'));
+      const img=document.createElement('img');
+      img.src=e.target.result; img.className='foto-thumb';
+      document.getElementById('ins-foto-area').insertBefore(img,document.querySelector('#ins-foto-area .foto-upload'));
     };
     reader.readAsDataURL(file);
   });
@@ -878,81 +738,47 @@ function handleInsumosAv_Fotos(input) {
 async function submeterInsumosAvulso() {
   loading(true);
   try {
-    const insumosSel = [];
+    const insumosSel=[];
     allInsumos.forEach(ins=>{
-      if (document.getElementById('ins-av-chk-'+ins.id)?.checked) {
-        const qtd = parseInt(document.getElementById('ins-av-qtd-'+ins.id)?.value)||0;
-        if (qtd>0) insumosSel.push({ insumoId:ins.id, insumoNome:ins.nome, quantidade:qtd });
+      if(document.getElementById('ins-av-chk-'+ins.id)?.checked){
+        const qtd=parseInt(document.getElementById('ins-av-qtd-'+ins.id)?.value)||0;
+        if(qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
       }
     });
-
-    if (!insumosSel.length) { loading(false); showToast('Selecione pelo menos um insumo.','warning'); return; }
-
-    const obs = document.getElementById('ins-obs').value.trim();
+    if(!insumosSel.length){loading(false);showToast('Selecione pelo menos um insumo.','warning');return;}
+    const obs=document.getElementById('ins-obs').value.trim();
     let fotosUrls=[];
-    for (const b64 of insAv_fotosBase64) {
-      const compressed = await compressImage(b64);
-      fotosUrls.push(compressed);
-    }
-
-    const opRef = await db.collection('operacoes').add({
-      placa: '—', tipoOperacao: insTipo, tipoExecucao: insTipo,
-      conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      dataRef: getTodayTabName(), cliente:'', clienteUnico:false,
-      campos:[], paletes:[], insumos:insumosSel,
-      fotos:fotosUrls, observacoes:obs, status:'CONCLUIDA',
-      tipoRegistro:'INSUMOS_AVULSO'
-    });
-
-    for (const ins of insumosSel) {
-      const delta = insTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
-      const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
-      const novoSaldo = (insDoc.data().saldo||0)+delta;
-      if (novoSaldo >= 0) {
-        await db.collection('insumos').doc(ins.insumoId).update({ saldo: novoSaldo });
-      }
-      await db.collection('movimentacoes').add({
-        insumoId:ins.insumoId, insumoNome:ins.insumoNome,
-        tipo:insTipo, quantidade:ins.quantidade,
-        operacaoId:opRef.id, placa:'—',
-        conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
-        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-        observacao: obs||`Insumos avulsos - ${insTipo}`
-      });
+    for(const b64 of insAv_fotosBase64){fotosUrls.push(await compressImage(b64));}
+    const opRef=await db.collection('operacoes').add({placa:'—',tipoOperacao:insTipo,tipoExecucao:insTipo,conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),dataRef:getTodayTabName(),cliente:'',clienteUnico:false,campos:[],paletes:[],insumos:insumosSel,fotos:fotosUrls,observacoes:obs,status:'CONCLUIDA',tipoRegistro:'INSUMOS_AVULSO'});
+    for(const ins of insumosSel){
+      const delta=insTipo==='SAIDA'?-ins.quantidade:ins.quantidade;
+      const insDoc=await db.collection('insumos').doc(ins.insumoId).get();
+      const novoSaldo=(insDoc.data().saldo||0)+delta;
+      if(novoSaldo>=0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
+      await db.collection('movimentacoes').add({insumoId:ins.insumoId,insumoNome:ins.insumoNome,tipo:insTipo,quantidade:ins.quantidade,operacaoId:opRef.id,placa:'—',conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp(),observacao:obs||`Insumos avulsos - ${insTipo}`});
     }
     loading(false);
     showToast('Movimentação de insumos registrada! ✔');
     await loadInsumos();
     goTo('screen-placas');
-  } catch(e) {
-    loading(false);
-    console.error(e);
-    showToast('Erro ao salvar.','error');
-  }
+  } catch(e){loading(false);console.error(e);showToast('Erro ao salvar.','error');}
 }
 
-// ═══════════════════════════════════════════════════════
-//  NAVEGAÇÃO
-// ═══════════════════════════════════════════════════════
 let screenHistory = ['screen-placas'];
-
 function goTo(screenId) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
-  document.getElementById(screenId).scrollTop = 0;
+  document.getElementById(screenId).scrollTop=0;
   screenHistory.push(screenId);
-  // Mostra/oculta botão insumos
-  document.getElementById('btn-insumos-fixed').style.display = screenId==='screen-placas'?'flex':'none';
+  document.getElementById('btn-insumos-fixed').style.display=screenId==='screen-placas'?'flex':'none';
 }
-
 function goBack() {
   screenHistory.pop();
-  const prev = screenHistory[screenHistory.length-1]||'screen-placas';
+  const prev=screenHistory[screenHistory.length-1]||'screen-placas';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(prev).classList.add('active');
   document.getElementById(prev).scrollTop=0;
-  document.getElementById('btn-insumos-fixed').style.display = prev==='screen-placas'?'flex':'none';
+  document.getElementById('btn-insumos-fixed').style.display=prev==='screen-placas'?'flex':'none';
 }
 </script>
 </body>
