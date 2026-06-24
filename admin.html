@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Conferência Geral — Administrador</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#0d2137; --blue:#1a3a5c; --amber:#f0a500; --amber-dk:#c88600;
+    --sidebar-w:240px; --header-h:56px;
+  }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#f0f4fa; overflow-x:hidden; }
+  /* SIDEBAR */
+  #sidebar {
+    position:fixed; top:0; left:0; height:100vh; width:var(--sidebar-w);
+    background:var(--navy); color:#fff; z-index:100;
+    display:flex; flex-direction:column;
+    transition: transform 0.3s;
+  }
+  .sb-logo { padding:20px 18px 12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  .sb-logo-title { font-size:1rem; font-weight:700; color:var(--amber); line-height:1.2; }
+  .sb-logo-sub   { font-size:0.72rem; color:rgba(255,255,255,0.5); }
+  .sb-nav { flex:1; overflow-y:auto; padding:8px 0; }
+  .sb-item {
+    display:flex; align-items:center; gap:10px; padding:11px 18px;
+    color:rgba(255,255,255,0.75); cursor:pointer; font-size:0.9rem;
+    transition: background 0.15s, color 0.15s; border-left:3px solid transparent;
+    text-decoration:none;
+  }
+  .sb-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
+  .sb-item.active { background:rgba(240,165,0,0.15); color:var(--amber); border-left-color:var(--amber); font-weight:600; }
+  .sb-item svg { width:18px; height:18px; flex-shrink:0; }
+  .sb-section { padding:12px 18px 4px; font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; }
+  .sb-foot { padding:14px 18px; border-top:1px solid rgba(255,255,255,0.1); }
+  .sb-user { font-size:0.82rem; color:rgba(255,255,255,0.7); margin-bottom:8px; }
+  .btn-logout { width:100%; background:rgba(220,53,69,0.2); border:1px solid rgba(220,53,69,0.4); color:#f77; border-radius:8px; padding:7px; font-size:0.82rem; cursor:pointer; transition:background 0.2s; }
+  .btn-logout:hover { background:rgba(220,53,69,0.4); }
+  /* HEADER */
+  #topbar {
+    position:fixed; top:0; left:var(--sidebar-w); right:0; height:var(--header-h);
+    background:#fff; border-bottom:1px solid #dde3f0; z-index:99;
+    display:flex; align-items:center; justify-content:space-between; padding:0 24px;
+  }
+  #page-title { font-size:1.1rem; font-weight:700; color:var(--navy); }
+  /* MAIN */
+  #main { margin-left:var(--sidebar-w); margin-top:var(--header-h); padding:24px; }
+  .section { display:none; }
+  .section.active { display:block; }
+  /* CARDS */
+  .stat-card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  .stat-card .value { font-size:2rem; font-weight:800; color:var(--navy); }
+  .stat-card .label { font-size:0.82rem; color:#888; margin-top:2px; }
+  .stat-card .icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+  /* TABLE */
+  .table-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden; }
+  .table-card .tc-head { padding:16px 20px; border-bottom:1px solid #eef0f6; display:flex; align-items:center; justify-content:space-between; }
+  .tc-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  table.tbl { width:100%; border-collapse:collapse; }
+  table.tbl th { background:#f8f9fc; font-size:0.78rem; font-weight:700; color:#555; text-transform:uppercase; padding:10px 16px; text-align:left; border-bottom:1px solid #eef0f6; }
+  table.tbl td { padding:11px 16px; font-size:0.88rem; border-bottom:1px solid #f0f2f8; }
+  table.tbl tr:last-child td { border-bottom:none; }
+  table.tbl tr:hover td { background:#f8faff; }
+  /* BADGES */
+  .badge-ok      { background:#e6f9ee; color:#1a7a3c; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-naook   { background:#fff0f0; color:#c0392b; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-entrada { background:#e8f4ff; color:#0056b3; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-saida   { background:#fff3e0; color:#b35900; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-pendente{ background:#f5f5f5; color:#666; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  /* FORMS */
+  .form-section { background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
+  .form-section h5 { font-size:1rem; font-weight:700; color:var(--navy); margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #eef0f6; }
+  .form-label { font-size:0.82rem; font-weight:600; color:var(--blue); }
+  .form-control:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(26,58,92,0.1); }
+  .btn-navy  { background:var(--navy); color:#fff; border:none; }
+  .btn-navy:hover  { background:var(--blue); color:#fff; }
+  .btn-amber { background:var(--amber); color:var(--navy); border:none; font-weight:700; }
+  .btn-amber:hover { background:var(--amber-dk); color:#fff; }
+  /* TOAST */
+  #toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+  .toast-msg { padding:12px 20px; border-radius:10px; font-size:0.88rem; font-weight:600; opacity:0; transform:translateY(20px); transition:all 0.3s; min-width:220px; }
+  .toast-msg.show { opacity:1; transform:translateY(0); }
+  .toast-success { background:var(--navy); color:#fff; }
+  .toast-error   { background:#dc3545; color:#fff; }
+  .toast-warning { background:var(--amber); color:var(--navy); }
+  /* LOADING */
+  #global-loading { display:none; position:fixed; inset:0; background:rgba(13,33,55,0.55); z-index:9998; align-items:center; justify-content:center; }
+  .spin-big { width:48px; height:48px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  /* INSUMO ITEMS */
+  .insumo-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f0f2f8; }
+  .insumo-row:last-child { border-bottom:none; }
+  .insumo-nome { flex:1; font-size:0.9rem; font-weight:500; }
+  .insumo-cat  { font-size:0.75rem; color:#888; }
+  .insumo-saldo{ font-size:1.3rem; font-weight:800; min-width:60px; text-align:right; }
+  .saldo-ok     { color:var(--navy); }
+  .saldo-warn   { color:#e67e22; }
+  .saldo-zero   { color:#dc3545; }
+  /* PLACA COMPARATIVO */
+  .placa-comp { background:#fff; border-radius:10px; padding:14px 18px; margin-bottom:10px; box-shadow:0 1px 6px rgba(0,0,0,0.07); display:flex; align-items:center; gap:14px; }
+  .placa-tag  { background:var(--navy); color:#fff; border-radius:8px; padding:4px 12px; font-weight:800; font-size:0.92rem; letter-spacing:1px; }
+  .comp-arrow { color:#ccc; font-size:1.2rem; }
+  .comp-ok    { color:#28a745; font-weight:700; }
+  .comp-diff  { color:#dc3545; font-weight:700; }
+  /* MOBILE SIDEBAR TOGGLE */
+  #sb-toggle { display:none; background:none; border:none; cursor:pointer; padding:4px; }
+  @media(max-width:768px) {
+    #sidebar { transform:translateX(-100%); }
+    #sidebar.open { transform:translateX(0); }
+    #topbar { left:0; }
+    #main   { margin-left:0; }
+    #sb-toggle { display:block; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">🚛 Conferência Geral</div>
+    <div class="sb-logo-sub">Painel Administrativo</div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-section">Principal</div>
+    <a class="sb-item active" data-section="dashboard" onclick="showSection('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <div class="sb-section">Cadastros</div>
+    <a class="sb-item" data-section="conferentes" onclick="showSection('conferentes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/></svg>
+      Conferentes
+    </a>
+    <a class="sb-item" data-section="insumos" onclick="showSection('insumos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Insumos / Estoque
+    </a>
+    <div class="sb-section">Acompanhamento</div>
+    <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Operações
+    </a>
+    <a class="sb-item" data-section="discrepancias" onclick="showSection('discrepancias')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Discrepâncias
+    </a>
+    <a class="sb-item" data-section="paletes" onclick="showSection('paletes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      Paletes
+    </a>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-user" id="sb-user-name">Carregando…</div>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</nav>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="sb-toggle" onclick="toggleSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span id="page-title">Dashboard</span>
+  </div>
+  <div id="topbar-date" style="font-size:0.82rem;color:#888;"></div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="section active" id="sec-dashboard">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#e8f4ff;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0056b3" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          </div>
+          <div class="value" id="stat-total">—</div>
+          <div class="label">Operações Hoje</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#e8ffe8;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a7a3c" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="value text-success" id="stat-concluidas">—</div>
+          <div class="label">Concluídas</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#fff0f0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+          </div>
+          <div class="value text-danger" id="stat-disc">—</div>
+          <div class="label">Discrepâncias</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#fff8e0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b35900" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          </div>
+          <div class="value" style="color:var(--amber);" id="stat-conf">—</div>
+          <div class="label">Conferentes Ativos</div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="table-card p-3">
+          <div class="tc-title mb-3">Operações por Conferente</div>
+          <canvas id="chart-conf" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="table-card p-3">
+          <div class="tc-title mb-3">Operações por Veículo</div>
+          <canvas id="chart-veic" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">Últimas Operações</span>
+            <input type="date" id="dash-date" class="form-control form-control-sm" style="width:160px;" onchange="loadDashboard()"/>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Placa</th><th>Tipo</th><th>Conferente</th><th>Horário</th><th>Status</th></tr></thead>
+              <tbody id="dash-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONFERENTES ===== -->
+  <div class="section" id="sec-conferentes">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-section">
+          <h5>➕ Novo Conferente</h5>
+          <div class="mb-3">
+            <label class="form-label">Nome</label>
+            <input type="text" class="form-control" id="cf-nome" placeholder="Nome completo"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-control" id="cf-email" placeholder="email@exemplo.com"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Senha inicial</label>
+            <input type="password" class="form-control" id="cf-senha" placeholder="Mínimo 6 caracteres"/>
+          </div>
+          <button class="btn btn-navy w-100" onclick="addConferente()">Criar Conferente</button>
+          <div id="cf-error" class="text-danger mt-2" style="font-size:0.82rem;display:none;"></div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Conferentes Cadastrados</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Operações</th><th>Ações</th></tr></thead>
+              <tbody id="cf-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INSUMOS ===== -->
+  <div class="section" id="sec-insumos">
+    <div class="row g-3">
+      <!-- Painel de saldo atual -->
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">📦 Estoque Atual</span>
+            <button class="btn btn-sm btn-navy" onclick="showModalInsumo()">+ Novo Insumo</button>
+          </div>
+          <div id="insumos-list" style="padding:8px 16px;"></div>
+        </div>
+      </div>
+      <!-- Início de contagem -->
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5>🗓️ Início de Contagem (Inventário)</h5>
+          <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">Define a data de referência e o saldo inicial de cada insumo. Use ao realizar um inventário.</p>
+          <div class="mb-3">
+            <label class="form-label">Insumo</label>
+            <select class="form-select" id="inv-insumo"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Saldo inicial</label>
+            <input type="number" class="form-control" id="inv-saldo" placeholder="0" min="0"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Data do inventário</label>
+            <input type="date" class="form-control" id="inv-data"/>
+          </div>
+          <button class="btn btn-amber w-100" onclick="salvarInventario()">Salvar Início de Contagem</button>
+        </div>
+      </div>
+      <!-- Ajuste manual -->
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5>⚖️ Ajuste Manual de Saldo</h5>
+          <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">Para corrigir divergências ou lançar movimentações avulsas.</p>
+          <div class="mb-3">
+            <label class="form-label">Insumo</label>
+            <select class="form-select" id="adj-insumo"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="adj-tipo">
+              <option value="ENTRADA">ENTRADA (adicionar)</option>
+              <option value="SAIDA">SAÍDA (remover)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantidade</label>
+            <input type="number" class="form-control" id="adj-qtd" placeholder="0" min="1"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Observação</label>
+            <input type="text" class="form-control" id="adj-obs" placeholder="Motivo do ajuste"/>
+          </div>
+          <button class="btn btn-navy w-100" onclick="salvarAjuste()">Aplicar Ajuste</button>
+        </div>
+      </div>
+      <!-- Histórico -->
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">Histórico de Movimentações</span>
+            <select class="form-select form-select-sm" id="hist-filtro" style="width:200px;" onchange="loadHistorico()">
+              <option value="">Todos os insumos</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Data/Hora</th><th>Insumo</th><th>Tipo</th><th>Qtd</th><th>Placa</th><th>Conferente</th><th>Obs.</th></tr></thead>
+              <tbody id="hist-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPERAÇÕES ===== -->
+  <div class="section" id="sec-operacoes">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">Log de Operações</span>
+        <div class="d-flex gap-2">
+          <input type="date" id="op-data" class="form-control form-control-sm" style="width:150px;" onchange="loadOperacoes()"/>
+          <select class="form-select form-select-sm" id="op-tipo" style="width:130px;" onchange="loadOperacoes()">
+            <option value="">Todos os tipos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
+          <tbody id="op-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DISCREPÂNCIAS ===== -->
+  <div class="section" id="sec-discrepancias">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">⚠️ Campos com Não OK</span>
+        <div class="d-flex gap-2">
+          <input type="date" id="disc-data" class="form-control form-control-sm" style="width:150px;" onchange="loadDiscrepancias()"/>
+          <select class="form-select form-select-sm" id="disc-status" style="width:150px;" onchange="loadDiscrepancias()">
+            <option value="">Todos</option>
+            <option value="PENDENTE">Pendentes</option>
+            <option value="RESOLVIDA">Resolvidas</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Data</th><th>Placa</th><th>Campo</th><th>Qtd Averiguada</th><th>Observação</th><th>Conferente</th><th>Status</th><th>Ação</th></tr></thead>
+          <tbody id="disc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PALETES ===== -->
+  <div class="section" id="sec-paletes">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="form-section" style="padding:14px 20px;">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span style="font-weight:600;color:var(--navy);">Comparativo de Paletes por Veículo</span>
+            <input type="date" id="pal-data-ini" class="form-control form-control-sm" style="width:150px;"/>
+            <span style="color:#888;">até</span>
+            <input type="date" id="pal-data-fim" class="form-control form-control-sm" style="width:150px;"/>
+            <button class="btn btn-sm btn-navy" onclick="loadPaletes()">Filtrar</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Saída de Paletes × 1ª Chegada Posterior</span></div>
+          <div id="paletes-list" style="padding:12px 20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL: Detalhe Operação -->
+<div class="modal fade" id="modal-op" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title" id="modal-op-title">Detalhes da Operação</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-op-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Novo Insumo -->
+<div class="modal fade" id="modal-ins" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title">Novo Insumo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Nome do Insumo</label><input type="text" class="form-control" id="ins-nome" placeholder="Ex: Cinta Plástica"/></div>
+        <div class="mb-3"><label class="form-label">Categoria</label><input type="text" class="form-control" id="ins-cat" placeholder="Ex: Embalagem"/></div>
+        <div class="mb-3"><label class="form-label">Unidade</label><input type="text" class="form-control" id="ins-uni" placeholder="Ex: rolo, un, cx"/></div>
+        <button class="btn btn-navy w-100" onclick="salvarNovoInsumo()">Salvar Insumo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div id="global-loading"><div class="spin-big"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- Storage não utilizado neste plano -->
+<script src="firebase-config.js"></script>
+<script>
+let chartConf, chartVeic;
+let allInsumos = [];
+
+// ── INIT ──────────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  const data = await getCurrentUserData();
+  if (!data || data.role !== 'admin') { await auth.signOut(); window.location.href = 'index.html'; return; }
+  document.getElementById('sb-user-name').textContent = data.nome || data.email;
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dash-date').value = today;
+  document.getElementById('op-data').value   = today;
+  document.getElementById('disc-data').value = today;
+  document.getElementById('inv-data').value  = today;
+  const d30 = new Date(); d30.setDate(d30.getDate()-30);
+  document.getElementById('pal-data-ini').value = d30.toISOString().split('T')[0];
+  document.getElementById('pal-data-fim').value = today;
+  await loadInsumos();
+  await loadConferentes();
+  await loadDashboard();
+});
+
+function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes'};
+  document.getElementById('page-title').textContent = titles[id]||id;
+  if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
+  if (id==='operacoes')     loadOperacoes();
+  if (id==='discrepancias') loadDiscrepancias();
+  if (id==='paletes')       loadPaletes();
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+async function loadDashboard() {
+  const date = document.getElementById('dash-date').value;
+  const start = new Date(date + 'T00:00:00');
+  const end   = new Date(date + 'T23:59:59');
+
+  const ops = await db.collection('operacoes')
+    .where('timestamp','>=', firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=', firebase.firestore.Timestamp.fromDate(end))
+    .orderBy('timestamp','desc').get();
+
+  const rows = ops.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('stat-total').textContent = rows.length;
+  document.getElementById('stat-concluidas').textContent = rows.filter(r=>r.status==='CONCLUIDA').length;
+
+  // Discrepâncias
+  const discSnap = await db.collection('discrepancias')
+    .where('timestamp','>=', firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=', firebase.firestore.Timestamp.fromDate(end)).get();
+  document.getElementById('stat-disc').textContent = discSnap.size;
+
+  // Conferentes ativos
+  const cfSnap = await db.collection('users').where('role','==','conferente').where('ativo','==',true).get();
+  document.getElementById('stat-conf').textContent = cfSnap.size;
+
+  // Tabela
+  const tbody = document.getElementById('dash-tbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação nesta data</td></tr>'; }
+  else tbody.innerHTML = rows.slice(0,20).map(r=>`
+    <tr>
+      <td><b>${r.placa||'—'}</b></td>
+      <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
+      <td>${r.conferenteNome||'—'}</td>
+      <td>${fmtDate(r.timestamp)}</td>
+      <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}</td>
+    </tr>`).join('');
+
+  // Gráficos
+  const confMap={}, veicMap={};
+  rows.forEach(r=>{
+    confMap[r.conferenteNome||'—'] = (confMap[r.conferenteNome||'—']||0)+1;
+    veicMap[r.placa||'—']          = (veicMap[r.placa||'—']||0)+1;
+  });
+  buildBar('chart-conf', Object.keys(confMap), Object.values(confMap), 'rgba(26,58,92,0.8)');
+  buildBar('chart-veic', Object.keys(veicMap),  Object.values(veicMap),  'rgba(240,165,0,0.8)');
+}
+
+function buildBar(canvasId, labels, data, color) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const ref = canvasId==='chart-conf' ? chartConf : chartVeic;
+  if (ref) ref.destroy();
+  const chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, backgroundColor:color, borderRadius:6 }] }, options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{stepSize:1}}, x:{ticks:{font:{size:11}}} } } });
+  if (canvasId==='chart-conf') chartConf=chart; else chartVeic=chart;
+}
+
+// ── CONFERENTES ───────────────────────────────────────────────
+async function loadConferentes() {
+  const snap = await db.collection('users').where('role','==','conferente').get();
+  const tbody = document.getElementById('cf-tbody');
+  if (snap.empty) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px;">Nenhum conferente cadastrado</td></tr>'; return; }
+
+  // Conta ops por conferente
+  const opSnap = await db.collection('operacoes').get();
+  const opCounts = {};
+  opSnap.docs.forEach(d=>{ const id=d.data().conferenteId; opCounts[id]=(opCounts[id]||0)+1; });
+
+  tbody.innerHTML = snap.docs.map(d=>{
+    const u={id:d.id,...d.data()};
+    return `<tr>
+      <td><b>${u.nome||'—'}</b></td>
+      <td>${u.email}</td>
+      <td>${u.ativo?'<span class="badge-ok">Ativo</span>':'<span class="badge-naook">Inativo</span>'}</td>
+      <td>${opCounts[u.id]||0}</td>
+      <td>
+        <button class="btn btn-sm ${u.ativo?'btn-outline-danger':'btn-outline-success'}" onclick="toggleConferente('${u.id}',${u.ativo})">
+          ${u.ativo?'Desativar':'Ativar'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function addConferente() {
+  const errEl = document.getElementById('cf-error');
+  errEl.style.display='none';
+  const nome  = document.getElementById('cf-nome').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const senha = document.getElementById('cf-senha').value;
+  if (!nome||!email||!senha) { errEl.textContent='Preencha todos os campos.'; errEl.style.display='block'; return; }
+  loading(true);
+  const r = await createConferente(nome, email, senha);
+  loading(false);
+  if (r.ok) {
+    showToast('Conferente criado com sucesso!');
+    document.getElementById('cf-nome').value='';
+    document.getElementById('cf-email').value='';
+    document.getElementById('cf-senha').value='';
+    loadConferentes();
+  } else {
+    let msg = r.error;
+    if (msg.includes('email-already-in-use')) msg='Este e-mail já está cadastrado.';
+    errEl.textContent = msg;
+    errEl.style.display='block';
+  }
+}
+
+async function toggleConferente(uid, ativo) {
+  await db.collection('users').doc(uid).update({ ativo: !ativo });
+  showToast(ativo ? 'Conferente desativado.' : 'Conferente ativado.', ativo?'warning':'success');
+  loadConferentes();
+}
+
+// ── INSUMOS ───────────────────────────────────────────────────
+async function loadInsumos() {
+  const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
+  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Lista principal
+  const container = document.getElementById('insumos-list');
+  if (!allInsumos.length) { container.innerHTML='<p style="color:#aaa;padding:10px;">Nenhum insumo cadastrado.</p>'; return; }
+
+  let lastCat='';
+  container.innerHTML = allInsumos.map(ins=>{
+    const header = ins.categoria!==lastCat ? `<div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:10px 0 4px;">${ins.categoria}</div>` : '';
+    lastCat = ins.categoria;
+    const saldoCls = ins.saldo>10?'saldo-ok':ins.saldo>0?'saldo-warn':'saldo-zero';
+    const dataIni = ins.dataInicio ? ` <span style="font-size:0.72rem;color:#aaa;">desde ${fmtDateOnly(ins.dataInicio)}</span>` : '';
+    return `${header}<div class="insumo-row">
+      <div class="flex-grow-1">
+        <div class="insumo-nome">${ins.nome}</div>
+        <div class="insumo-cat">${ins.unidade||'un'}${dataIni}</div>
+      </div>
+      <div class="insumo-saldo ${saldoCls}">${ins.saldo}</div>
+    </div>`;
+  }).join('');
+
+  // Selects de inventário, ajuste e histórico
+  const opts = allInsumos.map(i=>`<option value="${i.id}">${i.nome}</option>`).join('');
+  document.getElementById('inv-insumo').innerHTML = opts;
+  document.getElementById('adj-insumo').innerHTML = opts;
+  const histSel = document.getElementById('hist-filtro');
+  histSel.innerHTML = '<option value="">Todos os insumos</option>' + opts;
+}
+
+function showModalInsumo() { new bootstrap.Modal(document.getElementById('modal-ins')).show(); }
+
+async function salvarNovoInsumo() {
+  const nome = document.getElementById('ins-nome').value.trim();
+  const cat  = document.getElementById('ins-cat').value.trim();
+  const uni  = document.getElementById('ins-uni').value.trim();
+  if (!nome) { showToast('Informe o nome do insumo.','error'); return; }
+  loading(true);
+  await db.collection('insumos').add({ nome, categoria:cat||'Geral', unidade:uni||'un', saldo:0, saldoInicial:0, dataInicio:null, ativo:true, criadoEm:firebase.firestore.FieldValue.serverTimestamp() });
+  loading(false);
+  bootstrap.Modal.getInstance(document.getElementById('modal-ins')).hide();
+  showToast('Insumo cadastrado!');
+  document.getElementById('ins-nome').value='';
+  document.getElementById('ins-cat').value='';
+  document.getElementById('ins-uni').value='';
+  loadInsumos();
+}
+
+async function salvarInventario() {
+  const id    = document.getElementById('inv-insumo').value;
+  const saldo = parseInt(document.getElementById('inv-saldo').value)||0;
+  const data  = document.getElementById('inv-data').value;
+  if (!id||!data) { showToast('Selecione o insumo e a data.','error'); return; }
+  loading(true);
+  const ts = firebase.firestore.Timestamp.fromDate(new Date(data+'T12:00:00'));
+  await db.collection('insumos').doc(id).update({ saldo, saldoInicial:saldo, dataInicio:ts });
+  await db.collection('movimentacoes').add({ insumoId:id, insumoNome: allInsumos.find(i=>i.id===id)?.nome||'', tipo:'INVENTARIO', quantidade:saldo, operacaoId:'inventario', placa:'—', conferenteId:'admin', conferenteNome:'Admin', timestamp:firebase.firestore.FieldValue.serverTimestamp(), observacao:`Início de contagem em ${data}` });
+  loading(false);
+  showToast('Saldo inicial salvo!');
+  loadInsumos();
+}
+
+async function salvarAjuste() {
+  const id   = document.getElementById('adj-insumo').value;
+  const tipo = document.getElementById('adj-tipo').value;
+  const qtd  = parseInt(document.getElementById('adj-qtd').value)||0;
+  const obs  = document.getElementById('adj-obs').value.trim();
+  if (!id||qtd<=0) { showToast('Selecione o insumo e informe a quantidade.','error'); return; }
+  loading(true);
+  const ins = allInsumos.find(i=>i.id===id);
+  const delta = tipo==='ENTRADA' ? qtd : -qtd;
+  const novoSaldo = (ins.saldo||0) + delta;
+  if (novoSaldo<0) { loading(false); showToast('Saldo não pode ficar negativo.','error'); return; }
+  await db.collection('insumos').doc(id).update({ saldo: novoSaldo });
+  await db.collection('movimentacoes').add({ insumoId:id, insumoNome:ins.nome, tipo, quantidade:qtd, operacaoId:'ajuste-manual', placa:'—', conferenteId:'admin', conferenteNome:'Admin', timestamp:firebase.firestore.FieldValue.serverTimestamp(), observacao: obs||'Ajuste manual' });
+  loading(false);
+  showToast('Ajuste aplicado!');
+  document.getElementById('adj-qtd').value='';
+  document.getElementById('adj-obs').value='';
+  loadInsumos();
+  loadHistorico();
+}
+
+async function loadHistorico() {
+  const filtro = document.getElementById('hist-filtro').value;
+  let q = db.collection('movimentacoes').orderBy('timestamp','desc').limit(100);
+  if (filtro) q = db.collection('movimentacoes').where('insumoId','==',filtro).orderBy('timestamp','desc').limit(100);
+  const snap = await q.get();
+  const tbody = document.getElementById('hist-tbody');
+  if (snap.empty) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Sem movimentações</td></tr>'; return; }
+  tbody.innerHTML = snap.docs.map(d=>{
+    const m={...d.data()};
+    const color = m.tipo==='ENTRADA'?'badge-entrada':m.tipo==='SAIDA'?'badge-saida':'badge-pendente';
+    return `<tr>
+      <td>${fmtDate(m.timestamp)}</td>
+      <td>${m.insumoNome||'—'}</td>
+      <td><span class="${color}">${m.tipo}</span></td>
+      <td><b>${m.quantidade}</b></td>
+      <td>${m.placa||'—'}</td>
+      <td>${m.conferenteNome||'—'}</td>
+      <td>${m.observacao||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── OPERAÇÕES ─────────────────────────────────────────────────
+async function loadOperacoes() {
+  const date = document.getElementById('op-data').value;
+  const tipo = document.getElementById('op-tipo').value;
+  if (!date) return;
+  const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
+  let q = db.collection('operacoes')
+    .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end))
+    .orderBy('timestamp','desc');
+  const snap = await q.get();
+  let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+  if (tipo) rows = rows.filter(r=>r.tipoExecucao===tipo);
+  const tbody = document.getElementById('op-tbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td>${fmtDate(r.timestamp)}</td>
+    <td><b>${r.placa||'—'}</b></td>
+    <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
+    <td>${r.cliente||'—'}</td>
+    <td>${r.conferenteNome||'—'}</td>
+    <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}</td>
+    <td><button class="btn btn-sm btn-outline-secondary" onclick="verDetalhes('${r.id}')">Ver</button></td>
+  </tr>`).join('');
+}
+
+async function verDetalhes(id) {
+  const doc = await db.collection('operacoes').doc(id).get();
+  if (!doc.exists) return;
+  const r = doc.data();
+  const campos = (r.campos||[]).map(c=>`
+    <tr>
+      <td>${c.nome}</td>
+      <td>${c.status==='OK'?'<span class="badge-ok">OK</span>':'<span class="badge-naook">NÃO OK</span>'}</td>
+      <td>${c.quantidadeAveriguada||'—'}</td>
+      <td>${c.observacao||'—'}</td>
+    </tr>`).join('');
+  const paletes = (r.paletes||[]).map(p=>`<li>${p.tipo==='OUTROS'&&p.tipoCustom?p.tipoCustom:p.tipo}: <b>${p.quantidade}</b></li>`).join('');
+  const insumos = (r.insumos||[]).map(i=>`<li>${i.insumoNome}: <b>${i.quantidade}</b></li>`).join('');
+  document.getElementById('modal-op-title').textContent = `Operação — ${r.placa||'—'} (${r.tipoExecucao})`;
+  document.getElementById('modal-op-body').innerHTML = `
+    <div class="row g-3 mb-3">
+      <div class="col-6"><small class="text-muted">Conferente</small><div><b>${r.conferenteNome||'—'}</b></div></div>
+      <div class="col-6"><small class="text-muted">Horário</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
+      <div class="col-6"><small class="text-muted">Cliente</small><div>${r.cliente||'—'}</div></div>
+      <div class="col-6"><small class="text-muted">Data ref. planilha</small><div>${r.dataRef||'—'}</div></div>
+    </div>
+    ${campos?`<h6>Campos conferidos</h6><table class="tbl mb-3"><thead><tr><th>Campo</th><th>Status</th><th>Qtd Averig.</th><th>Obs.</th></tr></thead><tbody>${campos}</tbody></table>`:''}
+    ${paletes?`<h6>Paletes</h6><ul>${paletes}</ul>`:''}
+    ${insumos?`<h6>Insumos utilizados</h6><ul>${insumos}</ul>`:''}
+    ${r.observacoes?`<h6>Observações</h6><p>${r.observacoes}</p>`:''}
+    ${(r.fotos||[]).length?`<h6>Fotos</h6><div style="display:flex;gap:8px;flex-wrap:wrap;">${r.fotos.map(f=>`<img src="${f}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`:''}
+  `;
+  new bootstrap.Modal(document.getElementById('modal-op')).show();
+}
+
+// ── DISCREPÂNCIAS ─────────────────────────────────────────────
+async function loadDiscrepancias() {
+  const date   = document.getElementById('disc-data').value;
+  const status = document.getElementById('disc-status').value;
+  let q = db.collection('discrepancias').orderBy('timestamp','desc').limit(200);
+  if (date) {
+    const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
+    q = db.collection('discrepancias').where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start)).where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).orderBy('timestamp','desc');
+  }
+  const snap = await q.get();
+  let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+  if (status) rows = rows.filter(r=>r.status===status);
+  const tbody = document.getElementById('disc-tbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma discrepância</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td>${fmtDate(r.timestamp)}</td>
+    <td><b>${r.placa||'—'}</b></td>
+    <td>${r.campo||'—'}</td>
+    <td>${r.quantidadeAveriguada||'—'}</td>
+    <td>${r.observacao||'—'}</td>
+    <td>${r.conferenteNome||'—'}</td>
+    <td>${r.status==='RESOLVIDA'?'<span class="badge-ok">Resolvida</span>':'<span class="badge-naook">Pendente</span>'}</td>
+    <td>${r.status!=='RESOLVIDA'?`<button class="btn btn-sm btn-outline-success" onclick="resolverDisc('${r.id}')">Resolver</button>`:''}</td>
+  </tr>`).join('');
+}
+
+async function resolverDisc(id) {
+  await db.collection('discrepancias').doc(id).update({ status:'RESOLVIDA', resolvidaEm:firebase.firestore.FieldValue.serverTimestamp() });
+  showToast('Discrepância marcada como resolvida.');
+  loadDiscrepancias();
+}
+
+// ── PALETES ────────────────────────────────────────────────────
+async function loadPaletes() {
+  const ini = document.getElementById('pal-data-ini').value;
+  const fim = document.getElementById('pal-data-fim').value;
+  if (!ini||!fim) return;
+  const start = firebase.firestore.Timestamp.fromDate(new Date(ini+'T00:00:00'));
+  const end   = firebase.firestore.Timestamp.fromDate(new Date(fim+'T23:59:59'));
+
+  const snap = await db.collection('operacoes')
+    .where('timestamp','>=',start).where('timestamp','<=',end)
+    .orderBy('timestamp','asc').get();
+
+  const ops = snap.docs.map(d=>({id:d.id,...d.data()}));
+  // Agrupa por placa
+  const byPlaca = {};
+  ops.forEach(op=>{
+    const p = op.placa||'?';
+    if (!byPlaca[p]) byPlaca[p]=[];
+    byPlaca[p].push(op);
+  });
+
+  const container = document.getElementById('paletes-list');
+  const items = [];
+
+  Object.entries(byPlaca).forEach(([placa, lista])=>{
+    // Encontra pares: saída seguida de entrada
+    const saidas  = lista.filter(o=>o.tipoExecucao==='SAIDA');
+    const entradas = lista.filter(o=>o.tipoExecucao==='ENTRADA');
+
+    saidas.forEach(saida=>{
+      const saidaTs = saida.timestamp?.toDate?.()?.getTime()||0;
+      const totalSaida = (saida.paletes||[]).reduce((s,p)=>s+p.quantidade,0);
+      // Primeira entrada posterior à saída
+      const proxEntrada = entradas.find(e=>(e.timestamp?.toDate?.()?.getTime()||0) > saidaTs);
+      const totalEntrada = proxEntrada ? (proxEntrada.paletes||[]).reduce((s,p)=>s+p.quantidade,0) : null;
+      const ok = totalEntrada !== null && totalEntrada >= totalSaida;
+      const diff = totalEntrada !== null ? totalEntrada - totalSaida : null;
+      items.push({ placa, saidaTs:fmtDate(saida.timestamp), totalSaida, totalEntrada, ok, diff, conferente:saida.conferenteNome });
+    });
+  });
+
+  if (!items.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período.</p>'; return; }
+
+  container.innerHTML = items.map(i=>`
+    <div class="placa-comp">
+      <div class="placa-tag">${i.placa}</div>
+      <div style="flex:1">
+        <div style="font-size:0.78rem;color:#888;">${i.saidaTs} • ${i.conferente||'—'}</div>
+        <div style="font-size:0.88rem;margin-top:2px;">
+          Saiu: <b>${i.totalSaida} palete(s)</b>
+          <span class="comp-arrow">→</span>
+          ${i.totalEntrada!==null
+            ? `Voltou: <b>${i.totalEntrada} palete(s)</b> <span class="${i.ok?'comp-ok':'comp-diff'}">${i.ok?'✔ OK':`⚠ Diferença: ${i.diff>0?'+':''}${i.diff}`}</span>`
+            : '<span style="color:#aaa;">Sem retorno registrado ainda</span>'
+          }
+        </div>
+      </div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>

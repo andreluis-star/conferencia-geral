@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Conferência Geral — Guia de Configuração</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#f0f4fa; color:#222; line-height:1.6; }
+  .container { max-width:780px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { font-size:1.8rem; color:#0d2137; margin-bottom:6px; }
+  .subtitle { color:#888; font-size:1rem; margin-bottom:36px; }
+  .step { background:#fff; border-radius:14px; padding:24px 26px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.07); position:relative; }
+  .step-num { position:absolute; top:24px; left:-14px; background:#0d2137; color:#f0a500; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; }
+  .step h2 { font-size:1.1rem; color:#0d2137; margin-bottom:10px; }
+  .step p  { font-size:0.9rem; color:#444; margin-bottom:10px; }
+  .step ul { padding-left:20px; font-size:0.9rem; color:#444; }
+  .step li { margin-bottom:6px; }
+  code { background:#f0f4fa; padding:2px 8px; border-radius:6px; font-family:'Consolas','Courier New',monospace; font-size:0.88rem; color:#c0392b; }
+  pre { background:#0d2137; color:#f0a500; padding:16px; border-radius:10px; font-size:0.82rem; overflow-x:auto; margin:12px 0; line-height:1.7; }
+  pre code { background:none; color:#f0a500; padding:0; }
+  .alert { background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:12px 16px; font-size:0.88rem; margin:14px 0; }
+  .alert strong { color:#856404; }
+  .success-box { background:#d4edda; border:1px solid #28a745; border-radius:10px; padding:14px 18px; font-size:0.9rem; margin-top:24px; }
+  .success-box h3 { color:#155724; margin-bottom:8px; }
+  .link { color:#0d2137; font-weight:700; text-decoration:none; border-bottom:2px solid #f0a500; }
+  .link:hover { color:#f0a500; }
+  .badge { display:inline-block; background:#e8f4ff; color:#0056b3; border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:600; margin-left:6px; }
+  .firestore-rules { background:#1e1e2e; color:#a6e3a1; padding:16px; border-radius:10px; font-size:0.78rem; overflow-x:auto; margin:12px 0; font-family:monospace; line-height:1.7; }
+  .rules-kw { color:#cba6f7; }
+  .rules-str { color:#f38ba8; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:0.88rem; }
+  table th { background:#f0f4fa; padding:8px 12px; text-align:left; font-weight:700; color:#0d2137; border:1px solid #dde3f0; }
+  table td { padding:8px 12px; border:1px solid #dde3f0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🚛 Conferência Geral</h1>
+  <p class="subtitle">Guia de Configuração e Deploy — Siga os passos abaixo para colocar o sistema no ar.</p>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-num">1</div>
+    <h2>Criar projeto no Firebase</h2>
+    <p>Acesse <a class="link" href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> e clique em <b>"Criar projeto"</b>.</p>
+    <ul>
+      <li>Dê o nome: <code>conferencia-geral</code></li>
+      <li>Google Analytics: opcional (pode desativar)</li>
+      <li>Aguarde a criação e clique em <b>"Continuar"</b></li>
+    </ul>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="step-num">2</div>
+    <h2>Ativar Autenticação (Email/Senha)</h2>
+    <p>No menu lateral do Firebase, vá em <b>Authentication → Sign-in method</b>.</p>
+    <ul>
+      <li>Clique em <b>"Email/senha"</b></li>
+      <li>Ative a primeira opção <b>"E-mail/senha"</b></li>
+      <li>Salve</li>
+    </ul>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="step-num">3</div>
+    <h2>Criar banco Firestore</h2>
+    <p>No menu lateral, vá em <b>Firestore Database → Criar banco de dados</b>.</p>
+    <ul>
+      <li>Selecione <b>"Iniciar no modo de produção"</b></li>
+      <li>Localização: <b>southamerica-east1 (São Paulo)</b></li>
+      <li>Clique em <b>"Ativar"</b></li>
+    </ul>
+    <p style="margin-top:12px;"><b>Depois de criado, configure as Regras de Segurança</b> (aba "Regras"):</p>
+    <div class="firestore-rules">
+<span class="rules-kw">rules_version</span> = <span class="rules-str">'2'</span>;<br>
+<span class="rules-kw">service</span> cloud.firestore {<br>
+&nbsp;&nbsp;<span class="rules-kw">match</span> /databases/{database}/documents {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="rules-kw">match</span> /{document=**} {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="rules-kw">allow</span> read, write: <span class="rules-kw">if</span> request.auth != <span class="rules-str">null</span>;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}<br>
+}
+    </div>
+    <div class="alert"><strong>⚠️ Importante:</strong> Esta regra permite acesso somente a usuários logados. É suficiente para começar com segurança.</div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="step-num">4</div>
+    <h2>Ativar Firebase Storage (para fotos)</h2>
+    <p>No menu lateral, vá em <b>Storage → Primeiros passos</b>.</p>
+    <ul>
+      <li>Selecione <b>"Iniciar no modo de produção"</b></li>
+      <li>Localização: <b>southamerica-east1</b></li>
+    </ul>
+    <p style="margin-top:12px;">Configure as regras do Storage (aba "Regras"):</p>
+    <pre><code>rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</code></pre>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="step-num">5</div>
+    <h2>Obter as credenciais do projeto <span class="badge">Mais importante</span></h2>
+    <p>No console do Firebase, clique no ícone <b>⚙️ Configurações do projeto</b> (roda dentada no menu lateral).</p>
+    <ul>
+      <li>Role a página até <b>"Seus aplicativos"</b></li>
+      <li>Clique em <b>"Web" (&lt;/&gt;)</b></li>
+      <li>Registre o app com o nome <code>conferencia-geral</code></li>
+      <li>Copie o bloco <code>firebaseConfig</code> que aparece</li>
+    </ul>
+    <p style="margin-top:12px;">Ele terá este formato:</p>
+    <pre><code>const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "conferencia-geral.firebaseapp.com",
+  projectId: "conferencia-geral",
+  storageBucket: "conferencia-geral.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123"
+};</code></pre>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="step-num">6</div>
+    <h2>Colar as credenciais no arquivo <code>firebase-config.js</code></h2>
+    <p>Abra o arquivo <code>firebase-config.js</code> nesta pasta e substitua os valores da variável <code>FIREBASE_CONFIG</code> pelos dados que você copiou no passo anterior.</p>
+    <p>O início do arquivo ficará assim:</p>
+    <pre><code>const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSy...",          // ← cole aqui
+  authDomain:        "conferencia-geral.firebaseapp.com",
+  projectId:         "conferencia-geral",
+  storageBucket:     "conferencia-geral.appspot.com",
+  messagingSenderId: "123456789",
+  appId:             "1:123456789:web:abc123"
+};</code></pre>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step">
+    <div class="step-num">7</div>
+    <h2>Fazer o deploy com Firebase Hosting <span class="badge">Gratuito</span></h2>
+    <p>O Firebase Hosting serve os arquivos na internet com HTTPS. Você precisará do Node.js instalado.</p>
+    <ul>
+      <li>Instale o Firebase CLI: abra o Prompt de Comando e execute:<br><code>npm install -g firebase-tools</code></li>
+      <li>Na pasta do projeto, execute: <code>firebase login</code></li>
+      <li>Em seguida: <code>firebase init hosting</code></li>
+      <li>Quando perguntar o diretório público, pressione Enter (usa <code>.</code> para a pasta atual)</li>
+      <li>Quando perguntar "Configure as a SPA?", digite <code>N</code></li>
+      <li>Execute: <code>firebase deploy</code></li>
+    </ul>
+    <div class="alert"><strong>💡 Alternativa mais simples:</strong> Suba os arquivos diretamente no console do Firebase em <b>Hosting → Começar</b> usando o arrastar &amp; soltar de arquivos.</div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step">
+    <div class="step-num">8</div>
+    <h2>Primeiro acesso — criar conta admin</h2>
+    <p>Após o deploy, acesse a URL do seu projeto (ex: <code>https://conferencia-geral.web.app</code>).</p>
+    <ul>
+      <li>Clique em <b>"Primeiro acesso? Criar conta de administrador"</b></li>
+      <li>Preencha seu nome, e-mail e senha</li>
+      <li>Clique em <b>Criar conta admin</b></li>
+      <li>Você será redirecionado automaticamente para o painel</li>
+    </ul>
+  </div>
+
+  <!-- ARQUIVOS -->
+  <div class="step">
+    <div class="step-num">📁</div>
+    <h2>Arquivos do sistema</h2>
+    <table>
+      <thead><tr><th>Arquivo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>firebase-config.js</code></td><td>Configuração do Firebase (editar com suas credenciais)</td></tr>
+        <tr><td><code>index.html</code></td><td>Tela de login — acessada por admin e conferentes</td></tr>
+        <tr><td><code>admin.html</code></td><td>Painel do administrador (web, desktop)</td></tr>
+        <tr><td><code>conferente.html</code></td><td>Interface mobile dos conferentes (celular)</td></tr>
+        <tr><td><code>LEIA-ME.html</code></td><td>Este guia</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- COLEÇÕES FIRESTORE -->
+  <div class="step">
+    <div class="step-num">🗄️</div>
+    <h2>Coleções criadas automaticamente no Firestore</h2>
+    <table>
+      <thead><tr><th>Coleção</th><th>Conteúdo</th></tr></thead>
+      <tbody>
+        <tr><td><code>users</code></td><td>Usuários (admin e conferentes)</td></tr>
+        <tr><td><code>insumos</code></td><td>Itens de estoque com saldo atual</td></tr>
+        <tr><td><code>movimentacoes</code></td><td>Histórico de entradas/saídas de insumos</td></tr>
+        <tr><td><code>operacoes</code></td><td>Conferências realizadas (veículos)</td></tr>
+        <tr><td><code>discrepancias</code></td><td>Campos marcados como "Não OK"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- COMPARTILHAR COM CONFERENTES -->
+  <div class="step">
+    <div class="step-num">📱</div>
+    <h2>Compartilhar com conferentes</h2>
+    <p>No painel admin, crie os conferentes com e-mail e senha. Depois envie a eles:</p>
+    <ul>
+      <li>O link do sistema (ex: <code>https://conferencia-geral.web.app</code>)</li>
+      <li>O e-mail e a senha criados para eles</li>
+      <li>No celular, eles verão automaticamente a interface mobile</li>
+      <li>Para adicionar à tela inicial do celular: abrir no Chrome → menu → "Adicionar à tela inicial"</li>
+    </ul>
+  </div>
+
+  <div class="success-box">
+    <h3>✅ Sistema pronto!</h3>
+    <p>Após configurar as credenciais e fazer o deploy, o sistema estará funcionando completamente:</p>
+    <ul style="margin-top:8px;padding-left:18px;font-size:0.9rem;">
+      <li>Admin acessa o painel web</li>
+      <li>Conferentes acessam pelo celular</li>
+      <li>Dados sincronizam em tempo real</li>
+      <li>Planilha Google Sheets é lida automaticamente</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

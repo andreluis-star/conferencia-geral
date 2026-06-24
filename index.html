@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Conferência Geral — Login</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0d2137;
+    --blue: #1a3a5c;
+    --amber: #f0a500;
+    --amber-dark: #c88600;
+    --white: #fff;
+    --gray: #f4f6fa;
+    --text: #222;
+    --muted: #888;
+    --danger: #dc3545;
+    --success: #28a745;
+    --radius: 10px;
+  }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 60%, #2a5298 100%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .card {
+    background: var(--white);
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    padding: 40px 36px 32px;
+    width: 100%;
+    max-width: 420px;
+    margin: 20px;
+  }
+  .logo-area {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .logo-icon {
+    width: 72px; height: 72px;
+    background: var(--navy);
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 16px rgba(13,33,55,0.3);
+  }
+  .logo-icon svg { width: 42px; height: 42px; }
+  h1 { font-size: 1.5rem; color: var(--navy); font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; }
+  .form-group { margin-bottom: 18px; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; padding: 13px 14px; border: 2px solid #dde3f0; border-radius: var(--radius);
+    font-size: 1rem; color: var(--text); background: var(--gray);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  input:focus { border-color: var(--blue); background: #fff; }
+  .btn-primary {
+    width: 100%; padding: 14px; background: var(--navy); color: var(--white);
+    border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 700;
+    cursor: pointer; transition: background 0.2s, transform 0.1s;
+    margin-top: 4px;
+  }
+  .btn-primary:hover { background: var(--blue); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .error-msg {
+    background: #fff0f0; border: 1px solid #f5c6cb; color: var(--danger);
+    padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; margin-top: 14px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 24px 0 20px; }
+  .divider::before, .divider::after { content:''; flex:1; height:1px; background:#e0e6f0; }
+  .divider span { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .setup-section { background: #f8f4e8; border: 1px solid #e8d8a0; border-radius: var(--radius); padding: 18px; }
+  .setup-section h3 { font-size: 0.95rem; color: #7a5500; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .setup-section .form-group { margin-bottom: 12px; }
+  .setup-section input { background: #fff; }
+  .btn-amber {
+    width: 100%; padding: 12px; background: var(--amber); color: var(--navy);
+    border: none; border-radius: var(--radius); font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-amber:hover { background: var(--amber-dark); color: #fff; }
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #setup-toggle { background: none; border: none; color: var(--amber-dark); font-size: 0.85rem; cursor: pointer; text-decoration: underline; margin-top: 8px; display: block; text-align: center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f0a500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="3" width="15" height="13" rx="2"/>
+        <path d="M16 8h4l3 5v3h-7V8z"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/>
+        <circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    </div>
+    <h1>Conferência Geral</h1>
+    <p class="subtitle">Gestão de operações logísticas</p>
+  </div>
+
+  <form id="login-form">
+    <div class="form-group">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" placeholder="seu@email.com" required autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" placeholder="••••••••" required autocomplete="current-password"/>
+    </div>
+    <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
+    <div class="error-msg" id="login-error"></div>
+  </form>
+
+  <button id="setup-toggle" onclick="toggleSetup()">Primeiro acesso? Criar conta de administrador</button>
+
+  <div id="setup-section" style="display:none;">
+    <div class="divider"><span>CONFIGURAÇÃO INICIAL</span></div>
+    <div class="setup-section">
+      <h3>⚙️ Criar conta de Administrador</h3>
+      <p style="font-size:0.8rem;color:#7a5500;margin-bottom:12px;">Use apenas uma vez para criar sua conta admin.</p>
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" id="setup-nome" placeholder="André Acosta"/>
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="setup-email" placeholder="alacosta27@gmail.com"/>
+      </div>
+      <div class="form-group">
+        <label>Senha (mín. 6 caracteres)</label>
+        <input type="password" id="setup-senha" placeholder="••••••••"/>
+      </div>
+      <div class="form-group">
+        <label>Confirmar senha</label>
+        <input type="password" id="setup-conf" placeholder="••••••••"/>
+      </div>
+      <button class="btn-amber" onclick="criarAdmin()">Criar conta admin</button>
+      <div class="error-msg" id="setup-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- Storage não utilizado neste plano -->
+<script src="firebase-config.js"></script>
+<script>
+// Verifica se já está logado
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    const data = await getCurrentUserData();
+    if (data) { redirectByRole(data); return; }
+  }
+});
+
+// Login
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-login');
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Entrando…';
+  try {
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value;
+    await auth.signInWithEmailAndPassword(email, senha);
+    const data = await getCurrentUserData();
+    redirectByRole(data);
+  } catch (err) {
+    let msg = 'E-mail ou senha incorretos.';
+    if (err.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde alguns minutos.';
+    if (err.code === 'auth/user-disabled')     msg = 'Esta conta foi desativada.';
+    errEl.textContent = msg;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = 'Entrar';
+  }
+});
+
+function toggleSetup() {
+  const s = document.getElementById('setup-section');
+  const t = document.getElementById('setup-toggle');
+  const show = s.style.display === 'none';
+  s.style.display = show ? 'block' : 'none';
+  t.textContent = show ? 'Fechar configuração inicial' : 'Primeiro acesso? Criar conta de administrador';
+}
+
+async function criarAdmin() {
+  const errEl = document.getElementById('setup-error');
+  errEl.classList.remove('show');
+  const nome  = document.getElementById('setup-nome').value.trim();
+  const email = document.getElementById('setup-email').value.trim();
+  const senha = document.getElementById('setup-senha').value;
+  const conf  = document.getElementById('setup-conf').value;
+
+  if (!nome || !email || !senha) { errEl.textContent = 'Preencha todos os campos.'; errEl.classList.add('show'); return; }
+  if (senha !== conf)             { errEl.textContent = 'As senhas não coincidem.';    errEl.classList.add('show'); return; }
+  if (senha.length < 6)          { errEl.textContent = 'Senha mínima de 6 caracteres.'; errEl.classList.add('show'); return; }
+
+  // Verifica se já existe admin
+  const snap = await db.collection('users').where('role','==','admin').limit(1).get();
+  if (!snap.empty) { errEl.textContent = 'Já existe uma conta admin. Use o login.'; errEl.classList.add('show'); return; }
+
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, senha);
+    await db.collection('users').doc(cred.user.uid).set({
+      nome, email, role: 'admin', ativo: true, criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await initInsumosPadrao();
+    window.location.href = 'admin.html';
+  } catch (err) {
+    let msg = err.message;
+    if (err.code === 'auth/email-already-in-use') msg = 'Este e-mail já está cadastrado.';
+    errEl.textContent = msg;
+    errEl.classList.add('show');
+  }
+}
+</script>
+</body>
+</html>

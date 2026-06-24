@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Conferência Geral</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --navy:#0d2137; --blue:#1a3a5c; --amber:#f0a500; --amber-dk:#c88600;
+    --green:#28a745; --red:#dc3545; --orange:#e67e22;
+    --bg:#f0f4fa; --white:#fff;
+    --radius:12px; --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  html,body { height:100%; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); }
+  body { overflow:hidden; }
+
+  /* ── HEADER ── */
+  #header {
+    background:var(--navy); color:#fff; padding:12px 16px 10px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding-top:calc(12px + env(safe-area-inset-top,0px));
+  }
+  #header-title { font-size:1rem; font-weight:700; color:var(--amber); }
+  #header-user  { font-size:0.75rem; color:rgba(255,255,255,0.6); margin-top:2px; }
+  .btn-logout-sm { background:none; border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer; }
+  #header-date { font-size:0.72rem; color:var(--amber); font-weight:600; margin-top:1px; }
+
+  /* ── SCREENS ── */
+  .screen { display:none; position:fixed; top:0; left:0; right:0; bottom:0; overflow-y:auto; }
+  .screen.active { display:block; }
+  .screen-inner { padding:16px; padding-top:calc(72px + env(safe-area-inset-top,0px)); padding-bottom:calc(24px + var(--safe-bottom)); }
+
+  /* ── DATE BAR ── */
+  .date-bar { display:flex; align-items:center; gap:8px; background:#fff; border-radius:var(--radius); padding:10px 14px; margin-bottom:14px; box-shadow:0 2px 6px rgba(0,0,0,0.07); }
+  .date-bar label { font-size:0.8rem; font-weight:600; color:var(--navy); white-space:nowrap; }
+  .date-bar input { flex:1; border:none; outline:none; font-size:0.95rem; color:var(--navy); font-weight:600; background:transparent; }
+  .btn-refresh { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:0.82rem; font-weight:700; cursor:pointer; }
+
+  /* ── PLACAS GRID ── */
+  #placas-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  @media(min-width:480px){ #placas-grid{ grid-template-columns:repeat(3,1fr); } }
+  @media(min-width:700px){ #placas-grid{ grid-template-columns:repeat(4,1fr); } }
+
+  /* ── MERCOSUL PLATE ── */
+  .placa-card {
+    cursor:pointer; border-radius:var(--radius); overflow:hidden;
+    box-shadow:0 3px 10px rgba(0,0,0,0.12); transition:transform 0.1s, box-shadow 0.1s;
+    background:#fff; border:2px solid var(--navy);
+    position:relative;
+  }
+  .placa-card:active { transform:scale(0.95); box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  .placa-card.done   { border-color:var(--green); }
+  .placa-card.andamento { border-color:var(--amber); }
+
+  .placa-topo {
+    padding:4px 8px; font-size:0.68rem; font-weight:800; letter-spacing:2px;
+    text-align:center; color:#fff; display:flex; align-items:center; justify-content:center; gap:4px;
+  }
+  .op-entrada    { background:#1a5c1a; }
+  .op-saida      { background:#7a1a1a; }
+  .op-entrada-saida { background:var(--navy); }
+
+  .placa-numero {
+    font-family:'Arial Narrow',Arial,sans-serif; font-weight:900; font-size:1.55rem;
+    letter-spacing:2px; text-align:center; padding:6px 4px 2px; color:#111; line-height:1;
+  }
+  .placa-motorista { font-size:0.65rem; color:#888; text-align:center; padding:0 4px 4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .placa-rodape { display:flex; justify-content:space-between; padding:3px 6px; background:#f8f8f8; border-top:1px solid #eee; }
+  .placa-rodape span { font-size:0.62rem; color:#aaa; }
+
+  .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
+  .dot-done      { background:var(--green); }
+  .dot-andamento { background:var(--amber); }
+  .dot-pendente  { background:#ccc; }
+
+  /* ── INSUMOS BTN ── */
+  #btn-insumos-fixed {
+    position:fixed; bottom:calc(20px + var(--safe-bottom)); right:16px; z-index:60;
+    background:var(--amber); color:var(--navy); border:none; border-radius:50px;
+    padding:14px 20px; font-size:0.9rem; font-weight:800; box-shadow:0 4px 16px rgba(240,165,0,0.5);
+    cursor:pointer; display:flex; align-items:center; gap:8px;
+    transition:transform 0.1s;
+  }
+  #btn-insumos-fixed:active { transform:scale(0.96); }
+
+  /* ── FORM SCREEN ── */
+  .form-header {
+    background:var(--navy); color:#fff; padding:12px 16px;
+    position:sticky; top:calc(56px + env(safe-area-inset-top,0px)); z-index:40;
+    display:flex; align-items:center; gap:12px;
+  }
+  .back-btn { background:none; border:none; color:#fff; cursor:pointer; padding:4px; font-size:1.1rem; }
+  .form-header-title { font-size:1rem; font-weight:700; }
+  .form-header-sub   { font-size:0.75rem; color:var(--amber); }
+
+  .form-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+  .form-card h4 { font-size:0.9rem; font-weight:700; color:var(--navy); margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+
+  /* ── CAMPO OK/NÃO OK ── */
+  .campo-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+  .campo-row:last-child { border-bottom:none; }
+  .campo-nome { flex:1; font-size:0.9rem; font-weight:500; color:#333; }
+  .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
+  .toggle-btn { padding:5px 12px; border:none; font-size:0.78rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
+  .toggle-btn.ok-active    { background:var(--green); color:#fff; }
+  .toggle-btn.naook-active { background:var(--red);   color:#fff; }
+  .campo-obs { margin-top:6px; display:none; }
+  .campo-obs.show { display:block; }
+  .campo-obs input { width:100%; border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:0.85rem; color:#333; outline:none; }
+  .campo-obs input:focus { border-color:var(--blue); }
+
+  /* ── TIPO BAR (ENTRADA / SAÍDA) ── */
+  .tipo-bar { display:flex; border-radius:var(--radius); overflow:hidden; border:2px solid var(--navy); margin-bottom:14px; }
+  .tipo-opt { flex:1; padding:11px; text-align:center; font-weight:700; font-size:0.9rem; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
+  .tipo-opt.e-active { background:#1a5c1a; color:#fff; }
+  .tipo-opt.s-active { background:#7a1a1a; color:#fff; }
+
+  /* ── PALETES ── */
+  .palete-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .palete-row select { flex:1; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; }
+  .palete-row input  { width:70px; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; text-align:center; }
+  .palete-row .rm-btn{ background:none; border:1px solid #ddd; border-radius:8px; padding:6px 10px; color:var(--red); cursor:pointer; font-size:1rem; }
+  .btn-add-palete { background:none; border:2px dashed #ccc; border-radius:8px; padding:8px; width:100%; color:#888; font-size:0.85rem; cursor:pointer; margin-top:4px; }
+  .btn-add-palete:hover { border-color:var(--navy); color:var(--navy); }
+
+  /* ── INSUMOS SELEÇÃO ── */
+  .insumo-sel { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+  .insumo-sel:last-child { border-bottom:none; }
+  .insumo-sel label { flex:1; font-size:0.88rem; }
+  .insumo-sel input[type=checkbox] { width:18px; height:18px; accent-color:var(--navy); flex-shrink:0; }
+  .insumo-sel input[type=number] { width:70px; border:1px solid #ddd; border-radius:8px; padding:6px 8px; font-size:0.85rem; text-align:center; display:none; outline:none; }
+  .insumo-sel input[type=number].show { display:block; }
+
+  /* ── FOTOS ── */
+  .foto-area { display:flex; gap:8px; flex-wrap:wrap; }
+  .foto-thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; position:relative; }
+  .foto-upload { width:80px; height:80px; border:2px dashed #ccc; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-direction:column; color:#aaa; font-size:0.72rem; gap:4px; }
+  .foto-upload:hover { border-color:var(--navy); color:var(--navy); }
+  #foto-input { display:none; }
+
+  /* ── SUBMIT ── */
+  .btn-submit { width:100%; background:var(--navy); color:#fff; border:none; border-radius:var(--radius); padding:16px; font-size:1rem; font-weight:700; cursor:pointer; margin-top:8px; letter-spacing:0.5px; }
+  .btn-submit:active { opacity:0.85; }
+  .btn-submit:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { text-align:center; padding:40px 20px; color:#aaa; }
+  .empty-state .icon { font-size:3rem; margin-bottom:12px; }
+  .empty-state p { font-size:0.9rem; }
+
+  /* ── TOAST ── */
+  #toast-container { position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast-msg { padding:10px 20px; border-radius:24px; font-size:0.88rem; font-weight:600; opacity:0; transform:translateY(-10px); transition:all 0.3s; min-width:200px; text-align:center; }
+  .toast-msg.show { opacity:1; transform:translateY(0); }
+  .toast-success { background:var(--navy); color:#fff; }
+  .toast-error   { background:var(--red); color:#fff; }
+  .toast-warning { background:var(--amber); color:var(--navy); }
+
+  /* ── LOADING ── */
+  #global-loading { display:none; position:fixed; inset:0; background:rgba(13,33,55,0.55); z-index:9998; align-items:center; justify-content:center; }
+  .spin-big { width:48px; height:48px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  input[type=text], input[type=number], textarea, select {
+    font-family:inherit;
+  }
+  textarea { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px; font-size:0.88rem; resize:vertical; min-height:70px; outline:none; }
+  textarea:focus { border-color:var(--blue); }
+  .form-label { font-size:0.8rem; font-weight:600; color:var(--navy); display:block; margin-bottom:5px; }
+  .form-input { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px 12px; font-size:0.9rem; outline:none; }
+  .form-input:focus { border-color:var(--blue); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div>
+    <div id="header-title">🚛 Conferência Geral</div>
+    <div id="header-user"></div>
+    <div id="header-date"></div>
+  </div>
+  <button class="btn-logout-sm" onclick="logout()">Sair</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TELA 1: LISTA DE PLACAS
+═══════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-placas">
+  <div class="screen-inner">
+    <div class="date-bar">
+      <label>Data:</label>
+      <input type="date" id="sel-date" onchange="loadPlacas()"/>
+      <button class="btn-refresh" onclick="loadPlacas()">↻</button>
+    </div>
+    <div id="loading-placas" class="empty-state" style="display:none;">
+      <div class="icon">⏳</div><p>Buscando dados da planilha…</p>
+    </div>
+    <div id="erro-planilha" class="empty-state" style="display:none; color:#dc3545;">
+      <div class="icon">⚠️</div><p id="erro-planilha-msg"></p>
+    </div>
+    <div id="placas-grid"></div>
+    <div id="empty-placas" class="empty-state" style="display:none;">
+      <div class="icon">📋</div>
+      <p>Nenhum veículo encontrado na planilha para esta data.</p>
+      <p style="margin-top:6px;font-size:0.78rem;">Verifique se a aba <b id="empty-tab-name"></b> existe.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BOTÃO FIXO INSUMOS -->
+<button id="btn-insumos-fixed" onclick="openInsumos()">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+  INSUMOS
+</button>
+
+<!-- ═══════════════════════════════════════════════════
+     TELA 2: FORMULÁRIO DE CONFERÊNCIA DE VEÍCULO
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-form">
+  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+    <!-- Sub-header fixo com info da placa -->
+    <div class="form-header">
+      <button class="back-btn" onclick="goBack()">◀</button>
+      <div>
+        <div class="form-header-title" id="form-placa-title">—</div>
+        <div class="form-header-sub" id="form-op-sub">—</div>
+      </div>
+    </div>
+    <div style="padding:14px 14px calc(80px + var(--safe-bottom));">
+
+      <!-- TIPO: ENTRADA / SAÍDA -->
+      <div class="form-card">
+        <h4>Tipo de Operação</h4>
+        <div class="tipo-bar" id="tipo-bar">
+          <div class="tipo-opt e-active" id="tipo-entrada" onclick="setTipo('ENTRADA')">📥 ENTRADA</div>
+          <div class="tipo-opt" id="tipo-saida"  onclick="setTipo('SAIDA')">📤 SAÍDA</div>
+        </div>
+      </div>
+
+      <!-- INFO DO VEÍCULO (da planilha) -->
+      <div class="form-card" id="veiculo-info-card">
+        <h4>Dados do Veículo (Planilha)</h4>
+        <div id="veiculo-info-body" style="font-size:0.82rem;color:#555;line-height:1.8;"></div>
+      </div>
+
+      <!-- CAMPOS DE CONFERÊNCIA -->
+      <div class="form-card">
+        <h4>Conferência de Campos</h4>
+        <div id="campos-conferencia">
+          <!-- Volume -->
+          <div class="campo-row" data-campo="Volume">
+            <span class="campo-nome">Volume</span>
+            <div class="toggle-bar">
+              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
+              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
+            </div>
+          </div>
+          <div class="campo-obs" id="obs-Volume">
+            <input type="number" placeholder="Qtd averiguada" min="0"/>
+            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
+          </div>
+          <!-- Nº NF -->
+          <div class="campo-row" data-campo="Nº NF">
+            <span class="campo-nome">Nº da NF</span>
+            <div class="toggle-bar">
+              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
+              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
+            </div>
+          </div>
+          <div class="campo-obs" id="obs-Nº NF">
+            <input type="number" placeholder="Qtd averiguada" min="0"/>
+            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
+          </div>
+          <!-- Destinatário -->
+          <div class="campo-row" data-campo="Destinatário">
+            <span class="campo-nome">Destinatário</span>
+            <div class="toggle-bar">
+              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
+              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
+            </div>
+          </div>
+          <div class="campo-obs" id="obs-Destinatário">
+            <input type="number" placeholder="Qtd averiguada" min="0"/>
+            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
+          </div>
+          <!-- Cidade Destino -->
+          <div class="campo-row" data-campo="Cidade Destino">
+            <span class="campo-nome">Cidade Destino</span>
+            <div class="toggle-bar">
+              <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
+              <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
+            </div>
+          </div>
+          <div class="campo-obs" id="obs-Cidade Destino">
+            <input type="number" placeholder="Qtd averiguada" min="0"/>
+            <input type="text" placeholder="Observação" style="margin-top:4px;"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTE ÚNICO (só SAÍDA) -->
+      <div class="form-card" id="card-cliente-unico">
+        <h4>🏢 Cliente da Viagem</h4>
+        <div style="margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
+            <input type="checkbox" id="chk-cliente-unico" onchange="toggleClienteUnico()" style="width:18px;height:18px;accent-color:var(--navy);"/>
+            Atende somente um cliente nesta viagem
+          </label>
+        </div>
+        <div id="cliente-unico-input" style="display:none;">
+          <label class="form-label">Cliente</label>
+          <input type="text" class="form-input" id="inp-cliente" placeholder="Nome do cliente (auto-preenchido se disponível)"/>
+        </div>
+      </div>
+
+      <!-- PALETES -->
+      <div class="form-card">
+        <h4>🪵 Paletes</h4>
+        <div id="paletes-list"></div>
+        <button class="btn-add-palete" onclick="addPaleteRow()">+ Adicionar tipo de palete</button>
+      </div>
+
+      <!-- INSUMOS UTILIZADOS -->
+      <div class="form-card">
+        <h4>📦 Insumos <span id="insumos-tipo-label" style="font-size:0.78rem;color:#888;">(utilizados / enviados)</span></h4>
+        <div id="insumos-sel-list"></div>
+      </div>
+
+      <!-- FOTOS -->
+      <div class="form-card">
+        <h4>📷 Fotos</h4>
+        <div class="foto-area" id="foto-area">
+          <label class="foto-upload" for="foto-input">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar foto
+          </label>
+        </div>
+        <input type="file" id="foto-input" accept="image/*" capture="environment" multiple onchange="handleFotos(this)"/>
+      </div>
+
+      <!-- OBSERVAÇÕES -->
+      <div class="form-card">
+        <h4>📝 Observações</h4>
+        <textarea id="obs-geral" placeholder="Observações gerais sobre a operação…"></textarea>
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="submeterConferencia()">✔ CONFIRMAR CONFERÊNCIA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TELA 3: INSUMOS AVULSO
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-insumos">
+  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+    <div class="form-header">
+      <button class="back-btn" onclick="goBack()">◀</button>
+      <div>
+        <div class="form-header-title">📦 Conferência de Insumos</div>
+        <div class="form-header-sub">Sem vínculo de veículo</div>
+      </div>
+    </div>
+    <div style="padding:14px 14px calc(80px + var(--safe-bottom));">
+      <div class="form-card">
+        <h4>Tipo de Movimentação</h4>
+        <div class="tipo-bar" id="ins-tipo-bar">
+          <div class="tipo-opt e-active" id="ins-tipo-entrada" onclick="setInsTipo('ENTRADA')">📥 ENTRADA</div>
+          <div class="tipo-opt" id="ins-tipo-saida" onclick="setInsTipo('SAIDA')">📤 SAÍDA</div>
+        </div>
+      </div>
+      <div class="form-card">
+        <h4>Insumos</h4>
+        <div id="ins-av-list"></div>
+      </div>
+      <div class="form-card">
+        <h4>📷 Fotos</h4>
+        <div class="foto-area" id="ins-foto-area">
+          <label class="foto-upload" for="ins-foto-input">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar foto
+          </label>
+        </div>
+        <input type="file" id="ins-foto-input" accept="image/*" capture="environment" multiple onchange="handleInsumosAv_Fotos(this)"/>
+      </div>
+      <div class="form-card">
+        <h4>📝 Observações</h4>
+        <textarea id="ins-obs" placeholder="Observações sobre a movimentação de insumos…"></textarea>
+      </div>
+      <button class="btn-submit" onclick="submeterInsumosAvulso()">✔ CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div id="global-loading"><div class="spin-big"></div></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  COMPRESSÃO DE IMAGEM (salva no Firestore, sem Storage)
+// ═══════════════════════════════════════════════════════
+function compressImage(dataUrl, maxSize=700, quality=0.55) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      canvas.width  = Math.round(img.width  * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback sem compressão
+    img.src = dataUrl;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let currentUser = null;
+let sheetVehicles = [];   // dados da planilha
+let completedOps = {};    // placa+tipo → status
+let currentVehicle = null;
+let currentTipo = 'ENTRADA';
+let insTipo = 'ENTRADA';
+let allInsumos = [];
+let fotosBase64 = [];       // fotos da conferência
+let insAv_fotosBase64 = []; // fotos dos insumos avulsos
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href='index.html'; return; }
+  const data = await getCurrentUserData();
+  if (!data) { await auth.signOut(); window.location.href='index.html'; return; }
+  if (!data.ativo) { showToast('Conta desativada. Contate o admin.','error'); await auth.signOut(); setTimeout(()=>window.location.href='index.html',2500); return; }
+  currentUser = data;
+  document.getElementById('header-user').textContent = data.nome||data.email;
+  document.getElementById('header-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+
+  // Data de hoje
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('sel-date').value = today;
+
+  await loadInsumos();
+  await loadPlacas();
+});
+
+function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
+
+// ═══════════════════════════════════════════════════════
+//  INSUMOS DA BASE
+// ═══════════════════════════════════════════════════════
+async function loadInsumos() {
+  const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
+  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+// ═══════════════════════════════════════════════════════
+//  TELA 1: PLACAS
+// ═══════════════════════════════════════════════════════
+async function loadPlacas() {
+  const dateVal = document.getElementById('sel-date').value;
+  if (!dateVal) return;
+
+  // Formata para DD/MM/AAAA (nome da aba)
+  const [y,m,d] = dateVal.split('-');
+  const tabName = `${d}/${m}/${y}`;
+
+  document.getElementById('placas-grid').innerHTML = '';
+  document.getElementById('empty-placas').style.display='none';
+  document.getElementById('erro-planilha').style.display='none';
+  document.getElementById('loading-placas').style.display='block';
+
+  sheetVehicles = await fetchSheetVehicles(tabName);
+  document.getElementById('loading-placas').style.display='none';
+
+  if (!sheetVehicles.length) {
+    document.getElementById('empty-placas').style.display='block';
+    document.getElementById('empty-tab-name').textContent = tabName;
+    return;
+  }
+
+  // Busca operações concluídas no Firestore para colorir as placas
+  completedOps = {};
+  const today = dateVal;
+  const start = new Date(today+'T00:00:00');
+  const end   = new Date(today+'T23:59:59');
+  const opsSnap = await db.collection('operacoes')
+    .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
+  opsSnap.docs.forEach(d=>{
+    const op=d.data();
+    const key = `${op.placa}_${op.tipoExecucao}`;
+    completedOps[key] = op.status;
+  });
+
+  renderPlacasGrid();
+}
+
+function renderPlacasGrid() {
+  const grid = document.getElementById('placas-grid');
+  grid.innerHTML = '';
+
+  sheetVehicles.forEach((v, idx) => {
+    const placa = formatPlaca(v['Placa']||'');
+    const tipo  = v._operationType;
+    const motorista = (v['Motorista']||'').substring(0,20);
+
+    const key = `${placa}_${tipo==='ENTRADA_SAIDA'?'ENTRADA':tipo}`;
+    const key2= `${placa}_SAIDA`;
+    const isDoneE = completedOps[`${placa}_ENTRADA`];
+    const isDoneS = completedOps[`${placa}_SAIDA`];
+    const isDone  = tipo==='ENTRADA'?isDoneE==='CONCLUIDA':tipo==='SAIDA'?isDoneS==='CONCLUIDA':(isDoneE==='CONCLUIDA'&&isDoneS==='CONCLUIDA');
+    const isAndam = !isDone && (isDoneE||isDoneS);
+
+    const statusCls = isDone?'done':isAndam?'andamento':'';
+    const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
+
+    const topoCls = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
+    const topoTxt = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
+
+    const el = document.createElement('div');
+    el.className = `placa-card ${statusCls}`;
+    el.innerHTML = `
+      <div class="placa-status-dot ${dotCls}"></div>
+      <div class="placa-topo ${topoCls}">${topoTxt}</div>
+      <div class="placa-numero">${placa||'???'}</div>
+      <div class="placa-motorista">${motorista||'—'}</div>
+      <div class="placa-rodape">
+        <span>${v['cliente']||v['Destinatário']||'—'}</span>
+        <span>${v['Cidade Destino']||''}</span>
+      </div>`;
+    el.addEventListener('click', ()=>openConferencia(v, idx));
+    grid.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  TELA 2: FORMULÁRIO DE CONFERÊNCIA
+// ═══════════════════════════════════════════════════════
+function openConferencia(vehicle, idx) {
+  currentVehicle = vehicle;
+  fotosBase64 = [];
+  document.getElementById('foto-area').innerHTML = `
+    <label class="foto-upload" for="foto-input">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar foto
+    </label>`;
+
+  const placa = formatPlaca(vehicle['Placa']||'');
+  const tipo  = vehicle._operationType;
+  document.getElementById('form-placa-title').textContent = placa;
+
+  // Determina tipo inicial
+  const inicialTipo = tipo==='SAIDA'?'SAIDA':'ENTRADA';
+  setTipo(inicialTipo);
+
+  // Se só tem um tipo, esconde a escolha
+  if (tipo!=='ENTRADA_SAIDA') {
+    document.getElementById('tipo-bar').style.opacity='0.6';
+    document.getElementById('tipo-bar').style.pointerEvents='none';
+  } else {
+    document.getElementById('tipo-bar').style.opacity='1';
+    document.getElementById('tipo-bar').style.pointerEvents='auto';
+  }
+  document.getElementById('form-op-sub').textContent = tipo==='ENTRADA'?'Operação de Entrada':tipo==='SAIDA'?'Operação de Saída':'Entrada e Saída';
+
+  // Info do veículo
+  const campos_info = ['Motorista','cliente','Destinatário','Cidade Destino','NF','Peso','Volume','Serviço'];
+  const info = campos_info.map(k=>{
+    const v = vehicle[k]; if (!v||!v.toString().trim()) return '';
+    return `<span style="font-weight:600;color:var(--navy);">${k}:</span> ${v}`;
+  }).filter(Boolean).join(' &nbsp;|&nbsp; ');
+  document.getElementById('veiculo-info-body').innerHTML = info || 'Dados não disponíveis';
+
+  // Reset campos OK/NÃO OK
+  document.querySelectorAll('#campos-conferencia .toggle-btn').forEach(b=>{
+    b.classList.remove('ok-active','naook-active');
+  });
+  document.querySelectorAll('.campo-obs').forEach(o=>{ o.classList.remove('show'); o.querySelectorAll('input').forEach(i=>i.value=''); });
+
+  // Auto-preenche cliente se único
+  document.getElementById('chk-cliente-unico').checked = false;
+  document.getElementById('cliente-unico-input').style.display='none';
+  document.getElementById('inp-cliente').value = vehicle['cliente']||vehicle['Destinatário']||'';
+
+  // Paletes: reset e adiciona uma linha padrão
+  document.getElementById('paletes-list').innerHTML='';
+  addPaleteRow();
+
+  // Insumos
+  renderInsumosSel();
+
+  // Obs
+  document.getElementById('obs-geral').value='';
+
+  goTo('screen-form');
+}
+
+function setTipo(t) {
+  currentTipo = t;
+  document.getElementById('tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
+  document.getElementById('tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
+  // Mostra/oculta cliente único
+  document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
+  document.getElementById('insumos-tipo-label').textContent = t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
+}
+
+function setCampo(btn, status) {
+  const row  = btn.closest('.campo-row');
+  const nome = row.dataset.campo;
+  const obs  = document.getElementById('obs-'+nome);
+  const btns = row.querySelectorAll('.toggle-btn');
+
+  btns.forEach(b=>b.classList.remove('ok-active','naook-active'));
+  if (status==='OK')     { btn.classList.add('ok-active');    obs?.classList.remove('show'); }
+  if (status==='NAO_OK') { btn.classList.add('naook-active'); obs?.classList.add('show'); }
+}
+
+function toggleClienteUnico() {
+  const checked = document.getElementById('chk-cliente-unico').checked;
+  document.getElementById('cliente-unico-input').style.display = checked?'block':'none';
+}
+
+// ── PALETES ──
+function addPaleteRow() {
+  const list = document.getElementById('paletes-list');
+  const idx  = list.children.length;
+  const row  = document.createElement('div');
+  row.className = 'palete-row';
+  row.innerHTML = `
+    <select onchange="checkOutros(this)">
+      <option value="PBR">Palete PBR</option>
+      <option value="DESCARTAVEL">Descartável</option>
+      <option value="OUTROS">Outros</option>
+    </select>
+    <input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
+    <input type="number" value="1" min="0" placeholder="Qtd"/>
+    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(row);
+}
+function checkOutros(sel) {
+  const input = sel.nextElementSibling;
+  input.style.display = sel.value==='OUTROS'?'block':'none';
+}
+
+// ── INSUMOS ──
+function renderInsumosSel() {
+  const list = document.getElementById('insumos-sel-list');
+  if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
+  let lastCat='';
+  list.innerHTML = allInsumos.map(ins=>{
+    const header = ins.categoria!==lastCat ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
+    lastCat = ins.categoria;
+    return `${header}<div class="insumo-sel">
+      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/>
+      <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
+      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+    </div>`;
+  }).join('');
+}
+
+function toggleInsQtd(id) {
+  const checked = document.getElementById('ins-chk-'+id).checked;
+  const qtdEl = document.getElementById('ins-qtd-'+id);
+  if (checked) qtdEl.classList.add('show'); else qtdEl.classList.remove('show');
+}
+
+// ── FOTOS ──
+function handleFotos(input) {
+  Array.from(input.files).forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      fotosBase64.push(e.target.result);
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.className = 'foto-thumb';
+      document.getElementById('foto-area').insertBefore(img, document.querySelector('#foto-area .foto-upload'));
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+// ── SUBMETER ──
+async function submeterConferencia() {
+  const btn = document.getElementById('btn-submit');
+  btn.disabled=true;
+  loading(true);
+
+  try {
+    const placa = formatPlaca(currentVehicle['Placa']||'');
+    const dateVal = document.getElementById('sel-date').value;
+    const [y,m,d] = dateVal.split('-');
+    const dataRef = `${d}/${m}/${y}`;
+
+    // Coleta campos
+    const campos = [];
+    document.querySelectorAll('#campos-conferencia .campo-row').forEach(row=>{
+      const nome  = row.dataset.campo;
+      const okBtn = row.querySelector('.ok-active');
+      const noBtn = row.querySelector('.naook-active');
+      const status = okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
+      const obsEl  = document.getElementById('obs-'+nome);
+      const qtd    = obsEl?.querySelector('input[type=number]')?.value||'';
+      const obs    = obsEl?.querySelectorAll('input')[1]?.value||'';
+      campos.push({ nome, status, quantidadeAveriguada: qtd?parseInt(qtd):null, observacao:obs });
+    });
+
+    // Coleta paletes
+    const paletes = [];
+    document.querySelectorAll('#paletes-list .palete-row').forEach(row=>{
+      const sel  = row.querySelector('select');
+      const tipo = sel.value;
+      const tipoCustom = tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
+      const qtd  = parseInt(row.querySelector('input[type=number]')?.value)||0;
+      if (qtd>0) paletes.push({ tipo, tipoCustom, quantidade:qtd });
+    });
+
+    // Coleta insumos selecionados
+    const insumosSel = [];
+    allInsumos.forEach(ins=>{
+      if (document.getElementById('ins-chk-'+ins.id)?.checked) {
+        const qtd = parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
+        if (qtd>0) insumosSel.push({ insumoId:ins.id, insumoNome:ins.nome, quantidade:qtd });
+      }
+    });
+
+    const clienteUnico = document.getElementById('chk-cliente-unico').checked;
+    const cliente = clienteUnico ? document.getElementById('inp-cliente').value.trim() : (currentVehicle['cliente']||'');
+    const observacoes = document.getElementById('obs-geral').value.trim();
+
+    // Fotos: comprimir e salvar base64 direto no Firestore
+    let fotosUrls = [];
+    for (const b64 of fotosBase64) {
+      const compressed = await compressImage(b64);
+      fotosUrls.push(compressed);
+    }
+
+    // Salva operação
+    const opRef = await db.collection('operacoes').add({
+      placa, tipoOperacao: currentVehicle._operationType, tipoExecucao: currentTipo,
+      conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      dataRef, cliente, clienteUnico,
+      campos, paletes, insumos: insumosSel,
+      fotos: fotosUrls, observacoes, status:'CONCLUIDA',
+      dadosPlanilha: {
+        motorista: currentVehicle['Motorista']||'',
+        nf: currentVehicle['NF']||'',
+        destinatario: currentVehicle['Destinatário']||'',
+        cidadeDestino: currentVehicle['Cidade Destino']||'',
+        servico: currentVehicle['Serviço']||''
+      }
+    });
+
+    // Atualiza saldos dos insumos
+    for (const ins of insumosSel) {
+      const delta = currentTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
+      const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
+      const novoSaldo = (insDoc.data().saldo||0)+delta;
+      if (novoSaldo >= 0) {
+        await db.collection('insumos').doc(ins.insumoId).update({ saldo: novoSaldo });
+      }
+      await db.collection('movimentacoes').add({
+        insumoId: ins.insumoId, insumoNome: ins.insumoNome,
+        tipo: currentTipo, quantidade: ins.quantidade,
+        operacaoId: opRef.id, placa,
+        conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        observacao: `Operação de ${currentTipo} - ${placa}`
+      });
+    }
+
+    // Registra discrepâncias
+    const disc = campos.filter(c=>c.status==='NAO_OK');
+    for (const c of disc) {
+      await db.collection('discrepancias').add({
+        operacaoId: opRef.id, placa, campo: c.nome,
+        observacao: c.observacao||'', quantidadeAveriguada: c.quantidadeAveriguada,
+        conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status:'PENDENTE'
+      });
+    }
+
+    loading(false);
+    showToast('Conferência registrada! ✔');
+    await loadPlacas();
+    goTo('screen-placas');
+  } catch (e) {
+    loading(false);
+    console.error(e);
+    showToast('Erro ao salvar. Tente novamente.','error');
+    btn.disabled=false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TELA 3: INSUMOS AVULSO
+// ═══════════════════════════════════════════════════════
+function openInsumos() {
+  insAv_fotosBase64 = [];
+  document.getElementById('ins-foto-area').innerHTML = `
+    <label class="foto-upload" for="ins-foto-input">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar foto
+    </label>`;
+  setInsTipo('SAIDA');
+  renderInsumosAvulso();
+  document.getElementById('ins-obs').value='';
+  goTo('screen-insumos');
+}
+
+function setInsTipo(t) {
+  insTipo = t;
+  document.getElementById('ins-tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
+  document.getElementById('ins-tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
+}
+
+function renderInsumosAvulso() {
+  const list = document.getElementById('ins-av-list');
+  if (!allInsumos.length) { list.innerHTML='<p style="color:#aaa;font-size:0.85rem;">Nenhum insumo cadastrado.</p>'; return; }
+  let lastCat='';
+  list.innerHTML = allInsumos.map(ins=>{
+    const header = ins.categoria!==lastCat ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
+    lastCat = ins.categoria;
+    return `${header}<div class="insumo-sel">
+      <input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/>
+      <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
+      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+    </div>`;
+  }).join('');
+}
+
+function toggleInsAvQtd(id) {
+  const checked = document.getElementById('ins-av-chk-'+id).checked;
+  document.getElementById('ins-av-qtd-'+id).classList.toggle('show',checked);
+}
+
+function handleInsumosAv_Fotos(input) {
+  Array.from(input.files).forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      insAv_fotosBase64.push(e.target.result);
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.className = 'foto-thumb';
+      document.getElementById('ins-foto-area').insertBefore(img, document.querySelector('#ins-foto-area .foto-upload'));
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+async function submeterInsumosAvulso() {
+  loading(true);
+  try {
+    const insumosSel = [];
+    allInsumos.forEach(ins=>{
+      if (document.getElementById('ins-av-chk-'+ins.id)?.checked) {
+        const qtd = parseInt(document.getElementById('ins-av-qtd-'+ins.id)?.value)||0;
+        if (qtd>0) insumosSel.push({ insumoId:ins.id, insumoNome:ins.nome, quantidade:qtd });
+      }
+    });
+
+    if (!insumosSel.length) { loading(false); showToast('Selecione pelo menos um insumo.','warning'); return; }
+
+    const obs = document.getElementById('ins-obs').value.trim();
+    let fotosUrls=[];
+    for (const b64 of insAv_fotosBase64) {
+      const compressed = await compressImage(b64);
+      fotosUrls.push(compressed);
+    }
+
+    const opRef = await db.collection('operacoes').add({
+      placa: '—', tipoOperacao: insTipo, tipoExecucao: insTipo,
+      conferenteId: currentUser.uid, conferenteNome: currentUser.nome||currentUser.email,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      dataRef: getTodayTabName(), cliente:'', clienteUnico:false,
+      campos:[], paletes:[], insumos:insumosSel,
+      fotos:fotosUrls, observacoes:obs, status:'CONCLUIDA',
+      tipoRegistro:'INSUMOS_AVULSO'
+    });
+
+    for (const ins of insumosSel) {
+      const delta = insTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
+      const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
+      const novoSaldo = (insDoc.data().saldo||0)+delta;
+      if (novoSaldo >= 0) {
+        await db.collection('insumos').doc(ins.insumoId).update({ saldo: novoSaldo });
+      }
+      await db.collection('movimentacoes').add({
+        insumoId:ins.insumoId, insumoNome:ins.insumoNome,
+        tipo:insTipo, quantidade:ins.quantidade,
+        operacaoId:opRef.id, placa:'—',
+        conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        observacao: obs||`Insumos avulsos - ${insTipo}`
+      });
+    }
+    loading(false);
+    showToast('Movimentação de insumos registrada! ✔');
+    await loadInsumos();
+    goTo('screen-placas');
+  } catch(e) {
+    loading(false);
+    console.error(e);
+    showToast('Erro ao salvar.','error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════
+let screenHistory = ['screen-placas'];
+
+function goTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  document.getElementById(screenId).scrollTop = 0;
+  screenHistory.push(screenId);
+  // Mostra/oculta botão insumos
+  document.getElementById('btn-insumos-fixed').style.display = screenId==='screen-placas'?'flex':'none';
+}
+
+function goBack() {
+  screenHistory.pop();
+  const prev = screenHistory[screenHistory.length-1]||'screen-placas';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(prev).classList.add('active');
+  document.getElementById(prev).scrollTop=0;
+  document.getElementById('btn-insumos-fixed').style.display = prev==='screen-placas'?'flex':'none';
+}
+</script>
+</body>
+</html>
