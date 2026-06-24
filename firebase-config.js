@@ -37,47 +37,55 @@ function getTodayTabName() {
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
-/** Busca os veículos de uma aba específica do Google Sheets */
+/** Busca os veículos de uma aba específica do Google Sheets.
+ *  Tenta 3 formas de encoding do nome da aba para garantir compatibilidade. */
 async function fetchSheetVehicles(tabName) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
-  try {
-    const resp = await fetch(url);
-    const text = await resp.text();
-    // Remove o prefixo que o Google adiciona: /*O_o*/\ngoogle.visualization.Query.setResponse(
-    const start = text.indexOf('{');
-    const end   = text.lastIndexOf('}');
-    if (start === -1) return [];
-    const json = JSON.parse(text.substring(start, end + 1));
-    if (!json.table || !json.table.rows) return [];
+  const candidateUrls = [
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${tabName}`,
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`,
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${tabName.replace(/\//g, '%2F')}`,
+  ];
 
-    const cols = json.table.cols.map(c => (c.label || '').trim());
-    const vehicles = [];
-
-    // Encontra o índice da coluna "Placa" ignorando espaços e capitalização
-    const placaColIdx = cols.findIndex(c => c.trim().toLowerCase() === 'placa');
-
-    json.table.rows.forEach((row, rowIdx) => {
-      if (!row.c) return;
-      const obj = { _rowIdx: rowIdx };
-      cols.forEach((col, i) => {
-        const cell = row.c[i];
-        obj[col.trim()] = cell && cell.v !== null && cell.v !== undefined ? String(cell.v).trim() : '';
-      });
-      // Busca pela coluna Placa de forma robusta
-      const placaCell = placaColIdx >= 0 ? row.c[placaColIdx] : null;
-      const placa = (placaCell && placaCell.v ? String(placaCell.v).trim() : obj['Placa'] || '').trim();
-      if (placa && placa.length >= 3) {
-        obj['Placa'] = placa; // normaliza o nome da chave
-        obj._operationType = getOperationType(obj);
-        vehicles.push(obj);
+  let json = null;
+  for (const url of candidateUrls) {
+    try {
+      const resp = await fetch(url);
+      const text = await resp.text();
+      const start = text.indexOf('{');
+      const end   = text.lastIndexOf('}');
+      if (start === -1) continue;
+      const parsed = JSON.parse(text.substring(start, end + 1));
+      if (parsed.status === 'error') continue;
+      if (parsed.table && parsed.table.rows && parsed.table.rows.length > 0) {
+        json = parsed; break;
       }
-    });
-
-    return vehicles;
-  } catch (e) {
-    console.error('Erro ao buscar planilha:', e);
-    return [];
+    } catch(e) { continue; }
   }
+
+  if (!json) return [];
+
+  const cols = json.table.cols.map(c => (c.label || '').trim());
+  const placaColIdx = cols.findIndex(c => c.toLowerCase() === 'placa');
+  const vehicles = [];
+
+  json.table.rows.forEach((row, rowIdx) => {
+    if (!row.c) return;
+    const obj = { _rowIdx: rowIdx };
+    cols.forEach((col, i) => {
+      const cell = row.c[i];
+      obj[col] = cell && cell.v !== null && cell.v !== undefined ? String(cell.v).trim() : '';
+    });
+    // Localiza a placa de forma robusta
+    const placaCell = placaColIdx >= 0 ? row.c[placaColIdx] : null;
+    const placa = (placaCell && placaCell.v ? String(placaCell.v) : obj['Placa'] || '').trim();
+    if (placa && placa.length >= 3) {
+      obj['Placa'] = placa;
+      obj._operationType = getOperationType(obj);
+      vehicles.push(obj);
+    }
+  });
+
+  return vehicles;
 }
 
 /**
