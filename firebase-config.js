@@ -53,14 +53,21 @@ async function fetchSheetVehicles(tabName) {
     const cols = json.table.cols.map(c => (c.label || '').trim());
     const vehicles = [];
 
+    // Encontra o índice da coluna "Placa" ignorando espaços e capitalização
+    const placaColIdx = cols.findIndex(c => c.trim().toLowerCase() === 'placa');
+
     json.table.rows.forEach((row, rowIdx) => {
+      if (!row.c) return;
       const obj = { _rowIdx: rowIdx };
       cols.forEach((col, i) => {
-        const cell = row.c ? row.c[i] : null;
-        obj[col] = cell && cell.v !== null && cell.v !== undefined ? String(cell.v).trim() : '';
+        const cell = row.c[i];
+        obj[col.trim()] = cell && cell.v !== null && cell.v !== undefined ? String(cell.v).trim() : '';
       });
-      const placa = (obj['Placa'] || '').trim();
-      if (placa && placa.length >= 5) {
+      // Busca pela coluna Placa de forma robusta
+      const placaCell = placaColIdx >= 0 ? row.c[placaColIdx] : null;
+      const placa = (placaCell && placaCell.v ? String(placaCell.v).trim() : obj['Placa'] || '').trim();
+      if (placa && placa.length >= 3) {
+        obj['Placa'] = placa; // normaliza o nome da chave
         obj._operationType = getOperationType(obj);
         vehicles.push(obj);
       }
