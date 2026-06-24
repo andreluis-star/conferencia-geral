@@ -681,6 +681,9 @@ function renderCamposConferencia(vehicles) {
     const volVal    = col(v, 'E', 'Volume');
     const motorista = col(v, 'B', 'Motorista');
 
+    // Ignora linhas sem nenhum campo relevante preenchido
+    if (!nfVal && !destVal && !cidadeVal && !volVal) return;
+
     // Sub-título do bloco
     const titulo = nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`;
     const detalhe = [destVal, cidadeVal, volVal ? `Vol: ${volVal}` : ''].filter(Boolean).join(' · ');
