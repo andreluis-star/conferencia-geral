@@ -44,12 +44,20 @@ async function getSheetId() {
     const doc = await db.collection('config').doc('app').get();
     if (doc.exists && doc.data().sheetId) {
       _sheetIdCache = doc.data().sheetId;
+      console.log('[SheetID] Usando do Firestore:', _sheetIdCache);
       return _sheetIdCache;
     }
-  } catch(e) { /* silencioso — usa fallback */ }
+  } catch(e) {
+    console.warn('[SheetID] Falha ao ler config do Firestore:', e.message,
+      '— verifique se a coleção "config" tem permissão nas Regras do Firestore.');
+  }
+  console.warn('[SheetID] Usando padrão (não configurado ou erro):', SHEET_ID_DEFAULT);
   _sheetIdCache = SHEET_ID_DEFAULT;
   return _sheetIdCache;
 }
+
+/** Retorna o ID atualmente em cache (para exibição de diagnóstico) */
+function getActiveSheetIdSync() { return _sheetIdCache || SHEET_ID_DEFAULT; }
 
 /** Invalida o cache (chamar após salvar novo sheetId) */
 function resetSheetIdCache() { _sheetIdCache = null; }
@@ -71,15 +79,19 @@ function getTodayTabName() {
 /** Busca os veículos de uma aba específica do Google Sheets. */
 async function fetchSheetVehicles(tabName) {
   const SHEET_ID = await getSheetId();
-  // Usa CSV export — mais simples e confiável que gviz
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-  const jsonUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+  // Cache-buster evita que o browser retorne dados antigos de outra aba
+  const bust = Date.now();
+  const csvUrl  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_t=${bust}`;
+  const jsonUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}&_t=${bust}`;
+
+  console.log(`[Sheet] ID="${SHEET_ID}" aba="${tabName}"`);
 
   // --- tenta JSON primeiro ---
   try {
-    const resp = await fetch(jsonUrl);
+    const resp = await fetch(jsonUrl, { cache: 'no-store' });
     const text = await resp.text();
-    window._lastSheetRaw = text.substring(0, 300); // debug
+    window._lastSheetRaw  = text.substring(0, 300); // debug
+    window._activeSheetId = SHEET_ID;               // para exibição de diagnóstico
 
     const start = text.indexOf('{');
     const end   = text.lastIndexOf('}');
@@ -94,9 +106,10 @@ async function fetchSheetVehicles(tabName) {
 
   // --- fallback: CSV ---
   try {
-    const resp = await fetch(csvUrl);
+    const resp = await fetch(csvUrl, { cache: 'no-store' });
     const text = await resp.text();
-    window._lastSheetRaw = text.substring(0, 300); // debug
+    window._lastSheetRaw  = text.substring(0, 300); // debug
+    window._activeSheetId = SHEET_ID;
     return parseCsv(text);
   } catch(e) { console.warn('gviz CSV falhou:', e.message); }
 
