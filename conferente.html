@@ -154,12 +154,25 @@
   .tipo-opt.s-active { background:#7a1a1a; color:#fff; }
 
   /* ── PALETES ── */
-  .palete-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-  .palete-row select { flex:1; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; }
-  .palete-row input  { width:70px; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; text-align:center; }
+  .palete-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .palete-row select { flex:1; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; min-width:100px; }
+  .palete-row input[type=number]  { width:70px; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:0.85rem; outline:none; text-align:center; transition:border-color 0.2s, background 0.2s; }
   .palete-row .rm-btn{ background:none; border:1px solid #ddd; border-radius:8px; padding:6px 10px; color:var(--red); cursor:pointer; font-size:1rem; }
   .btn-add-palete { background:none; border:2px dashed #ccc; border-radius:8px; padding:8px; width:100%; color:#888; font-size:0.85rem; cursor:pointer; margin-top:4px; }
   .btn-add-palete:hover { border-color:var(--navy); color:var(--navy); }
+
+  /* Paletes — retorno de saída */
+  .palete-retorno-banner {
+    background:#fff8e1; border:1px solid var(--amber); border-radius:8px;
+    padding:9px 12px; margin-bottom:10px; font-size:0.83rem; color:#7a5800;
+    display:flex; align-items:center; gap:8px; line-height:1.4;
+  }
+  .saiu-badge {
+    font-size:0.68rem; background:#e8f0fe; color:#1a3a5c; border-radius:10px;
+    padding:2px 7px; font-weight:700; flex-shrink:0; white-space:nowrap;
+  }
+  .palete-row.diverge input[type=number] { border-color:var(--red) !important; background:#fff5f5; }
+  .palete-row.ok-ret  input[type=number] { border-color:var(--green) !important; background:#f0fff4; }
 
   /* ── INSUMOS SELEÇÃO ── */
   .insumo-sel { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
@@ -300,6 +313,7 @@
       <!-- PALETES -->
       <div class="form-card">
         <h4>🪵 Paletes</h4>
+        <div id="palete-retorno-banner"></div>
         <div id="paletes-list"></div>
         <button class="btn-add-palete" onclick="addPaleteRow()">+ Adicionar tipo de palete</button>
       </div>
@@ -407,16 +421,17 @@ function compressImage(dataUrl, maxSize=700, quality=0.55) {
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-let currentUser    = null;
-let sheetVehicles  = [];     // todas as linhas da planilha
-let groupedByPlate = [];     // [ { placa, tipo, vehicles:[] }, ... ]
-let completedOps   = {};     // `${placa}_${tipo}` → status
-let currentVehicles = [];    // grupo selecionado para conferência
-let currentTipo    = 'ENTRADA';
-let insTipo        = 'ENTRADA';
-let allInsumos     = [];
-let fotosBase64    = [];
+let currentUser       = null;
+let sheetVehicles     = [];     // todas as linhas da planilha
+let groupedByPlate    = [];     // [ { placa, tipo, vehicles:[] }, ... ]
+let completedOps      = {};     // `${placa}_${tipo}` → status
+let currentVehicles   = [];     // grupo selecionado para conferência
+let currentTipo       = 'ENTRADA';
+let insTipo           = 'ENTRADA';
+let allInsumos        = [];
+let fotosBase64       = [];
 let insAv_fotosBase64 = [];
+let paletesUltimaSaida = [];    // paletes da última SAÍDA desta placa (para checar retorno)
 
 // ═══════════════════════════════════════════════════════
 //  INIT
@@ -588,7 +603,7 @@ function campoObsId(rowIdx, nomeCampo) {
 // ═══════════════════════════════════════════════════════
 //  TELA 2: FORMULÁRIO — abre com grupo de NFs
 // ═══════════════════════════════════════════════════════
-function openConferencia(group) {
+async function openConferencia(group) {
   currentVehicles = group.vehicles;
   fotosBase64 = [];
 
@@ -627,9 +642,10 @@ function openConferencia(group) {
   document.getElementById('cliente-unico-input').style.display = 'none';
   document.getElementById('inp-cliente').value = group.vehicles[0]['cliente']||group.vehicles[0]['Destinatário']||'';
 
-  // Paletes: reset + linha padrão
+  // Paletes: busca última saída para verificar retorno
   document.getElementById('paletes-list').innerHTML = '';
-  addPaleteRow();
+  document.getElementById('palete-retorno-banner').innerHTML = '';
+  await setupPaletes(group.placa, inicialTipo);
 
   // Insumos
   renderInsumosSel();
@@ -771,6 +787,91 @@ function checkOutros(sel) {
   sel.nextElementSibling.style.display = sel.value==='OUTROS' ? 'block' : 'none';
 }
 
+// ── PALETES: SETUP DE RETORNO ──────────────────────────────────
+/**
+ * Para ENTRADA: busca a última SAÍDA desta placa no Firestore e pré-preenche
+ * os paletes com o que saiu, para o conferente confirmar o retorno.
+ * Para SAÍDA: adiciona linha vazia normal.
+ */
+async function setupPaletes(placa, tipo) {
+  paletesUltimaSaida = [];
+
+  if (tipo === 'ENTRADA') {
+    try {
+      // Busca todas as operações desta placa e filtra SAÍDA em JS
+      // (evita índice composto no Firestore)
+      const snap = await db.collection('operacoes')
+        .where('placa', '==', placa).get();
+
+      const saidas = snap.docs
+        .map(d => d.data())
+        .filter(op => op.tipoExecucao === 'SAIDA' && op.paletes?.length > 0)
+        .sort((a, b) =>
+          (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
+        );
+
+      if (saidas.length > 0) {
+        paletesUltimaSaida = saidas[0].paletes || [];
+      }
+    } catch(e) { console.warn('setupPaletes:', e.message); }
+  }
+
+  if (paletesUltimaSaida.length > 0) {
+    const total = paletesUltimaSaida.reduce((s, p) => s + (p.quantidade || 0), 0);
+    document.getElementById('palete-retorno-banner').innerHTML = `
+      <span style="font-size:1.1rem;">🔄</span>
+      <span>Na última saída, saíram <strong>${total} palete(s)</strong> com este veículo.
+      Confirme abaixo a quantidade que está <strong>retornando</strong>.</span>`;
+    paletesUltimaSaida.forEach(p =>
+      addPaleteRetornoRow(p.tipo, p.tipoCustom || '', p.quantidade || 0)
+    );
+  } else {
+    if (tipo === 'ENTRADA') {
+      document.getElementById('palete-retorno-banner').innerHTML = `
+        <span style="font-size:1rem;">ℹ️</span>
+        <span style="color:#888;">Nenhuma saída anterior registrada para este veículo.</span>`;
+    }
+    addPaleteRow();
+  }
+}
+
+/**
+ * Cria uma linha de palete pré-preenchida com tipo e qtd da última saída.
+ * O conferente edita a qtd para o que está realmente retornando.
+ */
+function addPaleteRetornoRow(tipo, tipoCustom, qtdSaiu) {
+  const list = document.getElementById('paletes-list');
+  const row  = document.createElement('div');
+  row.className = 'palete-row';
+  row.dataset.qtdSaiu = qtdSaiu;
+  row.innerHTML = `
+    <select onchange="checkOutros(this)">
+      <option value="PBR"         ${tipo==='PBR'         ?'selected':''}>Palete PBR</option>
+      <option value="DESCARTAVEL" ${tipo==='DESCARTAVEL'  ?'selected':''}>Descartável</option>
+      <option value="OUTROS"      ${tipo==='OUTROS'       ?'selected':''}>Outros</option>
+    </select>
+    <input type="text" class="outros-input" value="${tipoCustom}"
+      placeholder="Qual tipo?"
+      style="display:${tipo==='OUTROS'?'block':'none'};flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
+    <span class="saiu-badge">↑ Saiu: ${qtdSaiu}</span>
+    <input type="number" value="${qtdSaiu}" min="0" placeholder="Retornando"
+      oninput="checkPaleteDiverg(this)"/>
+    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(row);
+  // Aplica cor inicial (verde se bate, sem cor ao abrir)
+  checkPaleteDiverg(row.querySelector('input[type=number]'));
+}
+
+/** Marca a linha visualmente se a qtd retornada diverge do que saiu */
+function checkPaleteDiverg(input) {
+  const row  = input.closest('.palete-row');
+  const saiu = parseInt(row.dataset.qtdSaiu);
+  const ret  = parseInt(input.value) || 0;
+  if (isNaN(saiu)) { row.classList.remove('diverge','ok-ret'); return; }
+  row.classList.toggle('diverge', ret !== saiu);
+  row.classList.toggle('ok-ret',  ret === saiu);
+}
+
 // ── INSUMOS ──
 function renderInsumosSel() {
   const list = document.getElementById('insumos-sel-list');
@@ -898,9 +999,11 @@ async function submeterConferencia() {
       conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
       dataRef, cliente, clienteUnico,
-      nfs:nfsData,           // array com todos os NFs do grupo
+      nfs:nfsData,
       totalNfs:nfsData.length,
-      paletes, insumos:insumosSel,
+      paletes,
+      paletesEsperados: paletesUltimaSaida,   // o que saiu na operação anterior
+      insumos:insumosSel,
       fotos:fotosUrls, observacoes, status:'CONCLUIDA',
       motorista:currentVehicles[0]['Motorista']||''
     });
@@ -921,18 +1024,63 @@ async function submeterConferencia() {
       });
     }
 
-    // ── Registra discrepâncias ──
+    // ── Discrepâncias de NF (NÃO OK) ──
     for (const nf of nfsData) {
-      for (const c of nf.campos.filter(x=>x.status==='NAO_OK')) {
+      if (nf.status === 'NAO_OK') {
         await db.collection('discrepancias').add({
+          tipo: 'NF',
           operacaoId:opRef.id, placa,
-          nf:nf.nf, destinatario:nf.destinatario,
-          campo:c.nome, observacao:c.observacao||'',
-          quantidadeAveriguada:c.quantidadeAveriguada,
+          nf:nf.nf, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
+          observacao:nf.observacao||'',
+          quantidadeAveriguada:nf.quantidadeAveriguada||null,
           conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
           timestamp:firebase.firestore.FieldValue.serverTimestamp(),
           status:'PENDENTE'
         });
+      }
+    }
+
+    // ── Discrepâncias de Palete (retorno divergente) ──
+    if (currentTipo === 'ENTRADA' && paletesUltimaSaida.length > 0) {
+      for (const esp of paletesUltimaSaida) {
+        const tipoKey = esp.tipo === 'OUTROS' ? (esp.tipoCustom||'OUTROS') : esp.tipo;
+        const retornado = paletes.find(p =>
+          (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
+        );
+        const qtdRet = retornado?.quantidade || 0;
+        if (qtdRet !== esp.quantidade) {
+          await db.collection('discrepancias').add({
+            tipo: 'PALETE',
+            operacaoId:opRef.id, placa,
+            tipoKey,
+            qtdEsperada: esp.quantidade,
+            qtdRetornada: qtdRet,
+            diferenca: qtdRet - esp.quantidade,
+            conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+            timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+            status:'PENDENTE'
+          });
+        }
+      }
+      // Paletes que retornaram mas não estavam no esperado
+      for (const ret of paletes) {
+        const tipoKey = ret.tipo === 'OUTROS' ? (ret.tipoCustom||'OUTROS') : ret.tipo;
+        const esperado = paletesUltimaSaida.find(p =>
+          (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
+        );
+        if (!esperado && ret.quantidade > 0) {
+          await db.collection('discrepancias').add({
+            tipo: 'PALETE',
+            operacaoId:opRef.id, placa,
+            tipoKey,
+            qtdEsperada: 0,
+            qtdRetornada: ret.quantidade,
+            diferenca: ret.quantidade,
+            conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+            timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+            status:'PENDENTE'
+          });
+        }
       }
     }
 
