@@ -150,6 +150,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
       Paletes
     </a>
+    <div class="sb-section">Sistema</div>
+    <a class="sb-item" data-section="config" onclick="showSection('config')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações
+    </a>
   </div>
   <div class="sb-foot">
     <div class="sb-user" id="sb-user-name">Carregando…</div>
@@ -384,11 +389,16 @@
   <div class="section" id="sec-discrepancias">
     <div class="table-card">
       <div class="tc-head">
-        <span class="tc-title">⚠️ Campos com Não OK</span>
-        <div class="d-flex gap-2">
+        <span class="tc-title">⚠️ Discrepâncias</span>
+        <div class="d-flex gap-2 flex-wrap">
           <input type="date" id="disc-data" class="form-control form-control-sm" style="width:150px;" onchange="loadDiscrepancias()"/>
+          <select class="form-select form-select-sm" id="disc-tipo" style="width:150px;" onchange="loadDiscrepancias()">
+            <option value="">Todos os tipos</option>
+            <option value="NF">NF (Não OK)</option>
+            <option value="PALETE">Palete</option>
+          </select>
           <select class="form-select form-select-sm" id="disc-status" style="width:150px;" onchange="loadDiscrepancias()">
-            <option value="">Todos</option>
+            <option value="">Todos os status</option>
             <option value="PENDENTE">Pendentes</option>
             <option value="RESOLVIDA">Resolvidas</option>
           </select>
@@ -396,7 +406,7 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Data</th><th>Placa</th><th>Campo</th><th>Qtd Averiguada</th><th>Observação</th><th>Conferente</th><th>Status</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Data</th><th>Placa</th><th>Tipo</th><th>Detalhe</th><th>Conferente</th><th>Status</th><th>Ação</th></tr></thead>
           <tbody id="disc-tbody"></tbody>
         </table>
       </div>
@@ -421,6 +431,42 @@
         <div class="table-card">
           <div class="tc-head"><span class="tc-title">Saída de Paletes × 1ª Chegada Posterior</span></div>
           <div id="paletes-list" style="padding:12px 20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== CONFIGURAÇÕES ===== -->
+  <div class="section" id="sec-config">
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="form-section">
+          <h5>📋 Planilha de Programação</h5>
+          <p style="font-size:0.88rem;color:#666;margin-bottom:16px;">
+            Cole abaixo o link completo da planilha do Google Sheets ou apenas o ID dela.
+            O sistema usa essa planilha para buscar as placas e dados de cada dia.
+          </p>
+          <div class="mb-3">
+            <label class="form-label">Link ou ID da Planilha</label>
+            <input type="text" class="form-control" id="cfg-sheet-input"
+              placeholder="https://docs.google.com/spreadsheets/d/… ou só o ID"/>
+            <div class="form-text" id="cfg-sheet-preview" style="color:#888;margin-top:6px;"></div>
+          </div>
+          <button class="btn btn-navy" onclick="salvarSheetId()">Salvar Planilha</button>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="form-section" style="background:#f8faff;">
+          <h5 style="color:#555;">Como encontrar o ID?</h5>
+          <p style="font-size:0.85rem;color:#666;line-height:1.7;">
+            Abra a planilha no Google Sheets. O link terá este formato:<br>
+            <code style="font-size:0.78rem;background:#eef0f6;padding:2px 6px;border-radius:4px;">
+              docs.google.com/spreadsheets/d/<strong>ID_AQUI</strong>/edit
+            </code><br><br>
+            Você pode colar o link completo ou só a parte em negrito.<br>
+            A planilha precisa estar configurada como <strong>pública para visualização</strong>.
+          </p>
         </div>
       </div>
     </div>
@@ -499,12 +545,58 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='operacoes')     loadOperacoes();
   if (id==='discrepancias') loadDiscrepancias();
   if (id==='paletes')       loadPaletes();
+  if (id==='config')        loadConfig();
+}
+
+// ── CONFIGURAÇÕES ──────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const doc = await db.collection('config').doc('app').get();
+    const sheetId = doc.exists ? (doc.data().sheetId || '') : '';
+    const input = document.getElementById('cfg-sheet-input');
+    input.value = sheetId;
+    updateSheetPreview(sheetId);
+  } catch(e) { console.warn('loadConfig:', e); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('cfg-sheet-input');
+  if (input) {
+    input.addEventListener('input', () => updateSheetPreview(input.value));
+  }
+});
+
+function updateSheetPreview(val) {
+  const preview = document.getElementById('cfg-sheet-preview');
+  if (!preview) return;
+  const id = parseSheetIdFromUrl(val);
+  if (!id) { preview.textContent = ''; return; }
+  const isUrl = (val||'').includes('/spreadsheets/');
+  preview.textContent = isUrl
+    ? `✔ ID identificado: ${id}`
+    : `ID: ${id}`;
+  preview.style.color = id ? '#1a5c1a' : '#888';
+}
+
+async function salvarSheetId() {
+  const raw = document.getElementById('cfg-sheet-input').value.trim();
+  const id  = parseSheetIdFromUrl(raw);
+  if (!id) { showToast('Cole um link ou ID válido.', 'warning'); return; }
+  try {
+    await db.collection('config').doc('app').set({ sheetId: id }, { merge: true });
+    resetSheetIdCache();           // limpa o cache para a próxima busca
+    document.getElementById('cfg-sheet-input').value = id;
+    updateSheetPreview(id);
+    showToast('Planilha atualizada com sucesso!');
+  } catch(e) {
+    showToast('Erro ao salvar: ' + e.message, 'error');
+  }
 }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
@@ -787,26 +879,55 @@ async function verDetalhes(id) {
 async function loadDiscrepancias() {
   const date   = document.getElementById('disc-data').value;
   const status = document.getElementById('disc-status').value;
+  const tipo   = document.getElementById('disc-tipo').value;
   let q = db.collection('discrepancias').orderBy('timestamp','desc').limit(200);
   if (date) {
     const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
-    q = db.collection('discrepancias').where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start)).where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).orderBy('timestamp','desc');
+    q = db.collection('discrepancias')
+      .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+      .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end))
+      .orderBy('timestamp','desc');
   }
   const snap = await q.get();
   let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
   if (status) rows = rows.filter(r=>r.status===status);
+  if (tipo)   rows = rows.filter(r=>(r.tipo||'NF')===tipo);
+
   const tbody = document.getElementById('disc-tbody');
-  if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma discrepância</td></tr>'; return; }
-  tbody.innerHTML = rows.map(r=>`<tr>
-    <td>${fmtDate(r.timestamp)}</td>
-    <td><b>${r.placa||'—'}</b></td>
-    <td>${r.campo||'—'}</td>
-    <td>${r.quantidadeAveriguada||'—'}</td>
-    <td>${r.observacao||'—'}</td>
-    <td>${r.conferenteNome||'—'}</td>
-    <td>${r.status==='RESOLVIDA'?'<span class="badge-ok">Resolvida</span>':'<span class="badge-naook">Pendente</span>'}</td>
-    <td>${r.status!=='RESOLVIDA'?`<button class="btn btn-sm btn-outline-success" onclick="resolverDisc('${r.id}')">Resolver</button>`:''}</td>
-  </tr>`).join('');
+  if (!rows.length) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Nenhuma discrepância</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const isPalete = r.tipo === 'PALETE';
+    const tipoBadge = isPalete
+      ? '<span class="badge bg-warning text-dark" style="font-size:0.72rem;">Palete</span>'
+      : '<span class="badge bg-secondary"        style="font-size:0.72rem;">NF</span>';
+
+    let detalhe;
+    if (isPalete) {
+      const diff = r.diferenca || 0;
+      detalhe = `<b>${r.tipoKey||'—'}</b> · Esperado: ${r.qtdEsperada||0} · Retornou: ${r.qtdRetornada||0} · <span style="color:${diff<0?'#c0392b':'#1a5c1a'};font-weight:700;">${diff>0?'+':''}${diff}</span>`;
+    } else {
+      const parts = [];
+      if (r.nf)          parts.push(`NF ${r.nf}`);
+      if (r.tituloOp)    parts.push(r.tituloOp);
+      if (r.quantidadeAveriguada) parts.push(`Qtd: ${r.quantidadeAveriguada}`);
+      if (r.observacao)  parts.push(r.observacao);
+      detalhe = parts.join(' · ') || '—';
+    }
+
+    return `<tr>
+      <td style="white-space:nowrap;">${fmtDate(r.timestamp)}</td>
+      <td><b>${r.placa||'—'}</b></td>
+      <td>${tipoBadge}</td>
+      <td style="font-size:0.83rem;">${detalhe}</td>
+      <td>${r.conferenteNome||'—'}</td>
+      <td>${r.status==='RESOLVIDA'?'<span class="badge-ok">Resolvida</span>':'<span class="badge-naook">Pendente</span>'}</td>
+      <td>${r.status!=='RESOLVIDA'?`<button class="btn btn-sm btn-outline-success" onclick="resolverDisc('${r.id}')">Resolver</button>`:''}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function resolverDisc(id) {
