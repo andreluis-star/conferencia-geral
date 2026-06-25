@@ -44,6 +44,9 @@
   #placas-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
   @media(min-width:480px){ #placas-grid{ grid-template-columns:repeat(3,1fr); } }
   @media(min-width:700px){ #placas-grid{ grid-template-columns:repeat(4,1fr); } }
+  #concluidos-grid { grid-template-columns:repeat(2,1fr); }
+  @media(min-width:480px){ #concluidos-grid{ grid-template-columns:repeat(3,1fr); } }
+  @media(min-width:700px){ #concluidos-grid{ grid-template-columns:repeat(4,1fr); } }
 
   /* ── MERCOSUL PLATE ── */
   .placa-card {
@@ -261,6 +264,19 @@
       <div class="icon">⚠️</div><p id="erro-planilha-msg"></p>
     </div>
     <div id="placas-grid"></div>
+    <!-- Card e grid de CONCLUÍDOS -->
+    <div id="concluidos-toggle" style="display:none;margin-top:12px;">
+      <div id="concluidos-card" onclick="toggleConcluidos()"
+        style="cursor:pointer;background:var(--green);border-radius:var(--radius);padding:14px 16px;
+               display:flex;align-items:center;justify-content:space-between;
+               box-shadow:0 3px 10px rgba(40,167,69,0.25);">
+        <span style="color:#fff;font-weight:800;font-size:0.95rem;">✔ CONCLUÍDOS</span>
+        <span id="concluidos-count" style="color:#fff;font-size:0.82rem;font-weight:700;opacity:0.9;"></span>
+        <span id="concluidos-chevron" style="color:#fff;font-size:1rem;transition:transform 0.2s;">▼</span>
+      </div>
+      <div id="concluidos-grid" style="display:none;margin-top:10px;
+             display:none;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+    </div>
     <div id="empty-placas" class="empty-state" style="display:none;">
       <div class="icon">📋</div>
       <p>Nenhum veículo encontrado na planilha para esta data.</p>
@@ -493,6 +509,43 @@ async function loadInsumos() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  FILTROS DE PLACA E LINHA
+// ═══════════════════════════════════════════════════════
+function isValidPlate(str) {
+  const p = (str||'').replace(/[\s\-]/g,'').toUpperCase();
+  // Formato antigo: ABC1234 | Mercosul: ABC1D23
+  return /^[A-Z]{3}(\d{4}|\d[A-Z]\d{2})$/.test(p);
+}
+
+/** Retorna array com placas válidas extraídas de uma célula (suporta "ABC1234/DEF5678" ou "ABC1234 DEF5678") */
+function extractPlates(raw) {
+  return (raw||'').toString().split(/[\s\/]+/)
+    .map(p => formatPlaca(p.trim()))
+    .filter(p => p && isValidPlate(p));
+}
+
+/** true = linha deve ser descartada */
+function shouldSkipRow(v) {
+  const norm = s => (s||'').toString().toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const colA    = norm(v['Coleta/Entrega/processo/cliente'] || v['_CA'] || '');
+  const opType  = norm(v._operationType || '');
+  const SKIP    = ['FECHAR','NAO CONTRATADO','N/CONTRATADO','N CONTRATADO','NAO CONTR'];
+  return SKIP.some(w => colA.includes(w) || opType.includes(w));
+}
+
+/** true = grupo tem pelo menos uma linha com dados de NF */
+function groupHasNfData(vehicles) {
+  return vehicles.some(v => {
+    const dest = (v['Destinatário']||v['Destinatario']||v['_CH']||'').toString().trim();
+    const nf   = (v['NF']||v['Nº NF']||v['_CM']||'').toString().trim();
+    const vol  = (v['Volume']||v['_CE']||'').toString().trim();
+    const cid  = (v['Cidade Destino']||v['_CL']||'').toString().trim();
+    return !!(dest || nf || vol || cid);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
 //  TELA 1: PLACAS — carrega e agrupa por placa
 // ═══════════════════════════════════════════════════════
 async function loadPlacas() {
@@ -524,23 +577,26 @@ async function loadPlacas() {
     return;
   }
 
-  // ── Agrupa por placa ──
+  // ── Agrupa por placa (com filtros) ──
   const map = {};
   sheetVehicles.forEach(v => {
-    const placa = formatPlaca(v['Placa']||'');
-    if (!placa) return;
-    if (!map[placa]) map[placa] = [];
-    map[placa].push(v);
+    if (shouldSkipRow(v)) return;                    // FECHAR / NÃO CONTRATADO
+    const plates = extractPlates(v['Placa']||'');   // suporta dupla placa
+    if (!plates.length) return;                      // sem placa válida
+    const key = plates.join('/');                    // ex.: "ABC1234/DEF5678" ou "ABC1234"
+    if (!map[key]) map[key] = [];
+    map[key].push(v);
   });
 
-  groupedByPlate = Object.entries(map).map(([placa, vehicles]) => {
-    // Determina tipo consolidado do grupo
-    const tipos = [...new Set(vehicles.map(v=>v._operationType))];
-    let tipo;
-    if (tipos.length > 1 || tipos[0]==='ENTRADA_SAIDA') tipo='ENTRADA_SAIDA';
-    else tipo = tipos[0] || 'ENTRADA';
-    return { placa, tipo, vehicles };
-  });
+  groupedByPlate = Object.entries(map)
+    .map(([placa, vehicles]) => {
+      const tipos = [...new Set(vehicles.map(v=>v._operationType))];
+      let tipo;
+      if (tipos.length > 1 || tipos[0]==='ENTRADA_SAIDA') tipo='ENTRADA_SAIDA';
+      else tipo = tipos[0] || 'ENTRADA';
+      return { placa, tipo, vehicles };
+    })
+    .filter(g => groupHasNfData(g.vehicles));        // descarta grupos sem dados de NF
 
   // Busca operações já realizadas
   completedOps = {};
@@ -559,11 +615,7 @@ async function loadPlacas() {
   renderPlacasGrid();
 }
 
-function renderPlacasGrid() {
-  const grid = document.getElementById('placas-grid');
-  grid.innerHTML = '';
-
-  groupedByPlate.forEach(group => {
+function buildPlacaCard(group) {
     const { placa, tipo, vehicles } = group;
     const motorista = (vehicles[0]['Motorista']||'').substring(0,22);
 
@@ -616,9 +668,47 @@ function renderPlacasGrid() {
         <span>${destinoStr||'—'}</span>
         <span>${statusBadge}</span>
       </div>`;
-    el.addEventListener('click', ()=>openConferencia(group));
-    grid.appendChild(el);
+  el.addEventListener('click', ()=>openConferencia(group));
+  return el;
+}
+
+function renderPlacasGrid() {
+  const grid = document.getElementById('placas-grid');
+  const cgrid = document.getElementById('concluidos-grid');
+  grid.innerHTML  = '';
+  cgrid.innerHTML = '';
+
+  const pendentes   = [];
+  const concluidos  = [];
+
+  groupedByPlate.forEach(group => {
+    const { placa, tipo } = group;
+    const doneE = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
+    const doneS = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
+    const isDone = tipo==='ENTRADA'?doneE : tipo==='SAIDA'?doneS : (doneE&&doneS);
+    if (isDone) concluidos.push(group);
+    else        pendentes.push(group);
   });
+
+  pendentes.forEach(g  => grid.appendChild(buildPlacaCard(g)));
+  concluidos.forEach(g => cgrid.appendChild(buildPlacaCard(g)));
+
+  // Mostra / esconde seção CONCLUÍDOS
+  const section = document.getElementById('concluidos-toggle');
+  section.style.display = concluidos.length ? 'block' : 'none';
+  document.getElementById('concluidos-count').textContent = `${concluidos.length} placa${concluidos.length>1?'s':''}`;
+  // Garante que começa fechado ao recarregar
+  cgrid.style.display = 'none';
+  document.getElementById('concluidos-chevron').style.transform = '';
+}
+
+let _concluídosAberto = false;
+function toggleConcluidos() {
+  _concluídosAberto = !_concluídosAberto;
+  const cgrid   = document.getElementById('concluidos-grid');
+  const chevron = document.getElementById('concluidos-chevron');
+  cgrid.style.display    = _concluídosAberto ? 'grid' : 'none';
+  chevron.style.transform = _concluídosAberto ? 'rotate(180deg)' : '';
 }
 
 // ═══════════════════════════════════════════════════════
