@@ -73,6 +73,8 @@
   .placa-rodape span { font-size:0.62rem; color:#aaa; }
   /* badge de NFs múltiplas */
   .placa-nfs-badge { font-size:0.6rem; font-weight:700; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 6px; display:inline-block; margin:0 auto 4px; }
+  /* badge PARCIAL */
+  .placa-parcial-badge { font-size:0.58rem; font-weight:900; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 7px; display:inline-block; letter-spacing:0.5px; }
 
   .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
   .dot-done      { background:var(--green); }
@@ -154,9 +156,11 @@
 
   /* ── TIPO BAR (ENTRADA / SAÍDA) ── */
   .tipo-bar { display:flex; border-radius:var(--radius); overflow:hidden; border:2px solid var(--navy); margin-bottom:14px; }
-  .tipo-opt { flex:1; padding:11px; text-align:center; font-weight:700; font-size:0.9rem; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
+  .tipo-opt { flex:1; padding:11px; text-align:center; font-weight:700; font-size:0.9rem; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; position:relative; }
   .tipo-opt.e-active { background:#1a5c1a; color:#fff; }
   .tipo-opt.s-active { background:#7a1a1a; color:#fff; }
+  .tipo-opt.op-concluida { opacity:0.45; cursor:not-allowed; }
+  .tipo-opt.op-concluida::after { content:'✔'; position:absolute; top:3px; right:6px; font-size:0.65rem; }
 
   /* ── PALETES ── */
   .palete-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
@@ -583,6 +587,11 @@ function renderPlacasGrid() {
       ? `<div style="text-align:center;padding:2px 0;"><span class="placa-nfs-badge">${nfCount} NFs</span></div>`
       : '';
 
+    // Badge PARCIAL: tipo ENTRADA_SAIDA com apenas uma op concluída
+    const parcialBadge = (tipo === 'ENTRADA_SAIDA' && isAndam && !isDone)
+      ? `<span class="placa-parcial-badge">PARCIAL</span>`
+      : '';
+
     const el = document.createElement('div');
     el.className = `placa-card ${statusCls}`;
     el.innerHTML = `
@@ -593,7 +602,7 @@ function renderPlacasGrid() {
       <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
         <span>${destinoStr||'—'}</span>
-        <span>${isDone?'✔':isAndam?'…':''}</span>
+        <span style="display:flex;align-items:center;gap:4px;">${parcialBadge}${isDone?'✔':''}</span>
       </div>`;
     el.addEventListener('click', ()=>openConferencia(group));
     grid.appendChild(el);
@@ -625,14 +634,45 @@ async function openConferencia(group) {
 
   // Tipo operação
   const inicialTipo = group.tipo==='SAIDA'?'SAIDA':'ENTRADA';
-  setTipo(inicialTipo);
 
-  if (group.tipo!=='ENTRADA_SAIDA') {
+  // Sempre reset de estado dos botões de tipo antes de configurar
+  const btnE = document.getElementById('tipo-entrada');
+  const btnS = document.getElementById('tipo-saida');
+  btnE.classList.remove('op-concluida');
+  btnS.classList.remove('op-concluida');
+  btnE.style.pointerEvents = '';
+  btnS.style.pointerEvents = '';
+
+  if (group.tipo !== 'ENTRADA_SAIDA') {
+    // Tipo único: barra inteira travada (não muda)
+    setTipo(inicialTipo);
     document.getElementById('tipo-bar').style.opacity = '0.6';
     document.getElementById('tipo-bar').style.pointerEvents = 'none';
   } else {
     document.getElementById('tipo-bar').style.opacity = '1';
     document.getElementById('tipo-bar').style.pointerEvents = 'auto';
+
+    const doneE_op = completedOps[`${group.placa}_ENTRADA`] === 'CONCLUIDA';
+    const doneS_op = completedOps[`${group.placa}_SAIDA`]   === 'CONCLUIDA';
+
+    // Força o tipo para a operação ainda pendente
+    if (doneE_op && !doneS_op) {
+      setTipo('SAIDA');
+    } else if (doneS_op && !doneE_op) {
+      setTipo('ENTRADA');
+    } else {
+      setTipo(inicialTipo);
+    }
+
+    // Trava visualmente o botão da op já concluída
+    if (doneE_op) {
+      btnE.classList.add('op-concluida');
+      btnE.style.pointerEvents = 'none';
+    }
+    if (doneS_op) {
+      btnS.classList.add('op-concluida');
+      btnS.style.pointerEvents = 'none';
+    }
   }
 
   const subLabel = group.tipo==='ENTRADA'?'Operação de Entrada'
@@ -942,6 +982,14 @@ async function submeterConferencia() {
 
   try {
     const placa   = formatPlaca(currentVehicles[0]['Placa']||'');
+
+    // Guard: bloqueia re-inserção de op já concluída
+    if (completedOps[`${placa}_${currentTipo}`] === 'CONCLUIDA') {
+      loading(false);
+      btn.disabled = false;
+      showToast('Esta operação já foi conferida.', 'warning');
+      return;
+    }
     const dateVal = document.getElementById('sel-date').value;
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
@@ -1104,6 +1152,9 @@ async function submeterConferencia() {
         }
       }
     }
+
+    // Atualiza estado local imediatamente para a UI reagir antes do reload
+    completedOps[`${placa}_${currentTipo}`] = 'CONCLUIDA';
 
     loading(false);
     showToast('Conferência registrada! ✔');
