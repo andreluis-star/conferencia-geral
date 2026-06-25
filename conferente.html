@@ -74,7 +74,7 @@
   /* badge de NFs múltiplas */
   .placa-nfs-badge { font-size:0.6rem; font-weight:700; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 6px; display:inline-block; margin:0 auto 4px; }
   /* badge PARCIAL */
-  .placa-parcial-badge { font-size:0.58rem; font-weight:900; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 7px; display:inline-block; letter-spacing:0.5px; }
+  .placa-parcial-badge { font-size:0.58rem; font-weight:900; background:var(--amber); color:#111; border-radius:10px; padding:1px 7px; display:inline-block; letter-spacing:0.5px; }
 
   .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
   .dot-done      { background:var(--green); }
@@ -145,6 +145,10 @@
   .toggle-btn { padding:5px 10px; border:none; font-size:0.75rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
   .toggle-btn.ok-active    { background:var(--green); color:#fff; }
   .toggle-btn.naook-active { background:var(--red);   color:#fff; }
+  /* Botões travados (referência de op anterior) */
+  .toggle-btn:disabled { cursor:not-allowed; opacity:0.35; }
+  .toggle-btn:disabled.ok-active    { opacity:1; }
+  .toggle-btn:disabled.naook-active { opacity:1; }
 
   /* Área de divergência — expande abaixo da linha ao clicar NÃO OK */
   .nf-obs-row { display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #e0e8f5; }
@@ -580,8 +584,10 @@ function renderPlacasGrid() {
     const destinos = [...new Set(vehicles.map(v=>(v['Cidade Destino']||'').trim()).filter(Boolean))];
     const destinoStr = destinos.slice(0,1).join(' / ') + (destinos.length>1?` +${destinos.length-1}`:'');
 
-    // Badge de múltiplas NFs
-    const nfCount = vehicles.length;
+    // Badge de múltiplas NFs — conta somente linhas com Destinatário preenchido
+    const nfCount = vehicles.filter(v =>
+      !!(v['Destinatário'] || v['Destinatario'] || (v['_CH']||'')).toString().trim()
+    ).length;
     const badgeHtml = nfCount > 1
       ? `<div style="text-align:center;padding:2px 0;"><span class="placa-nfs-badge">${nfCount} NFs</span></div>`
       : '';
@@ -715,21 +721,41 @@ async function openConferencia(group) {
 
 // ═══════════════════════════════════════════════════════
 //  Pré-carrega status OK/NÃO OK de conferência já salva
+//  e trava os botões quando é referência de op anterior
 // ═══════════════════════════════════════════════════════
 async function prefillFromExistingOp(placa, tipo) {
   try {
     const snap = await db.collection('operacoes').where('placa', '==', placa).get();
-    const ops = snap.docs.map(d => d.data())
-      .filter(op => op.tipoExecucao === tipo && op.status === 'CONCLUIDA')
+    const todos = snap.docs.map(d => d.data())
+      .filter(op => op.status === 'CONCLUIDA' && op.nfs?.length)
       .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
-    if (!ops.length || !ops[0].nfs?.length) return;
-    const nfs = ops[0].nfs;
-    nfs.forEach((nf, idx) => {
-      if (!nf.status || nf.status === 'PENDENTE') return;
+
+    if (!todos.length) return;
+
+    // Prefere op do mesmo tipo; se não houver, usa a mais recente (referência cruzada)
+    const opMesmoTipo = todos.find(o => o.tipoExecucao === tipo);
+    const op = opMesmoTipo || todos[0];
+
+    // isReference = dados vêm de op de tipo DIFERENTE (ex.: ENTRADA mostrada na tela de SAÍDA)
+    const isReference = op.tipoExecucao !== tipo;
+    // shouldDisable = trava os botões se é referência ou se o tipo atual já está concluído
+    const shouldDisable = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
+
+    // Banner de referência cruzada
+    if (isReference) {
+      const container = document.getElementById('campos-conferencia');
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#e8f5e9;border:1px solid var(--green);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.8rem;color:#1a5c1a;display:flex;align-items:center;gap:6px;';
+      banner.innerHTML = `<span style="font-size:1rem;">✔</span><span>Conferência de <strong>${op.tipoExecucao}</strong> já realizada — campos exibidos como referência (somente leitura).</span>`;
+      container.prepend(banner);
+    }
+
+    op.nfs.forEach((nf, idx) => {
       const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
       if (!block) return;
       const btns = block.querySelectorAll('.toggle-btn');
       btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+
       if (nf.status === 'OK') {
         btns[0]?.classList.add('ok-active');
       } else if (nf.status === 'NAO_OK') {
@@ -742,8 +768,17 @@ async function prefillFromExistingOp(placa, tipo) {
           if (inputs[1] && nf.observacao) inputs[1].value = nf.observacao;
         }
       }
+
+      // Desabilita botões quando os dados são referência ou a op já está concluída
+      if (shouldDisable) {
+        btns.forEach(b => { b.disabled = true; });
+        // Inputs de divergência também ficam somente leitura
+        const obsRow = document.getElementById('nf-obs-' + idx);
+        obsRow?.querySelectorAll('input').forEach(i => { i.readOnly = true; i.style.background = '#f5f5f5'; });
+      }
     });
-    if (ops[0].observacoes) document.getElementById('obs-geral').value = ops[0].observacoes;
+
+    if (op.observacoes) document.getElementById('obs-geral').value = op.observacoes;
   } catch(e) { console.warn('prefillFromExistingOp:', e.message); }
 }
 
