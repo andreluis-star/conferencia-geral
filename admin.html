@@ -440,22 +440,43 @@
   <!-- ===== CONFIGURAÇÕES ===== -->
   <div class="section" id="sec-config">
     <div class="row g-3">
+
+      <!-- Planilha ativa -->
+      <div class="col-12">
+        <div class="form-section" style="background:#e8f5e9;border:1px solid #a5d6a7;">
+          <h5 style="color:#1a5c1a;">✅ Planilha Atualmente Ativa</h5>
+          <p style="font-size:0.83rem;color:#555;margin-bottom:6px;">
+            Este é o ID da planilha que o sistema está usando agora:
+          </p>
+          <code id="cfg-ativo-id" style="font-size:0.8rem;background:#fff;padding:6px 10px;border-radius:6px;display:block;word-break:break-all;color:#1a3a5c;border:1px solid #c8e6c9;">
+            Carregando…
+          </code>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadConfig()">🔄 Recarregar</button>
+            <button class="btn btn-sm btn-outline-primary" onclick="testarPlanilha()">🔍 Testar hoje</button>
+          </div>
+          <div id="cfg-teste-result" style="margin-top:8px;font-size:0.82rem;"></div>
+        </div>
+      </div>
+
+      <!-- Formulário de alteração -->
       <div class="col-12 col-lg-6">
         <div class="form-section">
-          <h5>📋 Planilha de Programação</h5>
+          <h5>📋 Alterar Planilha</h5>
           <p style="font-size:0.88rem;color:#666;margin-bottom:16px;">
-            Cole abaixo o link completo da planilha do Google Sheets ou apenas o ID dela.
-            O sistema usa essa planilha para buscar as placas e dados de cada dia.
+            Cole o link ou ID da nova planilha. A troca entra em vigor imediatamente para todos os conferentes.
           </p>
           <div class="mb-3">
-            <label class="form-label">Link ou ID da Planilha</label>
+            <label class="form-label">Link ou ID da Nova Planilha</label>
             <input type="text" class="form-control" id="cfg-sheet-input"
               placeholder="https://docs.google.com/spreadsheets/d/… ou só o ID"/>
             <div class="form-text" id="cfg-sheet-preview" style="color:#888;margin-top:6px;"></div>
           </div>
-          <button class="btn btn-navy" onclick="salvarSheetId()">Salvar Planilha</button>
+          <button class="btn btn-navy" onclick="salvarSheetId()">Salvar Nova Planilha</button>
         </div>
       </div>
+
+      <!-- Instruções -->
       <div class="col-12 col-lg-6">
         <div class="form-section" style="background:#f8faff;">
           <h5 style="color:#555;">Como encontrar o ID?</h5>
@@ -464,11 +485,13 @@
             <code style="font-size:0.78rem;background:#eef0f6;padding:2px 6px;border-radius:4px;">
               docs.google.com/spreadsheets/d/<strong>ID_AQUI</strong>/edit
             </code><br><br>
-            Você pode colar o link completo ou só a parte em negrito.<br>
-            A planilha precisa estar configurada como <strong>pública para visualização</strong>.
+            Cole o link completo ou só o ID em negrito. A planilha precisa estar como <strong>pública para visualização</strong>.<br><br>
+            <span style="color:#c0392b;font-weight:600;">⚠ Se o ID não estiver salvando:</span>
+            verifique as <strong>Regras do Firestore</strong> no Firebase Console e certifique-se de que usuários autenticados têm permissão de leitura e escrita. A coleção usada é <code>config</code>.
           </p>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -556,13 +579,38 @@ function showSection(id) {
 
 // ── CONFIGURAÇÕES ──────────────────────────────────────────────
 async function loadConfig() {
+  const ativoEl = document.getElementById('cfg-ativo-id');
+  const inputEl = document.getElementById('cfg-sheet-input');
   try {
     const doc = await db.collection('config').doc('app').get();
     const sheetId = doc.exists ? (doc.data().sheetId || '') : '';
-    const input = document.getElementById('cfg-sheet-input');
-    input.value = sheetId;
-    updateSheetPreview(sheetId);
-  } catch(e) { console.warn('loadConfig:', e); }
+    if (sheetId) {
+      ativoEl.textContent = sheetId;
+      inputEl.value = sheetId;
+      updateSheetPreview(sheetId);
+    } else {
+      ativoEl.innerHTML = '<span style="color:#888;">Nenhuma planilha configurada — usando padrão do sistema.</span>';
+    }
+  } catch(e) {
+    ativoEl.innerHTML = `<span style="color:#c0392b;">Erro ao ler configuração: ${e.message}<br>Verifique as Regras do Firestore (coleção "config" precisa de permissão).</span>`;
+    console.warn('loadConfig:', e);
+  }
+}
+
+async function testarPlanilha() {
+  const resultEl = document.getElementById('cfg-teste-result');
+  resultEl.textContent = '⏳ Testando…';
+  try {
+    const hoje = getTodayTabName();
+    const rows = await fetchSheetVehicles(hoje);
+    if (rows.length > 0) {
+      resultEl.innerHTML = `<span style="color:#1a5c1a;">✅ OK — aba "${hoje}" encontrada com ${rows.length} linha(s). Planilha ID: <code>${window._activeSheetId||'?'}</code></span>`;
+    } else {
+      resultEl.innerHTML = `<span style="color:#f39c12;">⚠ Aba "${hoje}" não encontrada ou vazia na planilha <code>${window._activeSheetId||'?'}</code>. Verifique se existe uma aba com esse nome exato.</span>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:#c0392b;">❌ Erro: ${e.message}</span>`;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
