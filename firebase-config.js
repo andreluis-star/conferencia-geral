@@ -27,7 +27,38 @@ const db      = firebase.firestore();
 // ============================================================
 //  GOOGLE SHEETS — configuração
 // ============================================================
-const SHEET_ID = '11ZwvJoxw94lJFZa_ZHyZPI3xmcW87_fYry576EoqHZM';
+
+/** ID padrão (fallback) — usado se nenhum estiver salvo no Firestore */
+const SHEET_ID_DEFAULT = '11ZwvJoxw94lJFZa_ZHyZPI3xmcW87_fYry576EoqHZM';
+
+// Cache em memória — evita consultar o Firestore em cada chamada
+let _sheetIdCache = null;
+
+/**
+ * Retorna o ID da planilha ativa.
+ * Prioridade: Firestore (config/app → sheetId) → SHEET_ID_DEFAULT
+ */
+async function getSheetId() {
+  if (_sheetIdCache) return _sheetIdCache;
+  try {
+    const doc = await db.collection('config').doc('app').get();
+    if (doc.exists && doc.data().sheetId) {
+      _sheetIdCache = doc.data().sheetId;
+      return _sheetIdCache;
+    }
+  } catch(e) { /* silencioso — usa fallback */ }
+  _sheetIdCache = SHEET_ID_DEFAULT;
+  return _sheetIdCache;
+}
+
+/** Invalida o cache (chamar após salvar novo sheetId) */
+function resetSheetIdCache() { _sheetIdCache = null; }
+
+/** Extrai o ID de uma URL do Google Sheets ou retorna a string diretamente */
+function parseSheetIdFromUrl(input) {
+  const m = (input||'').match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : (input||'').trim();
+}
 
 /** Retorna a data de hoje no formato DD/MM/AAAA (nome das abas) */
 function getTodayTabName() {
@@ -39,6 +70,7 @@ function getTodayTabName() {
 
 /** Busca os veículos de uma aba específica do Google Sheets. */
 async function fetchSheetVehicles(tabName) {
+  const SHEET_ID = await getSheetId();
   // Usa CSV export — mais simples e confiável que gviz
   const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
   const jsonUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
