@@ -597,9 +597,9 @@ function renderPlacasGrid() {
     if (isDone) {
       statusBadge = `<span class="placa-parcial-badge" style="background:var(--green);color:#fff;">CONCLUÍDO</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && doneE && !doneS) {
-      statusBadge = `<span class="placa-parcial-badge">PARCIAL ENTRADA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && !doneE && doneS) {
-      statusBadge = `<span class="placa-parcial-badge">PARCIAL SAÍDA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
     }
 
     const el = document.createElement('div');
@@ -1034,7 +1034,7 @@ function renderInsumosSel() {
     return `${header}<div class="insumo-sel">
       <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsActive('${ins.id}')"/>
       <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
-      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd" style="display:block;width:70px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.85rem;text-align:center;"/>
     </div>`;
   }).join('');
 }
@@ -1284,7 +1284,7 @@ function renderInsumosAvulso() {
     return `${header}<div class="insumo-sel">
       <input type="checkbox" id="ins-av-chk-${ins.id}"/>
       <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
-      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
+      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd" style="display:block;width:70px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.85rem;text-align:center;"/>
     </div>`;
   }).join('');
 }
