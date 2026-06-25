@@ -188,8 +188,7 @@
   .insumo-sel:last-child { border-bottom:none; }
   .insumo-sel label { flex:1; font-size:0.88rem; }
   .insumo-sel input[type=checkbox] { width:18px; height:18px; accent-color:var(--navy); flex-shrink:0; }
-  .insumo-sel input[type=number] { width:70px; border:1px solid #ddd; border-radius:8px; padding:6px 8px; font-size:0.85rem; text-align:center; display:none; outline:none; }
-  .insumo-sel input[type=number].show { display:block; }
+  .insumo-sel input[type=number] { width:70px; border:1px solid #ddd; border-radius:8px; padding:6px 8px; font-size:0.85rem; text-align:center; display:block; outline:none; }
 
   /* ── FOTOS ── */
   .foto-area { display:flex; gap:8px; flex-wrap:wrap; }
@@ -587,10 +586,15 @@ function renderPlacasGrid() {
       ? `<div style="text-align:center;padding:2px 0;"><span class="placa-nfs-badge">${nfCount} NFs</span></div>`
       : '';
 
-    // Badge PARCIAL: tipo ENTRADA_SAIDA com apenas uma op concluída
-    const parcialBadge = (tipo === 'ENTRADA_SAIDA' && isAndam && !isDone)
-      ? `<span class="placa-parcial-badge">PARCIAL</span>`
-      : '';
+    // Badge de status no rodapé
+    let statusBadge = '';
+    if (isDone) {
+      statusBadge = `<span class="placa-parcial-badge" style="background:var(--green);color:#fff;">CONCLUÍDO</span>`;
+    } else if (tipo === 'ENTRADA_SAIDA' && doneE && !doneS) {
+      statusBadge = `<span class="placa-parcial-badge">PARCIAL ENTRADA</span>`;
+    } else if (tipo === 'ENTRADA_SAIDA' && !doneE && doneS) {
+      statusBadge = `<span class="placa-parcial-badge">PARCIAL SAÍDA</span>`;
+    }
 
     const el = document.createElement('div');
     el.className = `placa-card ${statusCls}`;
@@ -602,7 +606,7 @@ function renderPlacasGrid() {
       <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
         <span>${destinoStr||'—'}</span>
-        <span style="display:flex;align-items:center;gap:4px;">${parcialBadge}${isDone?'✔':''}</span>
+        <span>${statusBadge}</span>
       </div>`;
     el.addEventListener('click', ()=>openConferencia(group));
     grid.appendChild(el);
@@ -631,6 +635,9 @@ async function openConferencia(group) {
     </label>`;
 
   document.getElementById('form-placa-title').textContent = group.placa;
+
+  // Sempre reativa o botão ao abrir novo formulário
+  document.getElementById('btn-submit').disabled = false;
 
   // Tipo operação
   const inicialTipo = group.tipo==='SAIDA'?'SAIDA':'ENTRADA';
@@ -689,10 +696,10 @@ async function openConferencia(group) {
   document.getElementById('cliente-unico-input').style.display = 'none';
   document.getElementById('inp-cliente').value = group.vehicles[0]['cliente']||group.vehicles[0]['Destinatário']||'';
 
-  // Paletes: busca última saída para verificar retorno
+  // Paletes: usa currentTipo (já definido acima, pode ter mudado para op pendente)
   document.getElementById('paletes-list').innerHTML = '';
   document.getElementById('palete-retorno-banner').innerHTML = '';
-  await setupPaletes(group.placa, inicialTipo);
+  await setupPaletes(group.placa, currentTipo);
 
   // Insumos
   renderInsumosSel();
@@ -700,7 +707,44 @@ async function openConferencia(group) {
   // Obs
   document.getElementById('obs-geral').value = '';
 
+  // Pré-carrega status de NF se já existe conferência para este tipo
+  await prefillFromExistingOp(group.placa, currentTipo);
+
   goTo('screen-form');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Pré-carrega status OK/NÃO OK de conferência já salva
+// ═══════════════════════════════════════════════════════
+async function prefillFromExistingOp(placa, tipo) {
+  try {
+    const snap = await db.collection('operacoes').where('placa', '==', placa).get();
+    const ops = snap.docs.map(d => d.data())
+      .filter(op => op.tipoExecucao === tipo && op.status === 'CONCLUIDA')
+      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+    if (!ops.length || !ops[0].nfs?.length) return;
+    const nfs = ops[0].nfs;
+    nfs.forEach((nf, idx) => {
+      if (!nf.status || nf.status === 'PENDENTE') return;
+      const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+      if (!block) return;
+      const btns = block.querySelectorAll('.toggle-btn');
+      btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+      if (nf.status === 'OK') {
+        btns[0]?.classList.add('ok-active');
+      } else if (nf.status === 'NAO_OK') {
+        btns[1]?.classList.add('naook-active');
+        const obsRow = document.getElementById('nf-obs-' + idx);
+        if (obsRow) {
+          obsRow.classList.add('show');
+          const inputs = obsRow.querySelectorAll('input');
+          if (inputs[0] && nf.quantidadeAveriguada != null) inputs[0].value = nf.quantidadeAveriguada;
+          if (inputs[1] && nf.observacao) inputs[1].value = nf.observacao;
+        }
+      }
+    });
+    if (ops[0].observacoes) document.getElementById('obs-geral').value = ops[0].observacoes;
+  } catch(e) { console.warn('prefillFromExistingOp:', e.message); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -808,8 +852,13 @@ function renderCamposConferencia(vehicles) {
 
 function setTipo(t) {
   currentTipo = t;
-  document.getElementById('tipo-entrada').className = 'tipo-opt'+(t==='ENTRADA'?' e-active':'');
-  document.getElementById('tipo-saida').className   = 'tipo-opt'+(t==='SAIDA'?' s-active':'');
+  const btnE = document.getElementById('tipo-entrada');
+  const btnS = document.getElementById('tipo-saida');
+  // Preserva classe op-concluida ao trocar tipo
+  const eConc = btnE.classList.contains('op-concluida');
+  const sConc = btnS.classList.contains('op-concluida');
+  btnE.className = 'tipo-opt' + (t==='ENTRADA'?' e-active':'') + (eConc?' op-concluida':'');
+  btnS.className = 'tipo-opt' + (t==='SAIDA'?' s-active':'')   + (sConc?' op-concluida':'');
   document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
   document.getElementById('insumos-tipo-label').textContent =
     t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
@@ -840,7 +889,7 @@ function addPaleteRow() {
       <option value="OUTROS">Outros</option>
     </select>
     <input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
-    <input type="number" value="1" min="0" placeholder="Qtd"/>
+    <input type="number" value="0" min="0" placeholder="Qtd"/>
     <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
   list.appendChild(row);
 }
@@ -948,14 +997,14 @@ function renderInsumosSel() {
       ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
     return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsQtd('${ins.id}')"/>
+      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsActive('${ins.id}')"/>
       <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
       <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
     </div>`;
   }).join('');
 }
-function toggleInsQtd(id) {
-  document.getElementById('ins-qtd-'+id).classList.toggle('show', document.getElementById('ins-chk-'+id).checked);
+function toggleInsActive(id) {
+  // Qtd sempre visível; sem ação extra necessária
 }
 
 // ── FOTOS ──
@@ -1198,14 +1247,11 @@ function renderInsumosAvulso() {
       ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
     return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-av-chk-${ins.id}" onchange="toggleInsAvQtd('${ins.id}')"/>
+      <input type="checkbox" id="ins-av-chk-${ins.id}"/>
       <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
       <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd"/>
     </div>`;
   }).join('');
-}
-function toggleInsAvQtd(id) {
-  document.getElementById('ins-av-qtd-'+id).classList.toggle('show', document.getElementById('ins-av-chk-'+id).checked);
 }
 
 function handleInsumosAv_Fotos(input) {
