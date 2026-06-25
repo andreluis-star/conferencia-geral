@@ -1031,15 +1031,15 @@ function renderInsumosSel() {
     const header = ins.categoria!==lastCat
       ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
-    return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-chk-${ins.id}" onchange="toggleInsActive('${ins.id}')"/>
-      <label for="ins-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></label>
-      <input type="number" id="ins-qtd-${ins.id}" value="1" min="1" placeholder="Qtd" style="display:block;width:70px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.85rem;text-align:center;"/>
+    return `${header}<div class="insumo-sel" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;">
+      <span style="flex:1;font-size:0.88rem;">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0} em estoque)</span></span>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+        <span style="font-size:0.62rem;font-weight:700;color:#aaa;text-transform:uppercase;">Qtd</span>
+        <input type="number" id="ins-qtd-${ins.id}" value="0" min="0" placeholder="0"
+          style="width:64px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.9rem;text-align:center;font-weight:700;"/>
+      </div>
     </div>`;
   }).join('');
-}
-function toggleInsActive(id) {
-  // Qtd sempre visível; sem ação extra necessária
 }
 
 // ── FOTOS ──
@@ -1128,13 +1128,11 @@ async function submeterConferencia() {
       if (qtd>0) paletes.push({tipo,tipoCustom,quantidade:qtd});
     });
 
-    // ── Coleta insumos ──
+    // ── Coleta insumos — inclui qualquer item com qty > 0 ──
     const insumosSel = [];
     allInsumos.forEach(ins=>{
-      if (document.getElementById('ins-chk-'+ins.id)?.checked) {
-        const qtd = parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
-        if (qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
-      }
+      const qtd = parseInt(document.getElementById('ins-qtd-'+ins.id)?.value)||0;
+      if (qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
     });
 
     const clienteUnico = document.getElementById('chk-cliente-unico').checked;
@@ -1281,10 +1279,13 @@ function renderInsumosAvulso() {
     const header = ins.categoria!==lastCat
       ? `<div style="font-size:0.72rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:8px 0 4px;">${ins.categoria}</div>` : '';
     lastCat = ins.categoria;
-    return `${header}<div class="insumo-sel">
-      <input type="checkbox" id="ins-av-chk-${ins.id}"/>
-      <label for="ins-av-chk-${ins.id}">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></label>
-      <input type="number" id="ins-av-qtd-${ins.id}" value="1" min="1" placeholder="Qtd" style="display:block;width:70px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.85rem;text-align:center;"/>
+    return `${header}<div class="insumo-sel" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;">
+      <span style="flex:1;font-size:0.88rem;">${ins.nome} <span style="color:#aaa;font-size:0.75rem;">(${ins.saldo||0})</span></span>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+        <span style="font-size:0.62rem;font-weight:700;color:#aaa;text-transform:uppercase;">Qtd</span>
+        <input type="number" id="ins-av-qtd-${ins.id}" value="0" min="0" placeholder="0"
+          style="width:64px;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:0.9rem;text-align:center;font-weight:700;"/>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1308,12 +1309,10 @@ async function submeterInsumosAvulso() {
   try {
     const insumosSel=[];
     allInsumos.forEach(ins=>{
-      if(document.getElementById('ins-av-chk-'+ins.id)?.checked){
-        const qtd=parseInt(document.getElementById('ins-av-qtd-'+ins.id)?.value)||0;
-        if(qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
-      }
+      const qtd=parseInt(document.getElementById('ins-av-qtd-'+ins.id)?.value)||0;
+      if(qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
     });
-    if(!insumosSel.length){loading(false);showToast('Selecione pelo menos um insumo.','warning');return;}
+    if(!insumosSel.length){loading(false);showToast('Informe a quantidade de pelo menos um insumo.','warning');return;}
     const obs = document.getElementById('ins-obs').value.trim();
     const fotosUrls=[];
     for(const b64 of insAv_fotosBase64){fotosUrls.push(await compressImage(b64));}
