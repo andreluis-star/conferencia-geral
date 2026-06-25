@@ -105,33 +105,47 @@
   /* ── BLOCO POR NF ── */
   .nf-block {
     border:1px solid #e0e8f5; border-radius:10px; padding:12px;
-    margin-bottom:12px; background:#fafcff;
+    margin-bottom:10px; background:#fafcff;
   }
   .nf-block:last-child { margin-bottom:0; }
-  .nf-header {
-    margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid #eaf0fa;
-  }
-  .nf-titulo {
-    font-size:0.85rem; font-weight:800; color:var(--navy);
-    display:flex; align-items:center; gap:6px;
-  }
-  .nf-detalhe { font-size:0.75rem; color:#888; margin-top:3px; line-height:1.5; }
-  .nf-detalhe strong { color:#555; }
 
-  /* ── CAMPO OK/NÃO OK ── */
-  .campo-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #f0f0f0; }
-  .campo-row:last-of-type { border-bottom:none; }
-  .campo-info { flex:1; min-width:0; }
-  .campo-nome { font-size:0.82rem; font-weight:600; color:#333; }
-  .campo-ref  { font-size:0.75rem; color:#1a5c1a; font-weight:700; display:block; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Título: conteúdo da coluna A */
+  .nf-titulo-op {
+    font-size:0.95rem; font-weight:800; color:var(--navy);
+    margin-bottom:8px;
+  }
+
+  /* Linha de dados + toggle lado a lado */
+  .nf-data-row {
+    display:flex; align-items:center; gap:8px;
+  }
+  .nf-fields {
+    display:flex; flex:1; flex-wrap:wrap; gap:6px 10px; min-width:0;
+  }
+  .nf-field {
+    display:flex; flex-direction:column; min-width:0;
+  }
+  .nf-field-label {
+    font-size:0.65rem; font-weight:700; color:#aaa; text-transform:uppercase; white-space:nowrap;
+  }
+  .nf-field-val {
+    font-size:0.82rem; font-weight:600; color:#1a5c1a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;
+  }
+  .nf-field-val.empty { color:#bbb; font-weight:400; }
+
+  /* Toggle único por linha */
   .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
   .toggle-btn { padding:5px 10px; border:none; font-size:0.75rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
   .toggle-btn.ok-active    { background:var(--green); color:#fff; }
   .toggle-btn.naook-active { background:var(--red);   color:#fff; }
-  .campo-obs { margin-top:5px; display:none; padding:6px 0 4px; }
-  .campo-obs.show { display:block; }
-  .campo-obs input { width:100%; border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:0.83rem; color:#333; outline:none; margin-bottom:4px; }
-  .campo-obs input:focus { border-color:var(--blue); }
+
+  /* Área de divergência — expande abaixo da linha ao clicar NÃO OK */
+  .nf-obs-row { display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #e0e8f5; }
+  .nf-obs-row.show { display:block; }
+  .nf-obs-row input { width:100%; border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:0.83rem; color:#333; outline:none; margin-bottom:6px; }
+  .nf-obs-row input:last-child { margin-bottom:0; }
+  .nf-obs-row input:focus { border-color:var(--blue); }
+  .nf-obs-label { font-size:0.72rem; font-weight:700; color:#c0392b; margin-bottom:6px; }
 
   /* ── TIPO BAR (ENTRADA / SAÍDA) ── */
   .tipo-bar { display:flex; border-radius:var(--radius); overflow:hidden; border:2px solid var(--navy); margin-bottom:14px; }
@@ -635,7 +649,6 @@ function renderCamposConferencia(vehicles) {
 
   // ── Helpers de leitura de coluna ──
 
-  // Busca por nome de cabeçalho (exato, case-insensitive)
   function colVal(v, ...cols) {
     for (const c of cols) {
       if (v[c] && v[c].toString().trim()) return v[c].toString().trim();
@@ -647,17 +660,14 @@ function renderCamposConferencia(vehicles) {
     return '';
   }
 
-  // Busca por letra de coluna (A, B, C...) — garantido independente do cabeçalho
   function colLetter(v, letter) {
     return (v['_C' + letter.toUpperCase()] || '').toString().trim();
   }
 
-  // Retorna primeiro valor não-vazio: tenta nome → fallback por letra
   function col(v, letter, ...names) {
     return colVal(v, ...names) || colLetter(v, letter);
   }
 
-  // Nº NF: col M → col Q → col R → col N  (com fallback por letra em cada passo)
   function nfFallback(v) {
     return col(v, 'M', 'NF', 'Nº NF')
         || col(v, 'Q', 'OC')
@@ -665,64 +675,55 @@ function renderCamposConferencia(vehicles) {
         || col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
   }
 
-  // Campos fixos com mapeamento exato de coluna
-  //   col E = Volume | col H = Destinatário | col L = Cidade Destino | col M..N = NF
-  const camposConfig = [
-    { nome:'Volume',         fn: v => col(v, 'E', 'Volume') },
-    { nome:'Nº NF',         fn: v => nfFallback(v) },
-    { nome:'Destinatário',  fn: v => col(v, 'H', 'Destinatário', 'Destinatario') },
-    { nome:'Cidade Destino',fn: v => col(v, 'L', 'Cidade Destino') },
-  ];
-
+  // ── Renderiza campos ──
   vehicles.forEach((v, idx) => {
     const nfVal     = nfFallback(v);
     const destVal   = col(v, 'H', 'Destinatário', 'Destinatario');
     const cidadeVal = col(v, 'L', 'Cidade Destino');
     const volVal    = col(v, 'E', 'Volume');
-    const motorista = col(v, 'B', 'Motorista');
+    const servicoVal= col(v, 'O', 'Serviço', 'Servico');
 
     // Ignora linhas sem nenhum campo relevante preenchido
     if (!nfVal && !destVal && !cidadeVal && !volVal) return;
 
-    // Sub-título do bloco
-    const titulo = nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`;
-    const detalhe = [destVal, cidadeVal, volVal ? `Vol: ${volVal}` : ''].filter(Boolean).join(' · ');
+    // Título: conteúdo da coluna A (operação/cliente)
+    const tituloOp = col(v, 'A', 'Coleta/Entrega/processo/cliente') || (nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`);
+
+    const obsRowId = 'nf-obs-' + idx;
+
+    // Monta chips de campo
+    function chip(label, val) {
+      const empty = !val;
+      return `<div class="nf-field">
+        <span class="nf-field-label">${label}</span>
+        <span class="nf-field-val${empty?' empty':''}">${val||'—'}</span>
+      </div>`;
+    }
 
     const block = document.createElement('div');
     block.className = 'nf-block';
     block.dataset.idx = idx;
 
-    let camposHtml = '';
-    camposConfig.forEach(cfg => {
-      const refVal = cfg.fn(v);
-      const obsId  = campoObsId(idx, cfg.nome);
-      const refHtml = refVal
-        ? `<span class="campo-ref">▸ ${refVal}</span>`
-        : '';
-      camposHtml += `
-        <div class="campo-row" data-idx="${idx}" data-campo="${cfg.nome}">
-          <div class="campo-info">
-            <span class="campo-nome">${cfg.nome}</span>
-            ${refHtml}
-          </div>
-          <div class="toggle-bar">
-            <button class="toggle-btn" onclick="setCampo(this,'OK')">OK</button>
-            <button class="toggle-btn" onclick="setCampo(this,'NAO_OK')">NÃO OK</button>
-          </div>
-        </div>
-        <div class="campo-obs" id="${obsId}">
-          <input type="number" placeholder="Qtd averiguada" min="0"/>
-          <input type="text" placeholder="Observação"/>
-        </div>`;
-    });
-
     block.innerHTML = `
-      <div class="nf-header">
-        <div class="nf-titulo">📄 ${titulo}</div>
-        ${detalhe ? `<div class="nf-detalhe">${detalhe}</div>` : ''}
-        ${motorista ? `<div class="nf-detalhe"><strong>Motorista:</strong> ${motorista}</div>` : ''}
+      <div class="nf-titulo-op">${tituloOp}</div>
+      <div class="nf-data-row">
+        <div class="nf-fields">
+          ${chip('Volume', volVal)}
+          ${chip('Nº NF', nfVal)}
+          ${chip('Destinatário', destVal)}
+          ${chip('Cidade Destino', cidadeVal)}
+          ${servicoVal ? chip('Serviço', servicoVal) : ''}
+        </div>
+        <div class="toggle-bar">
+          <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
+          <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
+        </div>
       </div>
-      ${camposHtml}`;
+      <div class="nf-obs-row" id="${obsRowId}">
+        <div class="nf-obs-label">⚠ Informe a divergência encontrada:</div>
+        <input type="number" placeholder="Qtd averiguada" min="0"/>
+        <input type="text" placeholder="Observação sobre a divergência"/>
+      </div>`;
 
     container.appendChild(block);
   });
@@ -737,15 +738,12 @@ function setTipo(t) {
     t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
 }
 
-function setCampo(btn, status) {
-  const row  = btn.closest('.campo-row');
-  const nome = row.dataset.campo;
-  const idx  = row.dataset.idx;
-  const obsId = campoObsId(idx, nome);
-  const obs  = document.getElementById(obsId);
-  row.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
-  if (status==='OK')     { btn.classList.add('ok-active');    obs?.classList.remove('show'); }
-  if (status==='NAO_OK') { btn.classList.add('naook-active'); obs?.classList.add('show'); }
+function setNfStatus(btn, status, idx) {
+  const bar = btn.closest('.toggle-bar');
+  bar.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
+  const obsRow = document.getElementById('nf-obs-' + idx);
+  if (status==='OK')     { btn.classList.add('ok-active');    obsRow?.classList.remove('show'); }
+  if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
 }
 
 function toggleClienteUnico() {
@@ -826,41 +824,43 @@ async function submeterConferencia() {
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
 
-    // ── Coleta campos por bloco de NF ──
+    // ── Coleta status por bloco de NF ──
     const nfsData = [];
     document.querySelectorAll('#campos-conferencia .nf-block').forEach(block=>{
       const idx  = parseInt(block.dataset.idx);
       const v    = currentVehicles[idx] || {};
-      const campos = [];
-      block.querySelectorAll('.campo-row').forEach(row=>{
-        const nome   = row.dataset.campo;
-        const rowIdx = row.dataset.idx;
-        const okBtn  = row.querySelector('.ok-active');
-        const noBtn  = row.querySelector('.naook-active');
-        const status = okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
-        const obsId  = campoObsId(rowIdx, nome);
-        const obsEl  = document.getElementById(obsId);
-        const qtd    = obsEl?.querySelector('input[type=number]')?.value||'';
-        const obsText= obsEl?.querySelectorAll('input')[1]?.value||'';
-        campos.push({ nome, status, quantidadeAveriguada:qtd?parseInt(qtd):null, observacao:obsText });
-      });
-      // Reutiliza helpers col/nfFallback definidos em renderCamposConferencia
-      // (replicados inline aqui pois estamos fora daquele escopo)
+
+      // Helper inline para leitura de coluna
       function _col(letter, ...names) {
         for (const n of names) { if ((v[n]||'').trim()) return v[n].trim(); }
         return (v['_C'+letter.toUpperCase()]||'').trim();
       }
+
+      // Status do toggle único por NF
+      const okBtn  = block.querySelector('.ok-active');
+      const noBtn  = block.querySelector('.naook-active');
+      const status = okBtn?'OK':noBtn?'NAO_OK':'PENDENTE';
+
+      // Dados de divergência (se NÃO OK)
+      const obsRow = document.getElementById('nf-obs-' + idx);
+      const qtdDiv  = obsRow?.querySelector('input[type=number]')?.value||'';
+      const obsText = obsRow?.querySelector('input[type=text]')?.value||'';
+
       const nfSalvo = _col('M','NF','Nº NF')
                    || _col('Q','OC')
                    || _col('R','MD')
                    || _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
+
       nfsData.push({
-        nf:           nfSalvo,
-        destinatario: _col('H','Destinatário','Destinatario'),
-        cidadeDestino:_col('L','Cidade Destino'),
-        volume:       _col('E','Volume'),
-        servico:      (v['Serviço']||v['_CA']||'').trim(),
-        campos
+        nf:                   nfSalvo,
+        destinatario:         _col('H','Destinatário','Destinatario'),
+        cidadeDestino:        _col('L','Cidade Destino'),
+        volume:               _col('E','Volume'),
+        servico:              _col('O','Serviço','Servico'),
+        tituloOp:             _col('A','Coleta/Entrega/processo/cliente'),
+        status,
+        quantidadeAveriguada: qtdDiv ? parseInt(qtdDiv) : null,
+        observacao:           obsText
       });
     });
 
