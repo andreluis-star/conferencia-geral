@@ -133,6 +133,11 @@
   }
   .nf-field-val.empty { color:#bbb; font-weight:400; }
 
+  /* Cores por tipo de serviço */
+  .servico-expresso     { color:#c0392b !important; font-weight:800; }
+  .servico-personalizado{ color:#6c3483 !important; font-weight:800; }
+  .servico-economico    { color:#1a3a5c !important; font-weight:800; }
+
   /* Toggle único por linha */
   .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
   .toggle-btn { padding:5px 10px; border:none; font-size:0.75rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
@@ -253,6 +258,7 @@
       <div class="icon">📋</div>
       <p>Nenhum veículo encontrado na planilha para esta data.</p>
       <p style="margin-top:6px;font-size:0.78rem;">Aba buscada: <b id="empty-tab-name"></b></p>
+      <p style="margin-top:4px;font-size:0.72rem;color:#aaa;">Planilha ativa: <span id="empty-sheet-id" style="font-family:monospace;"></span></p>
       <button onclick="mostrarDebug()" style="margin-top:10px;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.8rem;cursor:pointer;">🔍 Ver diagnóstico</button>
       <pre id="debug-box" style="display:none;margin-top:10px;background:#f0f4fa;border-radius:8px;padding:10px;font-size:0.72rem;text-align:left;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;"></pre>
     </div>
@@ -505,6 +511,7 @@ async function loadPlacas() {
   if (!sheetVehicles.length) {
     document.getElementById('empty-placas').style.display='block';
     document.getElementById('empty-tab-name').textContent = tabName;
+    document.getElementById('empty-sheet-id').textContent = window._activeSheetId || '—';
     return;
   }
 
@@ -716,6 +723,20 @@ function renderCamposConferencia(vehicles) {
       </div>`;
     }
 
+    // Chip do Serviço com cor por tipo
+    function chipServico(val) {
+      if (!val) return '';
+      const up = val.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      let cls = '';
+      if (up.includes('EXPRESSO'))      cls = 'servico-expresso';
+      else if (up.includes('PERSONAL')) cls = 'servico-personalizado';
+      else if (up.includes('ECONOM'))   cls = 'servico-economico';
+      return `<div class="nf-field">
+        <span class="nf-field-label">Serviço</span>
+        <span class="nf-field-val ${cls}">${val}</span>
+      </div>`;
+    }
+
     const block = document.createElement('div');
     block.className = 'nf-block';
     block.dataset.idx = idx;
@@ -728,7 +749,7 @@ function renderCamposConferencia(vehicles) {
           ${chip('Nº NF', nfVal)}
           ${chip('Destinatário', destVal)}
           ${chip('Cidade Destino', cidadeVal)}
-          ${servicoVal ? chip('Serviço', servicoVal) : ''}
+          ${chipServico(servicoVal)}
         </div>
         <div class="toggle-bar">
           <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
