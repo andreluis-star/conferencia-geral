@@ -190,6 +190,35 @@
   .palete-row.diverge input[type=number] { border-color:var(--red) !important; background:#fff5f5; }
   .palete-row.ok-ret  input[type=number] { border-color:var(--green) !important; background:#f0fff4; }
 
+  /* ── ITEM CARDS (Paletes e Insumos) ── */
+  .item-cards-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  @media(min-width:480px){ .item-cards-grid{ grid-template-columns:repeat(4,1fr); } }
+  .item-card {
+    background:#f8f9fc; border:2px solid #e0e8f5; border-radius:12px;
+    padding:10px 6px 8px; text-align:center; transition:border-color 0.15s, background 0.15s;
+    user-select:none;
+  }
+  .item-card.active  { border-color:var(--navy); background:#eef2ff; }
+  .item-card.diverge { border-color:var(--red)   !important; background:#fff5f5; }
+  .item-card.ok-ret  { border-color:var(--green) !important; background:#f0fff4; }
+  .item-card-icon { font-size:1.4rem; line-height:1; margin-bottom:4px; display:block; }
+  .item-card-name { font-size:0.70rem; font-weight:700; color:var(--navy); line-height:1.2; margin-bottom:2px; }
+  .item-card-sub  { font-size:0.60rem; color:#aaa; margin-bottom:4px; }
+  .item-card-saiu { font-size:0.62rem; font-weight:700; background:#e8f0fe; color:#1a3a5c;
+    border-radius:8px; padding:1px 5px; margin:3px auto 4px; display:inline-block; }
+  .qty-stepper { display:flex; align-items:center; justify-content:center; gap:3px; margin-top:6px; }
+  .qty-btn {
+    width:22px; height:22px; border:1px solid #ccc; border-radius:6px;
+    background:#fff; cursor:pointer; font-size:1rem; font-weight:700; color:var(--navy);
+    display:flex; align-items:center; justify-content:center; padding:0; line-height:1; flex-shrink:0;
+  }
+  .qty-btn:active { background:#e0e8f5; }
+  .qty-val { min-width:22px; text-align:center; font-size:0.88rem; font-weight:800; color:var(--navy); }
+  .outros-custom-inp {
+    width:100%; margin-top:5px; border:1px solid #ddd; border-radius:6px;
+    padding:3px 6px; font-size:0.70rem; text-align:center; outline:none; background:#fff;
+  }
+
   /* ── INSUMOS SELEÇÃO ── */
   .insumo-sel { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
   .insumo-sel:last-child { border-bottom:none; }
@@ -343,15 +372,13 @@
       <div class="form-card">
         <h4>🪵 Paletes</h4>
         <div id="palete-retorno-banner"></div>
-        <div id="paletes-list"></div>
-        <button class="btn-add-palete" onclick="addPaleteRow()">+ Adicionar tipo de palete</button>
+        <div id="paletes-list" class="item-cards-grid"></div>
       </div>
 
       <!-- INSUMOS UTILIZADOS -->
       <div class="form-card">
         <h4>📦 Insumos <span id="insumos-tipo-label" style="font-size:0.78rem;color:#888;">(utilizados / enviados)</span></h4>
-        <div id="insumos-rows-list"></div>
-        <button class="btn-add-palete" onclick="addInsumoRow()">+ Adicionar insumo</button>
+        <div id="insumos-rows-list" class="item-cards-grid"></div>
       </div>
 
       <!-- FOTOS -->
@@ -852,8 +879,10 @@ async function prefillFromExistingOp(placa, tipo) {
       container.prepend(banner);
     }
 
-    op.nfs.forEach((nf, idx) => {
-      const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+    op.nfs.forEach((nf, arrayIdx) => {
+      // blockIdx é o data-idx real do DOM; fallback para posição no array (ops antigas sem blockIdx)
+      const domIdx = nf.blockIdx !== undefined ? nf.blockIdx : arrayIdx;
+      const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${domIdx}"]`);
       if (!block) return;
       const btns = block.querySelectorAll('.toggle-btn');
       btns.forEach(b => b.classList.remove('ok-active','naook-active'));
@@ -862,7 +891,7 @@ async function prefillFromExistingOp(placa, tipo) {
         btns[0]?.classList.add('ok-active');
       } else if (nf.status === 'NAO_OK') {
         btns[1]?.classList.add('naook-active');
-        const obsRow = document.getElementById('nf-obs-' + idx);
+        const obsRow = document.getElementById('nf-obs-' + domIdx);
         if (obsRow) {
           obsRow.classList.add('show');
           const inputs = obsRow.querySelectorAll('input');
@@ -877,7 +906,7 @@ async function prefillFromExistingOp(placa, tipo) {
       const nfRespondida = nf.status === 'OK' || nf.status === 'NAO_OK';
       if (shouldDisableAll || (isParcialMesmoTipo && nfRespondida)) {
         btns.forEach(b => { b.disabled = true; });
-        const obsRow = document.getElementById('nf-obs-' + idx);
+        const obsRow = document.getElementById('nf-obs-' + domIdx);
         obsRow?.querySelectorAll('input').forEach(i => { i.readOnly = true; i.style.background = '#f5f5f5'; });
       }
     });
@@ -1016,134 +1045,147 @@ function toggleClienteUnico() {
     document.getElementById('chk-cliente-unico').checked ? 'block' : 'none';
 }
 
-// ── PALETES ──
-function addPaleteRow() {
-  const list = document.getElementById('paletes-list');
-  const row  = document.createElement('div');
-  row.className = 'palete-row';
-  row.innerHTML = `
-    <select onchange="checkOutros(this)">
-      <option value="PBR">Palete PBR</option>
-      <option value="DESCARTAVEL">Descartável</option>
-      <option value="OUTROS">Outros</option>
-    </select>
-    <input type="text" class="outros-input" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
-    <input type="number" value="0" min="0" placeholder="Qtd"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(row);
-}
-function checkOutros(sel) {
-  sel.nextElementSibling.style.display = sel.value==='OUTROS' ? 'block' : 'none';
+// ── STEPPER GENÉRICO ──
+function changeQty(btn, delta) {
+  const card = btn.closest('.item-card');
+  const valEl = card.querySelector('.qty-val');
+  let val = Math.max(0, (parseInt(valEl.textContent) || 0) + delta);
+  valEl.textContent = val;
+  card.classList.toggle('active', val > 0);
+
+  // Divergência de retorno de paletes
+  const qtdSaiu = card.dataset.qtdSaiu;
+  if (qtdSaiu !== '' && qtdSaiu !== undefined) {
+    const saiu = parseInt(qtdSaiu);
+    card.classList.toggle('diverge', val !== saiu);
+    card.classList.toggle('ok-ret',  val === saiu);
+  }
+
+  // Campo "Outros" mostra/esconde input de descrição
+  if (card.dataset.tipo === 'OUTROS') {
+    const inp = card.querySelector('.outros-custom-inp');
+    if (inp) inp.style.display = val > 0 ? 'block' : 'none';
+  }
 }
 
-// ── PALETES: SETUP DE RETORNO ──────────────────────────────────
-/**
- * Para ENTRADA: busca a última SAÍDA desta placa no Firestore e pré-preenche
- * os paletes com o que saiu, para o conferente confirmar o retorno.
- * Para SAÍDA: adiciona linha vazia normal.
- */
+// ── PALETES: CARDS FIXOS ──
+function renderPaleteCards(retorno) {
+  const container = document.getElementById('paletes-list');
+  const banner    = document.getElementById('palete-retorno-banner');
+
+  // Monta mapa de retorno por tipo
+  const retMap = {};
+  retorno.forEach(p => { retMap[p.tipo === 'OUTROS' ? 'OUTROS' : p.tipo] = p; });
+
+  // Banner de retorno
+  if (retorno.length > 0) {
+    const total = retorno.reduce((s, p) => s + (p.quantidade || 0), 0);
+    banner.innerHTML = `<div class="palete-retorno-banner">
+      <span style="font-size:1.1rem;">🔄</span>
+      <span>Na última saída, saíram <strong>${total} palete(s)</strong>. Confirme abaixo o que está <strong>retornando</strong>.</span>
+    </div>`;
+  } else {
+    banner.innerHTML = '';
+  }
+
+  const tipos = [
+    { tipo:'PBR',         icon:'🪵', nome:'PBR' },
+    { tipo:'DESCARTAVEL', icon:'♻️', nome:'Descartável' },
+    { tipo:'OUTROS',      icon:'📦', nome:'Outros' },
+  ];
+
+  container.innerHTML = tipos.map(t => {
+    const ret      = retMap[t.tipo];
+    const qtdSaiu  = ret ? (ret.quantidade || 0) : '';
+    const qtdIni   = ret ? (ret.quantidade || 0) : 0;
+    const custom   = (t.tipo === 'OUTROS' && ret?.tipoCustom) ? ret.tipoCustom : '';
+    const saiuHtml = qtdSaiu !== '' ? `<div class="item-card-saiu">↑ Saiu: ${qtdSaiu}</div>` : '';
+    const outrosInp= t.tipo === 'OUTROS'
+      ? `<input class="outros-custom-inp" type="text" placeholder="Qual tipo?" value="${custom}"
+           style="display:${qtdIni>0?'block':'none'};"/>`
+      : '';
+    const activeCs = qtdIni > 0 ? ' active' : '';
+
+    return `<div class="item-card palete-card${activeCs}" data-tipo="${t.tipo}" data-qtd-saiu="${qtdSaiu}">
+      <span class="item-card-icon">${t.icon}</span>
+      <div class="item-card-name">${t.nome}</div>
+      ${saiuHtml}
+      <div class="qty-stepper">
+        <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
+        <span class="qty-val">${qtdIni}</span>
+        <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
+      </div>
+      ${outrosInp}
+    </div>`;
+  }).join('');
+
+  // Aplica cor de divergência inicial
+  container.querySelectorAll('.palete-card').forEach(card => {
+    const qs = card.dataset.qtdSaiu;
+    if (qs !== '') {
+      const saiu = parseInt(qs), val = parseInt(card.querySelector('.qty-val').textContent);
+      card.classList.toggle('diverge', val !== saiu);
+      card.classList.toggle('ok-ret',  val === saiu);
+    }
+  });
+}
+
+// ── PALETES: SETUP ──────────────────────────────────────────────
 async function setupPaletes(placa, tipo) {
   paletesUltimaSaida = [];
 
   if (tipo === 'ENTRADA') {
     try {
-      // Busca todas as operações desta placa e filtra SAÍDA em JS
-      // (evita índice composto no Firestore)
-      const snap = await db.collection('operacoes')
-        .where('placa', '==', placa).get();
-
+      const snap = await db.collection('operacoes').where('placa', '==', placa).get();
       const saidas = snap.docs
         .map(d => d.data())
         .filter(op => op.tipoExecucao === 'SAIDA' && op.paletes?.length > 0)
-        .sort((a, b) =>
-          (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)
-        );
-
-      if (saidas.length > 0) {
-        paletesUltimaSaida = saidas[0].paletes || [];
-      }
+        .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+      if (saidas.length > 0) paletesUltimaSaida = saidas[0].paletes || [];
     } catch(e) { console.warn('setupPaletes:', e.message); }
   }
 
-  if (paletesUltimaSaida.length > 0) {
-    const total = paletesUltimaSaida.reduce((s, p) => s + (p.quantidade || 0), 0);
-    document.getElementById('palete-retorno-banner').innerHTML = `
-      <span style="font-size:1.1rem;">🔄</span>
-      <span>Na última saída, saíram <strong>${total} palete(s)</strong> com este veículo.
-      Confirme abaixo a quantidade que está <strong>retornando</strong>.</span>`;
-    paletesUltimaSaida.forEach(p =>
-      addPaleteRetornoRow(p.tipo, p.tipoCustom || '', p.quantidade || 0)
-    );
-  } else {
-    if (tipo === 'ENTRADA') {
-      document.getElementById('palete-retorno-banner').innerHTML = `
-        <span style="font-size:1rem;">ℹ️</span>
-        <span style="color:#888;">Nenhuma saída anterior registrada para este veículo.</span>`;
-    }
-    addPaleteRow();
+  renderPaleteCards(paletesUltimaSaida);
+}
+
+// ── INSUMOS: CARDS ──────────────────────────────────────────────
+function insumoIcon(categoria) {
+  const c = (categoria||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if (c.includes('cinta') || c.includes('lacre')) return '🔗';
+  if (c.includes('impres') || c.includes('papel')) return '🖨️';
+  if (c.includes('etiqueta') || c.includes('tag'))  return '🏷️';
+  if (c.includes('fita') || c.includes('adesivo'))  return '🎗️';
+  if (c.includes('filme') || c.includes('plastico')) return '🧴';
+  if (c.includes('saco') || c.includes('sacola'))   return '🛍️';
+  if (c.includes('caixa') || c.includes('embala'))  return '📦';
+  return '📦';
+}
+
+function renderInsumosSel() { renderInsumoCards(); }
+
+function renderInsumoCards() {
+  const container = document.getElementById('insumos-rows-list');
+  // Filtra impressão (igual ao comportamento anterior do formulário de veículo)
+  const lista = allInsumos.filter(i =>
+    !['impressão','impressao'].includes((i.categoria||'').toLowerCase())
+  );
+  if (!lista.length) {
+    container.innerHTML = '<p style="color:#aaa;font-size:0.8rem;text-align:center;padding:8px;grid-column:1/-1;">Nenhum insumo cadastrado.</p>';
+    return;
   }
-}
-
-/**
- * Cria uma linha de palete pré-preenchida com tipo e qtd da última saída.
- * O conferente edita a qtd para o que está realmente retornando.
- */
-function addPaleteRetornoRow(tipo, tipoCustom, qtdSaiu) {
-  const list = document.getElementById('paletes-list');
-  const row  = document.createElement('div');
-  row.className = 'palete-row';
-  row.dataset.qtdSaiu = qtdSaiu;
-  row.innerHTML = `
-    <select onchange="checkOutros(this)">
-      <option value="PBR"         ${tipo==='PBR'         ?'selected':''}>Palete PBR</option>
-      <option value="DESCARTAVEL" ${tipo==='DESCARTAVEL'  ?'selected':''}>Descartável</option>
-      <option value="OUTROS"      ${tipo==='OUTROS'       ?'selected':''}>Outros</option>
-    </select>
-    <input type="text" class="outros-input" value="${tipoCustom}"
-      placeholder="Qual tipo?"
-      style="display:${tipo==='OUTROS'?'block':'none'};flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
-    <span class="saiu-badge">↑ Saiu: ${qtdSaiu}</span>
-    <input type="number" value="${qtdSaiu}" min="0" placeholder="Retornando"
-      oninput="checkPaleteDiverg(this)"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(row);
-  // Aplica cor inicial (verde se bate, sem cor ao abrir)
-  checkPaleteDiverg(row.querySelector('input[type=number]'));
-}
-
-/** Marca a linha visualmente se a qtd retornada diverge do que saiu */
-function checkPaleteDiverg(input) {
-  const row  = input.closest('.palete-row');
-  const saiu = parseInt(row.dataset.qtdSaiu);
-  const ret  = parseInt(input.value) || 0;
-  if (isNaN(saiu)) { row.classList.remove('diverge','ok-ret'); return; }
-  row.classList.toggle('diverge', ret !== saiu);
-  row.classList.toggle('ok-ret',  ret === saiu);
-}
-
-// ── INSUMOS (linhas dinâmicas, igual paletes) ──
-function _insumoOptions(filtrarImpressao) {
-  const lista = filtrarImpressao
-    ? allInsumos.filter(i => !['impressão','impressao'].includes((i.categoria||'').toLowerCase()))
-    : allInsumos;
-  return `<option value="">— Selecione —</option>` +
-    lista.map(i => `<option value="${i.id}">${i.nome} (estoque: ${i.saldo||0})</option>`).join('');
-}
-
-function renderInsumosSel() {
-  const list = document.getElementById('insumos-rows-list');
-  list.innerHTML = '';
-}
-
-function addInsumoRow() {
-  const list = document.getElementById('insumos-rows-list');
-  const row  = document.createElement('div');
-  row.className = 'palete-row';
-  row.innerHTML = `
-    <select style="flex:1;">${_insumoOptions(true)}</select>
-    <input type="number" value="1" min="1" placeholder="Qtd"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(row);
+  container.innerHTML = lista.map(ins => `
+    <div class="item-card insumo-card"
+        data-insumo-id="${ins.id}"
+        data-insumo-nome="${(ins.nome||'').replace(/"/g,'&quot;')}">
+      <span class="item-card-icon">${insumoIcon(ins.categoria||'')}</span>
+      <div class="item-card-name">${ins.nome}</div>
+      ${ins.categoria ? `<div class="item-card-sub">${ins.categoria}</div>` : ''}
+      <div class="qty-stepper">
+        <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
+        <span class="qty-val">0</span>
+        <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
+      </div>
+    </div>`).join('');
 }
 
 // ── FOTOS ──
@@ -1210,6 +1252,7 @@ async function submeterConferencia() {
                    || _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
 
       nfsData.push({
+        blockIdx:             idx,   // índice real no DOM (data-idx do nf-block)
         nf:                   nfSalvo,
         destinatario:         _col('H','Destinatário','Destinatario'),
         cidadeDestino:        _col('L','Cidade Destino'),
@@ -1222,23 +1265,28 @@ async function submeterConferencia() {
       });
     });
 
-    // ── Coleta paletes ──
+    // ── Coleta paletes dos cards ──
     const paletes = [];
-    document.querySelectorAll('#paletes-list .palete-row').forEach(row=>{
-      const sel  = row.querySelector('select');
-      const tipo = sel.value;
-      const tipoCustom = tipo==='OUTROS'?(row.querySelector('.outros-input')?.value||''):'';
-      const qtd  = parseInt(row.querySelector('input[type=number]')?.value)||0;
-      if (qtd>0) paletes.push({tipo,tipoCustom,quantidade:qtd});
+    document.querySelectorAll('#paletes-list .palete-card').forEach(card => {
+      const tipo = card.dataset.tipo;
+      const qtd  = parseInt(card.querySelector('.qty-val')?.textContent) || 0;
+      if (qtd > 0) {
+        const tipoCustom = tipo === 'OUTROS' ? (card.querySelector('.outros-custom-inp')?.value || '') : '';
+        paletes.push({tipo, tipoCustom, quantidade: qtd});
+      }
     });
 
-    // ── Coleta insumos das linhas dinâmicas ──
+    // ── Coleta insumos dos cards ──
     const insumosSel = [];
-    document.querySelectorAll('#insumos-rows-list .palete-row').forEach(row => {
-      const sel = row.querySelector('select');
-      const qtd = parseInt(row.querySelector('input[type=number]')?.value) || 0;
-      const ins = allInsumos.find(i => i.id === sel?.value);
-      if (ins && qtd > 0) insumosSel.push({insumoId: ins.id, insumoNome: ins.nome, quantidade: qtd});
+    document.querySelectorAll('#insumos-rows-list .insumo-card').forEach(card => {
+      const qtd = parseInt(card.querySelector('.qty-val')?.textContent) || 0;
+      if (qtd > 0) {
+        insumosSel.push({
+          insumoId:   card.dataset.insumoId,
+          insumoNome: card.dataset.insumoNome,
+          quantidade: qtd
+        });
+      }
     });
 
     const clienteUnico = document.getElementById('chk-cliente-unico').checked;
