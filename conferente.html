@@ -620,10 +620,14 @@ function buildPlacaCard(group) {
     const motorista = (vehicles[0]['Motorista']||'').substring(0,22);
 
     // Status do grupo
-    const doneE = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
-    const doneS = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
-    const isDone = tipo==='ENTRADA'?doneE : tipo==='SAIDA'?doneS : (doneE&&doneS);
-    const isAndam = !isDone && (doneE||doneS);
+    const doneE   = completedOps[`${placa}_ENTRADA`]==='CONCLUIDA';
+    const doneS   = completedOps[`${placa}_SAIDA`]==='CONCLUIDA';
+    const parcialE = completedOps[`${placa}_ENTRADA`]==='PARCIAL';
+    const parcialS = completedOps[`${placa}_SAIDA`]==='PARCIAL';
+    const isDone   = tipo==='ENTRADA'?doneE : tipo==='SAIDA'?doneS : (doneE&&doneS);
+    const hasAtivE = doneE || parcialE;
+    const hasAtivS = doneS || parcialS;
+    const isAndam  = !isDone && (hasAtivE || hasAtivS);
 
     const statusCls = isDone?'done':isAndam?'andamento':'';
     const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
@@ -650,9 +654,13 @@ function buildPlacaCard(group) {
     let statusBadge = '';
     if (isDone) {
       statusBadge = `<span class="placa-parcial-badge" style="background:var(--green);color:#fff;">CONCLUÍDO</span>`;
-    } else if (tipo === 'ENTRADA_SAIDA' && doneE && !doneS) {
+    } else if (tipo === 'ENTRADA' && parcialE) {
       statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
-    } else if (tipo === 'ENTRADA_SAIDA' && !doneE && doneS) {
+    } else if (tipo === 'SAIDA' && parcialS) {
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
+    } else if (tipo === 'ENTRADA_SAIDA' && hasAtivE && !hasAtivS) {
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
+    } else if (tipo === 'ENTRADA_SAIDA' && !hasAtivE && hasAtivS) {
       statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
     }
 
@@ -819,7 +827,7 @@ async function prefillFromExistingOp(placa, tipo) {
   try {
     const snap = await db.collection('operacoes').where('placa', '==', placa).get();
     const todos = snap.docs.map(d => d.data())
-      .filter(op => op.status === 'CONCLUIDA' && op.nfs?.length)
+      .filter(op => (op.status === 'CONCLUIDA' || op.status === 'PARCIAL') && op.nfs?.length)
       .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
 
     if (!todos.length) return;
@@ -830,8 +838,10 @@ async function prefillFromExistingOp(placa, tipo) {
 
     // isReference = dados vêm de op de tipo DIFERENTE (ex.: ENTRADA mostrada na tela de SAÍDA)
     const isReference = op.tipoExecucao !== tipo;
-    // shouldDisable = trava os botões se é referência ou se o tipo atual já está concluído
-    const shouldDisable = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
+    // shouldDisableAll = trava tudo quando é referência cruzada ou op já está concluída
+    const shouldDisableAll = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
+    // isParcialMesmoTipo = op parcial do mesmo tipo → trava só os NFs já respondidos
+    const isParcialMesmoTipo = !isReference && op.status === 'PARCIAL';
 
     // Banner de referência cruzada
     if (isReference) {
@@ -861,10 +871,12 @@ async function prefillFromExistingOp(placa, tipo) {
         }
       }
 
-      // Desabilita botões quando os dados são referência ou a op já está concluída
-      if (shouldDisable) {
+      // Trava botões conforme o contexto:
+      // - shouldDisableAll: referência cruzada ou já concluída → trava tudo
+      // - isParcialMesmoTipo: trava apenas NFs já respondidos (PENDENTE ficam livres)
+      const nfRespondida = nf.status === 'OK' || nf.status === 'NAO_OK';
+      if (shouldDisableAll || (isParcialMesmoTipo && nfRespondida)) {
         btns.forEach(b => { b.disabled = true; });
-        // Inputs de divergência também ficam somente leitura
         const obsRow = document.getElementById('nf-obs-' + idx);
         obsRow?.querySelectorAll('input').forEach(i => { i.readOnly = true; i.style.background = '#f5f5f5'; });
       }
@@ -1237,6 +1249,21 @@ async function submeterConferencia() {
     const fotosUrls = [];
     for (const b64 of fotosBase64) { fotosUrls.push(await compressImage(b64)); }
 
+    // ── Determina status: CONCLUIDA só se todos os campos foram respondidos ──
+    const todasRespondidas = nfsData.every(nf => nf.status === 'OK' || nf.status === 'NAO_OK');
+    const opStatus = todasRespondidas ? 'CONCLUIDA' : 'PARCIAL';
+
+    // Se parcial, remove operação parcial anterior do mesmo tipo (evita duplicatas)
+    if (opStatus === 'PARCIAL') {
+      const oldParcialSnap = await db.collection('operacoes')
+        .where('placa','==',placa)
+        .where('tipoExecucao','==',currentTipo)
+        .where('status','==','PARCIAL').get();
+      for (const oldDoc of oldParcialSnap.docs) {
+        await oldDoc.ref.delete();
+      }
+    }
+
     // ── Salva operação ──
     const tipoOp = currentVehicles[0]._operationType || currentTipo;
     const opRef = await db.collection('operacoes').add({
@@ -1249,91 +1276,98 @@ async function submeterConferencia() {
       paletes,
       paletesEsperados: paletesUltimaSaida,   // o que saiu na operação anterior
       insumos:insumosSel,
-      fotos:fotosUrls, observacoes, status:'CONCLUIDA',
+      fotos:fotosUrls, observacoes, status:opStatus,
       motorista:currentVehicles[0]['Motorista']||''
     });
 
-    // ── Atualiza saldos dos insumos ──
-    for (const ins of insumosSel) {
-      const delta = currentTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
-      const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
-      const novoSaldo = (insDoc.data().saldo||0)+delta;
-      if (novoSaldo >= 0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
-      await db.collection('movimentacoes').add({
-        insumoId:ins.insumoId, insumoNome:ins.insumoNome,
-        tipo:currentTipo, quantidade:ins.quantidade,
-        operacaoId:opRef.id, placa,
-        conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
-        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-        observacao:`${currentTipo} - ${placa}`
-      });
-    }
-
-    // ── Discrepâncias de NF (NÃO OK) ──
-    for (const nf of nfsData) {
-      if (nf.status === 'NAO_OK') {
-        await db.collection('discrepancias').add({
-          tipo: 'NF',
+    // Efeitos colaterais (estoque e discrepâncias) somente em operações CONCLUIDAS
+    if (opStatus === 'CONCLUIDA') {
+      // ── Atualiza saldos dos insumos ──
+      for (const ins of insumosSel) {
+        const delta = currentTipo==='SAIDA' ? -ins.quantidade : ins.quantidade;
+        const insDoc = await db.collection('insumos').doc(ins.insumoId).get();
+        const novoSaldo = (insDoc.data().saldo||0)+delta;
+        if (novoSaldo >= 0) await db.collection('insumos').doc(ins.insumoId).update({saldo:novoSaldo});
+        await db.collection('movimentacoes').add({
+          insumoId:ins.insumoId, insumoNome:ins.insumoNome,
+          tipo:currentTipo, quantidade:ins.quantidade,
           operacaoId:opRef.id, placa,
-          nf:nf.nf, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
-          observacao:nf.observacao||'',
-          quantidadeAveriguada:nf.quantidadeAveriguada||null,
           conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
           timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-          status:'PENDENTE'
+          observacao:`${currentTipo} - ${placa}`
         });
       }
-    }
 
-    // ── Discrepâncias de Palete (retorno divergente) ──
-    if (currentTipo === 'ENTRADA' && paletesUltimaSaida.length > 0) {
-      for (const esp of paletesUltimaSaida) {
-        const tipoKey = esp.tipo === 'OUTROS' ? (esp.tipoCustom||'OUTROS') : esp.tipo;
-        const retornado = paletes.find(p =>
-          (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
-        );
-        const qtdRet = retornado?.quantidade || 0;
-        if (qtdRet !== esp.quantidade) {
+      // ── Discrepâncias de NF (NÃO OK) ──
+      for (const nf of nfsData) {
+        if (nf.status === 'NAO_OK') {
           await db.collection('discrepancias').add({
-            tipo: 'PALETE',
+            tipo: 'NF',
             operacaoId:opRef.id, placa,
-            tipoKey,
-            qtdEsperada: esp.quantidade,
-            qtdRetornada: qtdRet,
-            diferenca: qtdRet - esp.quantidade,
+            nf:nf.nf, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
+            observacao:nf.observacao||'',
+            quantidadeAveriguada:nf.quantidadeAveriguada||null,
             conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
             timestamp:firebase.firestore.FieldValue.serverTimestamp(),
             status:'PENDENTE'
           });
         }
       }
-      // Paletes que retornaram mas não estavam no esperado
-      for (const ret of paletes) {
-        const tipoKey = ret.tipo === 'OUTROS' ? (ret.tipoCustom||'OUTROS') : ret.tipo;
-        const esperado = paletesUltimaSaida.find(p =>
-          (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
-        );
-        if (!esperado && ret.quantidade > 0) {
-          await db.collection('discrepancias').add({
-            tipo: 'PALETE',
-            operacaoId:opRef.id, placa,
-            tipoKey,
-            qtdEsperada: 0,
-            qtdRetornada: ret.quantidade,
-            diferenca: ret.quantidade,
-            conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
-            timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-            status:'PENDENTE'
-          });
+
+      // ── Discrepâncias de Palete (retorno divergente) ──
+      if (currentTipo === 'ENTRADA' && paletesUltimaSaida.length > 0) {
+        for (const esp of paletesUltimaSaida) {
+          const tipoKey = esp.tipo === 'OUTROS' ? (esp.tipoCustom||'OUTROS') : esp.tipo;
+          const retornado = paletes.find(p =>
+            (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
+          );
+          const qtdRet = retornado?.quantidade || 0;
+          if (qtdRet !== esp.quantidade) {
+            await db.collection('discrepancias').add({
+              tipo: 'PALETE',
+              operacaoId:opRef.id, placa,
+              tipoKey,
+              qtdEsperada: esp.quantidade,
+              qtdRetornada: qtdRet,
+              diferenca: qtdRet - esp.quantidade,
+              conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+              timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+              status:'PENDENTE'
+            });
+          }
+        }
+        // Paletes que retornaram mas não estavam no esperado
+        for (const ret of paletes) {
+          const tipoKey = ret.tipo === 'OUTROS' ? (ret.tipoCustom||'OUTROS') : ret.tipo;
+          const esperado = paletesUltimaSaida.find(p =>
+            (p.tipo === 'OUTROS' ? (p.tipoCustom||'OUTROS') : p.tipo) === tipoKey
+          );
+          if (!esperado && ret.quantidade > 0) {
+            await db.collection('discrepancias').add({
+              tipo: 'PALETE',
+              operacaoId:opRef.id, placa,
+              tipoKey,
+              qtdEsperada: 0,
+              qtdRetornada: ret.quantidade,
+              diferenca: ret.quantidade,
+              conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+              timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+              status:'PENDENTE'
+            });
+          }
         }
       }
-    }
+    } // fim if CONCLUIDA
 
     // Atualiza estado local imediatamente para a UI reagir antes do reload
-    completedOps[`${placa}_${currentTipo}`] = 'CONCLUIDA';
+    completedOps[`${placa}_${currentTipo}`] = opStatus;
 
     loading(false);
-    showToast('Conferência registrada! ✔');
+    if (opStatus === 'CONCLUIDA') {
+      showToast('Conferência registrada! ✔');
+    } else {
+      showToast('Conferência parcial salva. Os campos pendentes podem ser preenchidos depois.', 'warning');
+    }
     await loadPlacas();
     goTo('screen-placas');
   } catch(e) {
