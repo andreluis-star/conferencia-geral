@@ -160,6 +160,16 @@
   .servico-personalizado{ color:#6c3483 !important; font-weight:800; }
   .servico-economico    { color:#1a3a5c !important; font-weight:800; }
 
+  /* Badge de tipo de operação acima do toggle */
+  .op-tipo-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+  .op-tipo-badge {
+    font-size:0.58rem; font-weight:900; letter-spacing:0.5px;
+    border-radius:6px; padding:2px 7px; text-align:center; white-space:nowrap;
+  }
+  .op-tipo-badge.entrada { background:#1a5c1a; color:#fff; }
+  .op-tipo-badge.saida   { background:#7a1a1a; color:#fff; }
+  .op-tipo-badge.unknown { background:#888;    color:#fff; }
+
   /* Toggle único por linha */
   .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
   .toggle-btn { padding:5px 10px; border:none; font-size:0.75rem; font-weight:700; cursor:pointer; background:#f5f5f5; color:#888; transition:all 0.15s; }
@@ -398,7 +408,10 @@
 
       <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
       <div class="form-card">
-        <h4>📋 Conferência de Campos</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
+          <h4 style="margin:0;border:none;padding:0;">📋 Conferência de Campos</h4>
+          <button onclick="marcarTodosOK()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap;">✔ TODOS OK</button>
+        </div>
         <!-- Os blocos por NF são renderizados aqui pelo JS -->
         <div id="campos-conferencia"></div>
       </div>
@@ -1070,9 +1083,18 @@ function renderCamposConferencia(vehicles) {
           ${chip('Cidade Destino', cidadeVal)}
           ${chipServico(servicoVal)}
         </div>
-        <div class="toggle-bar">
-          <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
-          <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
+        <div class="op-tipo-wrap">
+          ${(()=>{
+            const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA')       return '<span class="op-tipo-badge entrada">📥 ENTRADA</span>';
+            if (t === 'SAIDA')         return '<span class="op-tipo-badge saida">📤 SAÍDA</span>';
+            if (t === 'ENTRADA_SAIDA') return '<span class="op-tipo-badge entrada">⇅ ENT/SAÍDA</span>';
+            return '<span class="op-tipo-badge unknown">⚠ STATUS NÃO ENCONTRADO</span>';
+          })()}
+          <div class="toggle-bar">
+            <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
+            <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
+          </div>
         </div>
       </div>
       <div class="nf-obs-row" id="${obsRowId}">
