@@ -1,36 +1,24 @@
 {
-  "name": "PortoEx Conferência",
-  "short_name": "PortoEx",
-  "description": "Sistema de Conferência de Cargas - PortoEx",
-  "start_url": "./conferencia.html",
+  "name": "Conferência Geral",
+  "short_name": "Conferência",
+  "description": "Sistema de conferência de veículos e operações",
+  "start_url": "conferente.html",
   "display": "standalone",
-  "background_color": "#002B5C",
-  "theme_color": "#003F7D",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
+  "background_color": "#0d2137",
+  "theme_color": "#0d2137",
   "icons": [
     {
-      "src": "icon-32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-192.png",
+      "src": "logo%20portoex.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "logo%20portoex.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["business", "productivity"],
-  "lang": "pt-BR"
+  ]
 }
