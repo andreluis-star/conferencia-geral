@@ -348,7 +348,7 @@
 
       <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
       <div class="form-card">
-        <h4>📋 Conferência de Campos</h4>
+        <h4 style="display:flex;align-items:center;justify-content:space-between;gap:8px;">📋 Conferência de Campos<button onclick="marcarTodosOK()" style="font-size:0.72rem;padding:5px 12px;border:none;background:var(--green);color:#fff;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">✔ TODOS OK</button></h4>
         <!-- Os blocos por NF são renderizados aqui pelo JS -->
         <div id="campos-conferencia"></div>
       </div>
@@ -1034,10 +1034,26 @@ function setTipo(t) {
 
 function setNfStatus(btn, status, idx) {
   const bar = btn.closest('.toggle-bar');
-  bar.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
   const obsRow = document.getElementById('nf-obs-' + idx);
-  if (status==='OK')     { btn.classList.add('ok-active');    obsRow?.classList.remove('show'); }
-  if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
+  const alreadyActive = btn.classList.contains(status==='OK' ? 'ok-active' : 'naook-active');
+  bar.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
+  obsRow?.classList.remove('show');
+  if (!alreadyActive) {
+    if (status==='OK')     { btn.classList.add('ok-active'); }
+    if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
+  }
+}
+
+function marcarTodosOK() {
+  document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
+    const btns = block.querySelectorAll('.toggle-btn');
+    const okBtn = btns[0];
+    if (!okBtn || okBtn.disabled) return;
+    btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+    okBtn.classList.add('ok-active');
+    const obsRow = document.getElementById('nf-obs-' + block.dataset.idx);
+    obsRow?.classList.remove('show');
+  });
 }
 
 function toggleClienteUnico() {
