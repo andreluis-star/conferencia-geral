@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0d2137"/>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="logo%20portoex.png">
 <title>Conferência Geral</title>
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -56,8 +60,13 @@
     position:relative;
   }
   .placa-card:active { transform:scale(0.95); box-shadow:0 1px 4px rgba(0,0,0,0.1); }
-  .placa-card.done   { border-color:var(--green); }
+  .placa-card.done      { border-color:var(--green); }
   .placa-card.andamento { border-color:var(--amber); }
+  .placa-card.parcial   { border-color:var(--red); background:var(--red); }
+  .placa-card.parcial .placa-numero    { color:#000; }
+  .placa-card.parcial .placa-motorista { color:#111; }
+  .placa-card.parcial .placa-rodape    { background:rgba(0,0,0,0.18); border-top-color:rgba(0,0,0,0.1); }
+  .placa-card.parcial .placa-rodape span { color:#111; }
 
   .placa-topo {
     padding:4px 8px; font-size:0.68rem; font-weight:800; letter-spacing:2px;
@@ -82,6 +91,7 @@
   .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
   .dot-done      { background:var(--green); }
   .dot-andamento { background:var(--amber); }
+  .dot-parcial   { background:#7b0000; }
   .dot-pendente  { background:#ccc; }
 
   /* ── INSUMOS BTN ── */
@@ -262,6 +272,24 @@
   .form-label { font-size:0.8rem; font-weight:600; color:var(--navy); display:block; margin-bottom:5px; }
   .form-input { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px 12px; font-size:0.9rem; outline:none; }
   .form-input:focus { border-color:var(--blue); }
+
+  /* ── PWA INSTALL BANNER ── */
+  #pwa-install-banner {
+    display:none; position:fixed; bottom:0; left:0; right:0; z-index:9995;
+    background:var(--navy); color:#fff;
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));
+    box-shadow:0 -4px 20px rgba(0,0,0,0.4);
+    animation:slideUp 0.35s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .pwa-row1 { display:flex; align-items:center; gap:12px; }
+  .pwa-icon { width:42px; height:42px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+  .pwa-text { flex:1; }
+  .pwa-title { font-weight:800; font-size:0.92rem; }
+  .pwa-sub { font-size:0.74rem; color:rgba(255,255,255,0.65); margin-top:2px; line-height:1.4; }
+  .pwa-row2 { display:flex; gap:8px; margin-top:11px; }
+  #btn-pwa-install { flex:1; background:var(--amber); color:var(--navy); border:none; border-radius:10px; padding:11px 16px; font-weight:800; font-size:0.9rem; cursor:pointer; }
+  #btn-pwa-dismiss { background:transparent; color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.25); border-radius:10px; padding:11px 14px; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -348,7 +376,7 @@
 
       <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
       <div class="form-card">
-        <h4 style="display:flex;align-items:center;justify-content:space-between;gap:8px;">📋 Conferência de Campos<button onclick="marcarTodosOK()" style="font-size:0.72rem;padding:5px 12px;border:none;background:var(--green);color:#fff;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">✔ TODOS OK</button></h4>
+        <h4>📋 Conferência de Campos</h4>
         <!-- Os blocos por NF são renderizados aqui pelo JS -->
         <div id="campos-conferencia"></div>
       </div>
@@ -450,6 +478,21 @@
 
 <div id="toast-container"></div>
 <div id="global-loading"><div class="spin-big"></div></div>
+
+<!-- PWA Install Banner -->
+<div id="pwa-install-banner">
+  <div class="pwa-row1">
+    <img class="pwa-icon" src="logo%20portoex.png" alt="Logo" onerror="this.style.display='none'">
+    <div class="pwa-text">
+      <div class="pwa-title">Instalar Conferência Geral</div>
+      <div class="pwa-sub">Acesse pelo celular como um app, sem precisar abrir o navegador</div>
+    </div>
+  </div>
+  <div class="pwa-row2">
+    <button id="btn-pwa-install">📲 Instalar aplicativo</button>
+    <button id="btn-pwa-dismiss">Agora não</button>
+  </div>
+</div>
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -656,8 +699,10 @@ function buildPlacaCard(group) {
     const hasAtivS = doneS || parcialS;
     const isAndam  = !isDone && (hasAtivE || hasAtivS);
 
-    const statusCls = isDone?'done':isAndam?'andamento':'';
-    const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
+    const isParcial = !isDone && (parcialE || parcialS);
+    const isAndamOnly = !isDone && !isParcial && (hasAtivE || hasAtivS);
+    const statusCls = isDone?'done': isParcial?'parcial': isAndamOnly?'andamento':'';
+    const dotCls    = isDone?'dot-done': isParcial?'dot-parcial': isAndamOnly?'dot-andamento':'dot-pendente';
     const topoCls   = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
     const topoTxt   = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
 
@@ -682,13 +727,13 @@ function buildPlacaCard(group) {
     if (isDone) {
       statusBadge = `<span class="placa-parcial-badge" style="background:var(--green);color:#fff;">CONCLUÍDO</span>`;
     } else if (tipo === 'ENTRADA' && parcialE) {
-      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
     } else if (tipo === 'SAIDA' && parcialS) {
-      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && hasAtivE && !hasAtivS) {
-      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && !hasAtivE && hasAtivS) {
-      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
     }
 
     const el = document.createElement('div');
@@ -1556,6 +1601,50 @@ function goBack() {
   document.getElementById(prev).scrollTop=0;
   document.getElementById('btn-insumos-fixed').style.display=prev==='screen-placas'?'flex':'none';
 }
+</script>
+
+<!-- PWA: captura prompt de instalação e registra service worker -->
+<script>
+(function() {
+  let deferredPrompt = null;
+  const banner    = document.getElementById('pwa-install-banner');
+  const btnInst   = document.getElementById('btn-pwa-install');
+  const btnDismiss= document.getElementById('btn-pwa-dismiss');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (banner) banner.style.display = 'block';
+  });
+
+  if (btnInst) {
+    btnInst.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (banner) banner.style.display = 'none';
+    });
+  }
+
+  if (btnDismiss) {
+    btnDismiss.addEventListener('click', () => {
+      if (banner) banner.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('appinstalled', () => {
+    if (banner) banner.style.display = 'none';
+    deferredPrompt = null;
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .catch(e => console.warn('SW registro:', e));
+    });
+  }
+})();
 </script>
 </body>
 </html>
