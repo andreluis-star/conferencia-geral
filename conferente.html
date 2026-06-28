@@ -31,6 +31,13 @@
   #header-title { font-size:1rem; font-weight:700; color:var(--amber); }
   #header-user  { font-size:0.75rem; color:rgba(255,255,255,0.6); margin-top:2px; }
   .btn-logout-sm { background:none; border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer; }
+  #btn-install-header { display:none; background:var(--amber); color:var(--navy); border:none; border-radius:8px; padding:5px 10px; font-size:0.78rem; font-weight:800; cursor:pointer; margin-right:6px; }
+  #install-manual-tip { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; padding:24px; }
+  .install-tip-box { background:#fff; border-radius:16px; padding:24px; max-width:340px; text-align:center; }
+  .install-tip-box h3 { color:var(--navy); font-size:1rem; margin-bottom:12px; }
+  .install-tip-box p { font-size:0.88rem; color:#444; line-height:1.6; margin-bottom:16px; }
+  .install-tip-box .tip-step { background:#f0f4fa; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:0.85rem; color:var(--navy); font-weight:600; text-align:left; }
+  .install-tip-close { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:10px 24px; font-weight:700; cursor:pointer; width:100%; margin-top:4px; }
   #header-date { font-size:0.72rem; color:var(--amber); font-weight:600; margin-top:1px; }
 
   /* ── SCREENS ── */
@@ -301,7 +308,22 @@
     <div id="header-user"></div>
     <div id="header-date"></div>
   </div>
-  <button class="btn-logout-sm" onclick="logout()">Sair</button>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <button id="btn-install-header" onclick="triggerInstall()">📲 Instalar</button>
+    <button class="btn-logout-sm" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<!-- Modal instrução instalação manual -->
+<div id="install-manual-tip" onclick="this.style.display='none'">
+  <div class="install-tip-box" onclick="event.stopPropagation()">
+    <h3>📲 Instalar como aplicativo</h3>
+    <p>Para instalar no seu celular, siga os passos no Chrome:</p>
+    <div class="tip-step">1. Toque nos 3 pontinhos ⋮ no canto superior direito</div>
+    <div class="tip-step">2. Toque em <strong>"Adicionar à tela inicial"</strong></div>
+    <div class="tip-step">3. Confirme tocando em <strong>"Adicionar"</strong></div>
+    <button class="install-tip-close" onclick="document.getElementById('install-manual-tip').style.display='none'">Entendi</button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -1607,34 +1629,47 @@ function goBack() {
 <script>
 (function() {
   let deferredPrompt = null;
-  const banner    = document.getElementById('pwa-install-banner');
-  const btnInst   = document.getElementById('btn-pwa-install');
-  const btnDismiss= document.getElementById('btn-pwa-dismiss');
+  const banner     = document.getElementById('pwa-install-banner');
+  const btnInst    = document.getElementById('btn-pwa-install');
+  const btnDismiss = document.getElementById('btn-pwa-dismiss');
+  const btnHeader  = document.getElementById('btn-install-header');
+  const manualTip  = document.getElementById('install-manual-tip');
+
+  // Mostra botão no header assim que a página carrega (em mobile)
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (btnHeader) btnHeader.style.display = 'block';
+  }
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    // Mostra banner automático na parte de baixo
     if (banner) banner.style.display = 'block';
+    // Garante botão visível no header
+    if (btnHeader) btnHeader.style.display = 'block';
   });
 
-  if (btnInst) {
-    btnInst.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
+  // Função chamada pelo botão do header e pelo banner
+  window.triggerInstall = async function() {
+    if (deferredPrompt) {
+      // Chrome suporta prompt nativo
       deferredPrompt.prompt();
       await deferredPrompt.userChoice;
       deferredPrompt = null;
       if (banner) banner.style.display = 'none';
-    });
-  }
+      if (btnHeader) btnHeader.style.display = 'none';
+    } else {
+      // Fallback: mostra instrução manual
+      if (manualTip) manualTip.style.display = 'flex';
+    }
+  };
 
-  if (btnDismiss) {
-    btnDismiss.addEventListener('click', () => {
-      if (banner) banner.style.display = 'none';
-    });
-  }
+  if (btnInst)    btnInst.addEventListener('click', () => window.triggerInstall());
+  if (btnDismiss) btnDismiss.addEventListener('click', () => { if (banner) banner.style.display = 'none'; });
 
   window.addEventListener('appinstalled', () => {
-    if (banner) banner.style.display = 'none';
+    if (banner)    banner.style.display = 'none';
+    if (btnHeader) btnHeader.style.display = 'none';
     deferredPrompt = null;
   });
 
