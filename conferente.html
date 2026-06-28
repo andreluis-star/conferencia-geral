@@ -1635,10 +1635,8 @@ function goBack() {
   const btnHeader  = document.getElementById('btn-install-header');
   const manualTip  = document.getElementById('install-manual-tip');
 
-  // Mostra botão no header assim que a página carrega (em mobile)
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    if (btnHeader) btnHeader.style.display = 'block';
-  }
+  // Mostra botão de instalar sempre (funciona em mobile e desktop)
+  if (btnHeader) btnHeader.style.display = 'block';
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
