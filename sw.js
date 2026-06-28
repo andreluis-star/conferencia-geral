@@ -1,31 +1,40 @@
-const CACHE = 'portoex-v1';
-const ASSETS = [
-  './conferencia.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+const CACHE_NAME = 'conferencia-v1';
+const URLS_TO_CACHE = [
+  'conferente.html',
+  'firebase-config.js',
+  'manifest.json',
+  'logo%20portoex.png'
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(URLS_TO_CACHE).catch(e => {
+        console.warn('Cache parcial:', e);
+      });
+    })
   );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
+self.addEventListener('activate', event => {
+  event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  // Passa direto requests do Firebase (tempo real)
-  if (e.request.url.includes('firebase') || e.request.url.includes('googleapis')) {
+self.addEventListener('fetch', event => {
+  // Ignora requisições Firebase (sempre online)
+  if (event.request.url.includes('firebaseapp.com') ||
+      event.request.url.includes('googleapis.com') ||
+      event.request.url.includes('gstatic.com') ||
+      event.request.url.includes('sheets.googleapis.com')) {
     return;
   }
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+  event.respondWith(
+    caches.match(event.request).then(cached => cached || fetch(event.request))
   );
 });
