@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PortoEx · Conferência</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#003F7D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PortoEx">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --laranja: #F47920;
+    --laranja-escuro: #D8651A;
+    --azul: #003F7D;
+    --azul-escuro: #002B5C;
+    --bg: #F5F7FA;
+    --branco: #FFFFFF;
+    --cinza-borda: #E4E8EE;
+    --cinza-texto: #6B7280;
+    --texto: #1F2937;
+    --verde: #10B981;
+    --verde-escuro: #059669;
+    --vermelho: #EF4444;
+    --amarelo: #F59E0B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; overscroll-behavior: none; }
+
+  header { background: var(--branco); border-bottom: 3px solid var(--laranja); padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-logo { line-height: 1; }
+  .brand-logo .porto { font-weight: 800; font-size: 22px; color: var(--azul); letter-spacing: -0.5px; }
+  .brand-logo .porto span { color: var(--laranja); }
+  .brand-tag { font-size: 9px; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; font-weight: 600; }
+  .user-badge { display: flex; align-items: center; gap: 8px; background: var(--bg); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--azul); cursor: pointer; }
+  .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--laranja); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+  /* ── LOGIN ── */
+  .login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, var(--azul) 0%, var(--azul-escuro) 100%); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-box { background: #fff; border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+  .login-logo { text-align: center; margin-bottom: 20px; }
+  .login-logo .porto { font-weight: 800; font-size: 30px; color: var(--azul); letter-spacing: -0.5px; }
+  .login-logo .porto span { color: var(--laranja); }
+  .login-logo .sub { font-size: 11px; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+  .login-box h2 { font-size: 18px; color: var(--azul); margin-bottom: 14px; text-align: center; }
+  .conferentes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .conf-btn { background: var(--bg); border: 2px solid transparent; padding: 14px 10px; border-radius: 12px; font-size: 14px; font-weight: 700; color: var(--azul); cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; text-align: center; }
+  .conf-btn:active { transform: scale(0.96); }
+  .conf-btn:hover { border-color: var(--laranja); background: #fff; }
+
+  /* ── BANNER INSTALAR PWA ── */
+  .install-banner { display: none; background: linear-gradient(135deg, var(--azul) 0%, var(--azul-escuro) 100%); color: #fff; padding: 12px 16px; border-radius: 14px; margin-bottom: 14px; }
+  .install-banner.show { display: flex; align-items: center; gap: 12px; }
+  .install-banner .icon-wrap { width: 44px; height: 44px; flex-shrink: 0; }
+  .install-banner .icon-wrap img { width: 44px; height: 44px; border-radius: 10px; }
+  .install-banner .txt { flex: 1; }
+  .install-banner .txt strong { font-size: 13px; display: block; margin-bottom: 2px; }
+  .install-banner .txt span { font-size: 11px; opacity: 0.8; }
+  .btn-instalar { background: var(--laranja); color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; flex-shrink: 0; }
+  .btn-dismiss { background: rgba(255,255,255,0.15); color: #fff; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+
+  /* ── LISTA DE PLACAS ── */
+  .search-box { background: #fff; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--cinza-borda); display: flex; align-items: center; gap: 10px; }
+  .search-box input { flex: 1; border: none; outline: none; font-size: 15px; font-family: 'Inter', sans-serif; background: transparent; }
+
+  .status-bar { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .status-bar::-webkit-scrollbar { display: none; }
+  .status-chip { background: #fff; border: 1px solid var(--cinza-borda); padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.15s; }
+  .status-chip.active { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .status-chip .count { background: rgba(0,0,0,0.08); padding: 1px 7px; border-radius: 999px; margin-left: 6px; font-size: 11px; }
+  .status-chip.active .count { background: rgba(255,255,255,0.2); }
+
+  .placas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .placa-card { background: #fff; border: 1px solid var(--cinza-borda); border-radius: 16px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .placa-card:active { transform: scale(0.98); }
+  .placa-card:hover { border-color: var(--laranja); box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+  .placa-card.done { background: #F0FDF4; border-color: var(--verde); }
+  .placa-card.done::before { content: '✓'; position: absolute; top: 12px; right: 14px; background: var(--verde); color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .placa-card .placa-num { font-size: 20px; font-weight: 800; color: var(--azul); letter-spacing: 1.5px; font-family: 'Inter', monospace; }
+  .placa-card .placa-mot { font-size: 12px; color: var(--cinza-texto); margin-top: 4px; }
+  .placa-card .placa-stats { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .placa-card .chip { background: var(--bg); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .placa-card .chip.verde { background: rgba(16,185,129,0.1); color: var(--verde-escuro); }
+  .placa-card .chip.laranja { background: rgba(244,121,32,0.1); color: var(--laranja); }
+  .placa-card .chip.azul { background: rgba(0,63,125,0.1); color: var(--azul); }
+
+  /* ── CONFERÊNCIA ── */
+  .back-btn { background: #fff; border: 1px solid var(--cinza-borda); padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: 'Inter', sans-serif; margin-bottom: 14px; color: var(--azul); }
+  .back-btn:hover { border-color: var(--azul); }
+
+  .conf-header { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-escuro) 100%); color: #fff; padding: 18px; border-radius: 16px; margin-bottom: 16px; }
+  .conf-header .placa-big { font-size: 28px; font-weight: 800; letter-spacing: 2px; font-family: 'Inter', monospace; }
+  .conf-header .mot { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+  .section { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--cinza-borda); }
+  .section h3 { font-size: 13px; color: var(--azul); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+
+  .form-row { margin-bottom: 14px; }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-row label { display: block; font-size: 12px; font-weight: 600; color: var(--texto); margin-bottom: 7px; }
+  .form-row select, .form-row input, .form-row textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--cinza-borda); border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--bg); outline: none; transition: border-color 0.15s; }
+  .form-row textarea { resize: vertical; min-height: 70px; }
+  .form-row select:focus, .form-row input:focus, .form-row textarea:focus { border-color: var(--laranja); background: #fff; }
+
+  .counter-group { display: flex; flex-direction: column; gap: 10px; }
+  .counter-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; background: var(--bg); padding: 10px 14px; border-radius: 12px; }
+  .counter-label { font-size: 13px; font-weight: 600; color: var(--texto); }
+  .counter-btns { display: flex; align-items: center; gap: 0; background: #fff; border-radius: 999px; border: 1px solid var(--cinza-borda); overflow: hidden; }
+  .counter-btns button { width: 36px; height: 36px; border: none; background: #fff; cursor: pointer; font-size: 18px; font-weight: 700; color: var(--azul); transition: background 0.15s; font-family: 'Inter', sans-serif; }
+  .counter-btns button:active { background: var(--laranja); color: #fff; }
+  .counter-btns .val { width: 44px; text-align: center; font-weight: 700; font-size: 15px; color: var(--azul); }
+
+  .toggle-group { display: flex; gap: 8px; }
+  .toggle-btn { flex: 1; padding: 12px; border: 2px solid var(--cinza-borda); background: #fff; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; color: var(--cinza-texto); }
+  .toggle-btn.active-yes { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .toggle-btn.active-no { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+
+  /* ── NOTAS FISCAIS ── */
+  .notas-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .notas-toolbar h3 { margin-bottom: 0 !important; }
+  .btn-marcar-todos { background: var(--verde); color: #fff; border: none; padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; display: flex; align-items: center; gap: 6px; transition: background 0.15s; white-space: nowrap; }
+  .btn-marcar-todos:hover { background: var(--verde-escuro); }
+  .btn-marcar-todos:active { transform: scale(0.97); }
+
+  .nota-card { background: var(--bg); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 4px solid var(--cinza-borda); transition: border-color 0.2s, background 0.2s; }
+  .nota-card.ok { border-left-color: var(--verde); background: #F0FDF4; }
+  .nota-card.nao-ok { border-left-color: var(--vermelho); background: #FEF2F2; }
+  .nota-cliente { font-weight: 700; font-size: 14px; color: var(--azul); margin-bottom: 6px; }
+  .nota-dados { font-size: 12px; color: var(--cinza-texto); line-height: 1.6; word-wrap: break-word; }
+  .nota-dados strong { color: var(--texto); }
+
+  /* Botões de ação das notas - maiores e mais claros */
+  .nota-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .nota-actions button {
+    flex: 1;
+    padding: 12px 8px;
+    border: 2px solid var(--cinza-borda);
+    background: #fff;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    color: var(--cinza-texto);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .nota-actions button:active { transform: scale(0.97); }
+
+  /* Estado ATIVO: marcado */
+  .nota-actions .btn-ok.active {
+    background: var(--verde);
+    color: #fff;
+    border-color: var(--verde);
+    box-shadow: 0 2px 8px rgba(16,185,129,0.35);
+  }
+  .nota-actions .btn-naook.active {
+    background: var(--vermelho);
+    color: #fff;
+    border-color: var(--vermelho);
+    box-shadow: 0 2px 8px rgba(239,68,68,0.35);
+  }
+
+  /* Hover: pré-visualização */
+  .nota-actions .btn-ok:not(.active):hover { border-color: var(--verde); color: var(--verde); background: rgba(16,185,129,0.06); }
+  .nota-actions .btn-naook:not(.active):hover { border-color: var(--vermelho); color: var(--vermelho); background: rgba(239,68,68,0.06); }
+
+  /* Dica de clique para desmarcar */
+  .nota-actions .btn-ok.active:hover,
+  .nota-actions .btn-naook.active:hover { opacity: 0.8; }
+
+  .nota-corrige { margin-top: 8px; display: none; }
+  .nota-card.nao-ok .nota-corrige { display: block; }
+  .nota-corrige input { width: 100%; padding: 8px 12px; border: 1px solid var(--cinza-borda); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; background: #fff; outline: none; }
+  .nota-corrige input:focus { border-color: var(--laranja); }
+  .nota-corrige .label { font-size: 11px; color: var(--cinza-texto); margin-bottom: 4px; font-weight: 600; }
+
+  /* ── EXTRAS ── */
+  .extras-lista { margin-top: 10px; }
+  .extra-item { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .extra-item input { padding: 9px 11px; border: 1px solid var(--cinza-borda); border-radius: 8px; font-size: 13px; background: #fff; outline: none; font-family: 'Inter', sans-serif; }
+  .extra-del { width: 32px; height: 32px; background: var(--vermelho); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .btn-add-extra { background: none; border: 1.5px dashed var(--cinza-borda); padding: 10px; border-radius: 8px; font-size: 13px; color: var(--cinza-texto); cursor: pointer; width: 100%; font-family: 'Inter', sans-serif; font-weight: 600; }
+  .btn-add-extra:hover { border-color: var(--laranja); color: var(--laranja); }
+
+  /* ── SALVAR ── */
+  .save-bar { position: sticky; bottom: 0; background: #fff; margin: 0 -16px -16px; padding: 14px 16px; border-top: 1px solid var(--cinza-borda); box-shadow: 0 -4px 12px rgba(0,0,0,0.06); }
+  .btn-salvar { width: 100%; background: var(--laranja); color: #fff; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.15s; }
+  .btn-salvar:active { background: var(--laranja-escuro); }
+  .btn-salvar:disabled { background: #ccc; cursor: not-allowed; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--cinza-texto); }
+  .empty-icon { font-size: 44px; margin-bottom: 10px; }
+
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 13px; transition: transform 0.3s; z-index: 999; background: var(--azul); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,0.2); pointer-events: none; max-width: 90%; text-align: center; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: var(--verde); }
+  .toast.erro { background: var(--vermelho); }
+
+  .db-status { font-size: 10px; padding: 3px 9px; border-radius: 999px; border: 1px solid; font-weight: 600; }
+  .db-ok { color: var(--verde); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+  .db-err { color: var(--vermelho); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+  .db-connecting { color: var(--laranja); border-color: rgba(244,121,32,0.3); background: rgba(244,121,32,0.08); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .palete-tipo { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .palete-tipo button { padding: 8px 14px; border: 1.5px solid var(--cinza-borda); background: #fff; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+  .palete-tipo button.active { background: var(--azul); color: #fff; border-color: var(--azul); }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="porto">PORTO<span>EX</span></div>
+      <div class="sub">Sistema de Conferência</div>
+    </div>
+    <h2>Quem está conferindo?</h2>
+    <div class="conferentes-grid" id="confGrid"></div>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="porto">PORTO<span>EX</span></div>
+      <div class="brand-tag">Conferência</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <div class="db-status db-connecting" id="dbStatus">⏳</div>
+    <div class="user-badge" id="userBadge" onclick="window._trocarUsuario()" style="display:none;">
+      <div class="avatar" id="userAvatar">–</div>
+      <span id="userName">–</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Banner de instalar no Android -->
+  <div class="install-banner" id="installBanner">
+    <div class="icon-wrap"><img src="icon-192.png" alt="PortoEx"></div>
+    <div class="txt">
+      <strong>Instalar app PortoEx</strong>
+      <span>Acesso rápido direto da tela inicial</span>
+    </div>
+    <button class="btn-instalar" id="btnInstalar" onclick="window._instalarPWA()">📲 Instalar</button>
+    <button class="btn-dismiss" onclick="window._dispensarBanner()" title="Fechar">✕</button>
+  </div>
+
+  <div id="tela1">
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="searchInput" placeholder="Buscar placa ou motorista…" />
+    </div>
+
+    <div class="status-bar">
+      <div class="status-chip active" data-filter="todos" onclick="window._filtrar('todos', this)">
+        Todas <span class="count" id="countTodos">0</span>
+      </div>
+      <div class="status-chip" data-filter="pendente" onclick="window._filtrar('pendente', this)">
+        ⏱ Pendentes <span class="count" id="countPend">0</span>
+      </div>
+      <div class="status-chip" data-filter="ok" onclick="window._filtrar('ok', this)">
+        ✅ Conferidas <span class="count" id="countOk">0</span>
+      </div>
+      <div class="status-chip" data-filter="entrada" onclick="window._filtrar('entrada', this)">
+        📥 Entrada <span class="count" id="countEnt">0</span>
+      </div>
+      <div class="status-chip" data-filter="saida" onclick="window._filtrar('saida', this)">
+        📤 Saída <span class="count" id="countSai">0</span>
+      </div>
+    </div>
+
+    <div id="placasList">
+      <div class="empty">
+        <div class="empty-icon">⏳</div>
+        Carregando veículos…
+      </div>
+    </div>
+  </div>
+
+  <div id="tela2" style="display:none;">
+    <button class="back-btn" onclick="window._voltar()">← Voltar para lista</button>
+
+    <div class="conf-header">
+      <div class="placa-big" id="confPlaca">—</div>
+      <div class="mot" id="confMotorista">—</div>
+    </div>
+
+    <div class="section">
+      <h3>📍 Local</h3>
+      <div class="form-row">
+        <label>Doca / Local</label>
+        <select id="fDoca">
+          <option value="">Selecione…</option>
+          <option value="DOCA 1">DOCA 1</option>
+          <option value="DOCA 2">DOCA 2</option>
+          <option value="DOCA 3">DOCA 3</option>
+          <option value="DOCA 4">DOCA 4</option>
+          <option value="PORTÃO">PORTÃO</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>📦 Paletes</h3>
+      <div class="palete-tipo" id="paleteTipos">
+        <button data-tipo="nenhum" onclick="window._setPaleteTipo('nenhum')">✖ Nenhum</button>
+        <button data-tipo="pbr1" onclick="window._setPaleteTipo('pbr1')">PBR1</button>
+        <button data-tipo="descartavel" onclick="window._setPaleteTipo('descartavel')">Descartáveis</button>
+        <button data-tipo="outros" onclick="window._setPaleteTipo('outros')">Outros</button>
+      </div>
+      <div id="paleteCounters" class="counter-group" style="display:none;"></div>
+    </div>
+
+    <div class="section">
+      <h3>🎯 Insumos Utilizados</h3>
+      <div class="counter-group" id="insumosGroup"></div>
+    </div>
+
+    <div class="section">
+      <h3>📄 Documentação</h3>
+      <div class="form-row">
+        <label>Documentação está OK?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="docOk" onclick="window._setDoc(true)">✅ Sim</button>
+          <button class="toggle-btn" id="docNao" onclick="window._setDoc(false)">❌ Não</button>
+        </div>
+      </div>
+      <div class="form-row" id="docObsRow" style="display:none;">
+        <label>O que está errado?</label>
+        <textarea id="fDocObs" placeholder="Descreva o problema com a documentação…"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <!-- Toolbar com título + botão marcar todos -->
+      <div class="notas-toolbar">
+        <h3 style="margin-bottom:0;">📋 Notas Fiscais da Carga</h3>
+        <button class="btn-marcar-todos" onclick="window._marcarTodosOk()">
+          ✅ Marcar todos OK
+        </button>
+      </div>
+      <div id="notasList"></div>
+    </div>
+
+    <div class="section">
+      <h3>➕ Itens Extras (não previstos)</h3>
+      <div class="form-row">
+        <label>Existem itens extras na carga?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="extrasSim" onclick="window._setExtras(true)">✅ Sim</button>
+          <button class="toggle-btn" id="extrasNao" onclick="window._setExtras(false)">❌ Não</button>
+        </div>
+      </div>
+      <div id="extrasBlock" style="display:none;">
+        <div class="extras-lista" id="extrasLista"></div>
+        <button class="btn-add-extra" onclick="window._addExtra()">➕ Adicionar item extra</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>📝 Observação Geral</h3>
+      <div class="form-row">
+        <textarea id="fObservacao" placeholder="Alguma observação adicional? (opcional)"></textarea>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn-salvar" id="btnSalvar" onclick="window._salvar()">
+        <span id="btnSalvarText">💾 Salvar Conferência</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Service Worker e PWA -->
+<script>
+  // ── SERVICE WORKER ──────────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  // ── BANNER DE INSTALAÇÃO ANDROID ────────────────────────────────
+  let _deferredPrompt = null;
+  const _banner = document.getElementById('installBanner');
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredPrompt = e;
+    // Só mostra se não foi dispensado antes
+    if (!localStorage.getItem('pwa_dispensado')) {
+      _banner.classList.add('show');
+    }
+  });
+
+  window._instalarPWA = async function() {
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    const { outcome } = await _deferredPrompt.userChoice;
+    _deferredPrompt = null;
+    _banner.classList.remove('show');
+    if (outcome === 'accepted') {
+      toast('✅ App instalado com sucesso!', 'ok');
+    }
+  };
+
+  window._dispensarBanner = function() {
+    _banner.classList.remove('show');
+    localStorage.setItem('pwa_dispensado', '1');
+  };
+
+  // Esconde banner após instalação
+  window.addEventListener('appinstalled', () => {
+    _banner.classList.remove('show');
+  });
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu-cF9UzphJyd4p6sOksvRFi86VZl2zTM",
+    authDomain: "camisetas-17b12.firebaseapp.com",
+    projectId: "camisetas-17b12",
+    storageBucket: "camisetas-17b12.firebasestorage.app",
+    messagingSenderId: "692232493547",
+    appId: "1:692232493547:web:692bafc9c6adcbb5d6e1ae",
+    databaseURL: "https://camisetas-17b12-default-rtdb.firebaseio.com"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const statusEl = document.getElementById('dbStatus');
+  const veiculosRef = ref(db, 'conferencia/veiculos');
+
+  const CONFERENTES = [
+    'ABNER','J. AGUINALDO','GUILHERME','JOAO GABRIEL','PANTCHA',
+    'SR. LUIS','EMANUEL','JOÃO PAULO','LUCAS','KENNEDY','MARCOS'
+  ];
+
+  const INSUMOS = ['Stretch', 'Lona', 'Fita', 'Corda'];
+
+  let todosVeiculos = {};
+  let chaveAtual = null;
+  let veiculoAtual = null;
+  let filtro = 'todos';
+  let conferente = sessionStorage.getItem('conferente') || '';
+
+  // ── CONFERENTES ─────────────────────────────────────────────────
+  function renderConferentes() {
+    const grid = document.getElementById('confGrid');
+    grid.innerHTML = CONFERENTES.map(n =>
+      `<button class="conf-btn" onclick="window._escolher(${JSON.stringify(n).replace(/"/g,'&quot;')})">${esc(n)}</button>`
+    ).join('');
+  }
+  renderConferentes();
+
+  window._escolher = function(nome) {
+    conferente = nome;
+    sessionStorage.setItem('conferente', nome);
+    document.getElementById('loginOverlay').style.display = 'none';
+    atualizarUserBadge();
+  };
+
+  window._trocarUsuario = function() {
+    sessionStorage.removeItem('conferente');
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('userBadge').style.display = 'none';
+  };
+
+  function atualizarUserBadge() {
+    if (!conferente) return;
+    const badge = document.getElementById('userBadge');
+    badge.style.display = 'flex';
+    document.getElementById('userName').textContent = conferente;
+    document.getElementById('userAvatar').textContent = conferente.charAt(0);
+  }
+
+  if (conferente) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    atualizarUserBadge();
+  }
+
+  // ── FIREBASE ────────────────────────────────────────────────────
+  onValue(veiculosRef, snap => {
+    statusEl.textContent = '✅';
+    statusEl.className = 'db-status db-ok';
+    todosVeiculos = snap.val() || {};
+    if (document.getElementById('tela1').style.display !== 'none') {
+      renderPlacas();
+    }
+  }, () => {
+    statusEl.textContent = '❌';
+    statusEl.className = 'db-status db-err';
+  });
+
+  // ── LISTA DE PLACAS ─────────────────────────────────────────────
+  function renderPlacas() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const entries = Object.entries(todosVeiculos);
+    entries.sort((a, b) => (a[1].placa||'').localeCompare(b[1].placa||''));
+
+    let counts = { todos: entries.length, pendente: 0, ok: 0, entrada: 0, saida: 0 };
+    entries.forEach(([_, v]) => {
+      if (v.conferencia) counts.ok++;
+      else counts.pendente++;
+      if (v.tipo_carga === 'ENTRADA' || v.tipo_carga === 'MISTA') counts.entrada++;
+      if (v.tipo_carga === 'SAIDA' || v.tipo_carga === 'MISTA') counts.saida++;
+    });
+    document.getElementById('countTodos').textContent = counts.todos;
+    document.getElementById('countPend').textContent = counts.pendente;
+    document.getElementById('countOk').textContent = counts.ok;
+    document.getElementById('countEnt').textContent = counts.entrada;
+    document.getElementById('countSai').textContent = counts.saida;
+
+    let filtrados = entries;
+    if (filtro === 'pendente') filtrados = entries.filter(([_,v]) => !v.conferencia);
+    if (filtro === 'ok') filtrados = entries.filter(([_,v]) => v.conferencia);
+    if (filtro === 'entrada') filtrados = entries.filter(([_,v]) => v.tipo_carga === 'ENTRADA' || v.tipo_carga === 'MISTA');
+    if (filtro === 'saida') filtrados = entries.filter(([_,v]) => v.tipo_carga === 'SAIDA' || v.tipo_carga === 'MISTA');
+    if (search) {
+      filtrados = filtrados.filter(([_,v]) =>
+        (v.placa||'').toLowerCase().includes(search) ||
+        (v.motorista||'').toLowerCase().includes(search)
+      );
+    }
+
+    const list = document.getElementById('placasList');
+    if (!filtrados.length) {
+      list.innerHTML = `<div class="empty"><div class="empty-icon">${entries.length ? '🔍' : '📭'}</div>${entries.length ? 'Nenhum resultado.' : 'Nenhum veículo na programação ainda. Aguarde o admin importar.'}</div>`;
+      return;
+    }
+
+    list.innerHTML = `<div class="placas-grid">${
+      filtrados.map(([chave, v]) => {
+        const totalN = v.notas?.length || 0;
+        const conferidas = v.notas?.filter(n => n.status === 'ok' || n.status === 'nao_ok').length || 0;
+        const conferido = !!v.conferencia;
+        const tipoBadge = v.tipo_carga === 'ENTRADA' ? '<span class="chip" style="background:rgba(16,185,129,0.15);color:var(--verde-escuro);">📥 ENTRADA</span>'
+                        : v.tipo_carga === 'SAIDA' ? '<span class="chip" style="background:rgba(244,121,32,0.15);color:var(--laranja);">📤 SAÍDA</span>'
+                        : v.tipo_carga === 'MISTA' ? '<span class="chip" style="background:rgba(139,92,246,0.15);color:#7C3AED;">🔄 MISTA</span>'
+                        : '';
+        return `<div class="placa-card ${conferido ? 'done' : ''}" onclick="window._abrir('${chave}')">
+          <div class="placa-num">🚛 ${esc(v.placa || chave)}</div>
+          <div class="placa-mot">${esc(v.motorista || '—')}</div>
+          <div class="placa-stats">
+            ${tipoBadge}
+            <span class="chip azul">${totalN} NFs</span>
+            ${conferidas ? `<span class="chip verde">${conferidas} OK</span>` : ''}
+            ${conferido ? `<span class="chip verde">✓ ${esc(v.conferencia.conferente || '—')}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  document.getElementById('searchInput').addEventListener('input', renderPlacas);
+
+  window._filtrar = function(f, btn) {
+    filtro = f;
+    document.querySelectorAll('.status-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderPlacas();
+  };
+
+  // ── ABRIR CONFERÊNCIA ────────────────────────────────────────────
+  window._abrir = function(chave) {
+    chaveAtual = chave;
+    veiculoAtual = JSON.parse(JSON.stringify(todosVeiculos[chave]));
+
+    document.getElementById('tela1').style.display = 'none';
+    document.getElementById('tela2').style.display = 'block';
+    window.scrollTo(0, 0);
+
+    document.getElementById('confPlaca').textContent = '🚛 ' + (veiculoAtual.placa || chave);
+    const tipoTxt = veiculoAtual.tipo_carga === 'ENTRADA' ? ' 📥 ENTRADA (COLETA)'
+                  : veiculoAtual.tipo_carga === 'SAIDA' ? ' 📤 SAÍDA (EMBARQUE/ENTREGA)'
+                  : veiculoAtual.tipo_carga === 'MISTA' ? ' 🔄 CARGA MISTA'
+                  : '';
+    document.getElementById('confMotorista').textContent = 'Motorista: ' + (veiculoAtual.motorista || '—') + tipoTxt;
+
+    const c = veiculoAtual.conferencia || {};
+    document.getElementById('fDoca').value = c.doca || '';
+    document.getElementById('fObservacao').value = c.observacao || '';
+
+    paleteTipo = c.paleteTipo || '';
+    paleteQtds = c.paleteQtds || { pbr1: 0, descartavel: 0, outros: 0 };
+    renderPaleteTipo();
+
+    insumosQtds = {};
+    INSUMOS.forEach(i => { insumosQtds[i] = (c.insumos && c.insumos[i]) || 0; });
+    renderInsumos();
+
+    docOk = c.docOk !== undefined ? c.docOk : null;
+    document.getElementById('fDocObs').value = c.docObs || '';
+    renderDoc();
+
+    temExtras = c.temExtras !== undefined ? c.temExtras : null;
+    extras = c.extras || [];
+    renderExtras();
+
+    renderNotas();
+  };
+
+  window._voltar = function() {
+    if (confirm('Tem certeza? Dados não salvos serão perdidos.')) {
+      chaveAtual = null;
+      veiculoAtual = null;
+      document.getElementById('tela1').style.display = 'block';
+      document.getElementById('tela2').style.display = 'none';
+      window.scrollTo(0, 0);
+    }
+  };
+
+  // ── PALETES ──────────────────────────────────────────────────────
+  let paleteTipo = '';
+  let paleteQtds = { pbr1: 0, descartavel: 0, outros: 0 };
+
+  window._setPaleteTipo = function(t) { paleteTipo = t; renderPaleteTipo(); };
+
+  function renderPaleteTipo() {
+    document.querySelectorAll('#paleteTipos button').forEach(b => {
+      b.classList.toggle('active', b.dataset.tipo === paleteTipo);
+    });
+    const counters = document.getElementById('paleteCounters');
+    if (!paleteTipo || paleteTipo === 'nenhum') { counters.style.display = 'none'; return; }
+    counters.style.display = 'flex';
+    const tipos = { pbr1: ['pbr1','PBR1'], descartavel: ['descartavel','Descartáveis'], outros: ['outros','Outros'] };
+    const t = tipos[paleteTipo];
+    counters.innerHTML = `<div class="counter-row">
+      <div class="counter-label">📦 ${t[1]}</div>
+      <div class="counter-btns">
+        <button onclick="window._palInc('${t[0]}',-1)">−</button>
+        <div class="val" id="palVal_${t[0]}">${paleteQtds[t[0]]||0}</div>
+        <button onclick="window._palInc('${t[0]}',1)">+</button>
+      </div>
+    </div>`;
+  }
+
+  window._palInc = function(k, d) {
+    paleteQtds[k] = Math.max(0, (paleteQtds[k]||0) + d);
+    const el = document.getElementById('palVal_'+k);
+    if (el) el.textContent = paleteQtds[k];
+  };
+
+  // ── INSUMOS ──────────────────────────────────────────────────────
+  let insumosQtds = {};
+  INSUMOS.forEach(i => insumosQtds[i] = 0);
+
+  function renderInsumos() {
+    const div = document.getElementById('insumosGroup');
+    div.innerHTML = INSUMOS.map(i => `
+      <div class="counter-row">
+        <div class="counter-label">🎯 ${i}</div>
+        <div class="counter-btns">
+          <button onclick="window._insInc('${i}',-1)">−</button>
+          <div class="val" id="insVal_${i}">${insumosQtds[i]||0}</div>
+          <button onclick="window._insInc('${i}',1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window._insInc = function(k, d) {
+    insumosQtds[k] = Math.max(0, (insumosQtds[k]||0) + d);
+    document.getElementById('insVal_'+k).textContent = insumosQtds[k];
+  };
+
+  // ── DOCUMENTAÇÃO ─────────────────────────────────────────────────
+  let docOk = null;
+  window._setDoc = function(v) { docOk = v; renderDoc(); };
+  function renderDoc() {
+    document.getElementById('docOk').classList.toggle('active-yes', docOk === true);
+    document.getElementById('docNao').classList.toggle('active-no', docOk === false);
+    document.getElementById('docObsRow').style.display = (docOk === false) ? 'block' : 'none';
+  }
+
+  // ── NOTAS FISCAIS ────────────────────────────────────────────────
+  // TOGGLE real: clicar no status atual desmarca (volta a pendente)
+  window._setNota = function(idx, status) {
+    const nota = veiculoAtual.notas[idx];
+    // Se clicar no mesmo status que já está → desmarca (pendente)
+    if (nota.status === status) {
+      nota.status = 'pendente';
+    } else {
+      nota.status = status;
+    }
+    renderNotas();
+  };
+
+  window._setNotaCampo = function(idx, campo, v) {
+    veiculoAtual.notas[idx][campo] = v;
+  };
+
+  // MARCAR TODOS OK
+  window._marcarTodosOk = function() {
+    if (!veiculoAtual?.notas?.length) return;
+    const totalOk = veiculoAtual.notas.filter(n => n.status === 'ok').length;
+    const total = veiculoAtual.notas.length;
+
+    // Se todos já estão OK → desmarca todos (volta para pendente)
+    if (totalOk === total) {
+      veiculoAtual.notas.forEach(n => { n.status = 'pendente'; });
+      toast('↩ Todas as notas desmarcadas', '');
+    } else {
+      // Marca todos como OK
+      veiculoAtual.notas.forEach(n => { n.status = 'ok'; });
+      toast(`✅ ${total} notas marcadas como OK!`, 'ok');
+    }
+    renderNotas();
+    // Atualiza texto do botão
+    atualizarBtnMarcarTodos();
+  };
+
+  function atualizarBtnMarcarTodos() {
+    const btn = document.querySelector('.btn-marcar-todos');
+    if (!btn || !veiculoAtual?.notas) return;
+    const totalOk = veiculoAtual.notas.filter(n => n.status === 'ok').length;
+    const total = veiculoAtual.notas.length;
+    if (totalOk === total && total > 0) {
+      btn.textContent = '↩ Desmarcar todos';
+      btn.style.background = 'var(--cinza-texto)';
+    } else {
+      btn.innerHTML = '✅ Marcar todos OK';
+      btn.style.background = 'var(--verde)';
+    }
+  }
+
+  function renderNotas() {
+    const div = document.getElementById('notasList');
+    const notas = veiculoAtual?.notas || [];
+    if (!notas.length) {
+      div.innerHTML = '<div class="empty" style="padding:20px;"><div style="font-size:32px;">📭</div>Sem notas fiscais</div>';
+      return;
+    }
+
+    div.innerHTML = notas.map((n, idx) => {
+      const tipoTag = n.tipo === 'ENTRADA'
+        ? '<span style="background:rgba(16,185,129,0.15);color:var(--verde-escuro);padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">📥 ENTRADA</span>'
+        : n.tipo === 'SAIDA'
+        ? '<span style="background:rgba(244,121,32,0.15);color:var(--laranja);padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">📤 SAÍDA</span>'
+        : '';
+
+      let refHtml = '';
+      if (n.nf) refHtml = `<strong>NF:</strong> ${esc(n.nf)}`;
+      else if (n.diCotacao) refHtml = `<strong>DI/Cotação:</strong> ${esc(n.diCotacao)}`;
+      else if (n.oc) refHtml = `<strong>OC:</strong> ${esc(n.oc)}`;
+
+      const cargaTags = [];
+      if (n.volume) cargaTags.push(`<span style="background:rgba(0,63,125,0.08);color:var(--azul);padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;">📦 ${esc(n.volume)} vol</span>`);
+      if (n.peso)   cargaTags.push(`<span style="background:rgba(244,121,32,0.08);color:var(--laranja);padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;">⚖️ ${esc(n.peso)} kg</span>`);
+      if (n.cbm)    cargaTags.push(`<span style="background:rgba(107,114,128,0.1);color:var(--cinza-texto);padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;">📐 ${esc(n.cbm)}</span>`);
+      const cargaBlock = cargaTags.length
+        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">${cargaTags.join('')}</div>`
+        : '';
+
+      // Hint visual para botão ativo (mostra que pode desmarcar)
+      const okHint   = n.status === 'ok'     ? ' title="Clique para desmarcar"' : '';
+      const nookHint = n.status === 'nao_ok' ? ' title="Clique para desmarcar"' : '';
+
+      return `
+      <div class="nota-card ${n.status === 'ok' ? 'ok' : ''} ${n.status === 'nao_ok' ? 'nao-ok' : ''}" id="nota_${idx}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:4px;">
+          <div class="nota-cliente">${esc(n.cliente || '—')}</div>
+          ${tipoTag}
+        </div>
+        <div class="nota-dados">
+          ${refHtml ? refHtml + '<br>' : ''}
+          ${n.valor ? `<strong>Valor:</strong> R$ ${esc(n.valor)}<br>` : ''}
+          ${n.descricao ? `<span style="color:var(--cinza-texto);font-size:11px;">${esc(n.descricao)}</span>` : ''}
+        </div>
+        ${cargaBlock}
+        <div class="nota-actions">
+          <button class="btn-ok ${n.status === 'ok' ? 'active' : ''}"
+            onclick="window._setNota(${idx},'ok')"${okHint}>
+            ✅ OK${n.status === 'ok' ? ' ✓' : ''}
+          </button>
+          <button class="btn-naook ${n.status === 'nao_ok' ? 'active' : ''}"
+            onclick="window._setNota(${idx},'nao_ok')"${nookHint}>
+            ❌ Não OK${n.status === 'nao_ok' ? ' ✓' : ''}
+          </button>
+        </div>
+        <div class="nota-corrige">
+          <div class="label">⚠ Divergência — informe o valor real encontrado:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input type="text" value="${esc(n.qtd_real || '')}" onchange="window._setNotaCampo(${idx},'qtd_real',this.value)" placeholder="📦 Qtd/Volume real" />
+            <input type="text" value="${esc(n.peso_real || '')}" onchange="window._setNotaCampo(${idx},'peso_real',this.value)" placeholder="⚖️ Peso real (kg)" />
+          </div>
+          <input type="text" value="${esc(n.valor_real || '')}" onchange="window._setNotaCampo(${idx},'valor_real',this.value)" placeholder="💰 Valor real R$ / observação" style="margin-top:6px;" />
+        </div>
+      </div>`;
+    }).join('');
+
+    atualizarBtnMarcarTodos();
+  }
+
+  // ── EXTRAS ───────────────────────────────────────────────────────
+  let temExtras = null;
+  let extras = [];
+
+  window._setExtras = function(v) {
+    temExtras = v;
+    document.getElementById('extrasSim').classList.toggle('active-yes', v === true);
+    document.getElementById('extrasNao').classList.toggle('active-no', v === false);
+    document.getElementById('extrasBlock').style.display = (v === true) ? 'block' : 'none';
+    if (v === true && extras.length === 0) window._addExtra();
+  };
+
+  function renderExtras() {
+    document.getElementById('extrasSim').classList.toggle('active-yes', temExtras === true);
+    document.getElementById('extrasNao').classList.toggle('active-no', temExtras === false);
+    document.getElementById('extrasBlock').style.display = (temExtras === true) ? 'block' : 'none';
+
+    const div = document.getElementById('extrasLista');
+    div.innerHTML = extras.map((e, i) => `
+      <div class="extra-item">
+        <input type="text" placeholder="Descrição do item" value="${esc(e.desc || '')}" onchange="window._upExtra(${i},'desc',this.value)" />
+        <input type="text" placeholder="NF / Valor" value="${esc(e.nf || '')}" onchange="window._upExtra(${i},'nf',this.value)" />
+        <button class="extra-del" onclick="window._delExtra(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  window._addExtra  = function() { extras.push({ desc: '', nf: '' }); renderExtras(); };
+  window._upExtra   = function(i, k, v) { extras[i][k] = v; };
+  window._delExtra  = function(i) { extras.splice(i, 1); renderExtras(); };
+
+  // ── SALVAR ───────────────────────────────────────────────────────
+  window._salvar = async function() {
+    const doca = document.getElementById('fDoca').value;
+    if (!doca) { toast('Selecione a Doca!', 'erro'); return; }
+    if (docOk === null) { toast('Marque se a documentação está OK!', 'erro'); return; }
+    if (temExtras === null) { toast('Informe se há itens extras!', 'erro'); return; }
+
+    const btn = document.getElementById('btnSalvar');
+    btn.disabled = true;
+    document.getElementById('btnSalvarText').innerHTML = '<span class="spinner"></span> Salvando…';
+
+    try {
+      const conferencia = {
+        conferente,
+        doca,
+        paleteTipo,
+        paleteQtds: paleteTipo === 'nenhum' ? null : paleteQtds,
+        insumos: insumosQtds,
+        docOk,
+        docObs: docOk === false ? document.getElementById('fDocObs').value : '',
+        temExtras,
+        extras: temExtras ? extras.filter(e => e.desc || e.nf) : [],
+        observacao: document.getElementById('fObservacao').value,
+        ts: Date.now(),
+        hora: new Date().toLocaleString('pt-BR')
+      };
+
+      await update(ref(db, 'conferencia/veiculos/' + chaveAtual), {
+        notas: veiculoAtual.notas,
+        conferencia
+      });
+
+      toast('✅ Conferência salva!', 'ok');
+
+      setTimeout(() => {
+        chaveAtual = null;
+        veiculoAtual = null;
+        document.getElementById('tela1').style.display = 'block';
+        document.getElementById('tela2').style.display = 'none';
+        window.scrollTo(0, 0);
+      }, 800);
+
+    } catch (e) {
+      toast('Erro: ' + e.message, 'erro');
+    }
+
+    btn.disabled = false;
+    document.getElementById('btnSalvarText').textContent = '💾 Salvar Conferência';
+  };
+
+  // ── UTILS ─────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function toast(msg, tipo = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + tipo;
+    setTimeout(() => { t.className = 'toast ' + tipo; }, 3000);
+  }
+
+  // Expõe toast globalmente para o bloco PWA
+  window._toastGlobal = toast;
+  // Patch para o toast do bloco PWA
+  window.toast = toast;
+</script>
+</body>
+</html>
