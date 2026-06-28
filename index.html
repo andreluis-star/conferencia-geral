@@ -93,7 +93,40 @@
     border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #setup-toggle { background: none; border: none; color: var(--amber-dark); font-size: 0.85rem; cursor: pointer; text-decoration: underline; margin-top: 8px; display: block; text-align: center; }
+  /* ── SELETOR DE USUÁRIO ── */
+  .user-picker-label { font-size: 0.85rem; font-weight: 600; color: var(--blue); margin-bottom: 6px; display: block; }
+  #user-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 200px; overflow-y: auto; margin-bottom: 4px;
+    border: 2px solid #dde3f0; border-radius: var(--radius);
+    background: var(--gray); padding: 6px;
+  }
+  .user-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 2px solid transparent;
+    border-radius: 8px; padding: 9px 12px; cursor: pointer;
+    text-align: left; transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+  }
+  .user-btn:hover   { border-color: var(--blue); background: #f0f4ff; }
+  .user-btn.active  { border-color: var(--navy); background: #e8f0ff; }
+  .user-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--navy); color: var(--amber);
+    font-weight: 800; font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .user-name  { font-size: 0.88rem; font-weight: 700; color: var(--navy); }
+  .user-email { font-size: 0.75rem; color: var(--muted); }
+  .user-picker-loading { text-align:center; color: var(--muted); font-size:0.82rem; padding:8px; }
+
+  /* ── LEMBRAR SENHA ── */
+  .remember-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 18px; margin-top: -6px;
+  }
+  .remember-row input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--navy); flex-shrink: 0; }
+  .remember-row label { font-size: 0.83rem; color: var(--muted); cursor: pointer; font-weight: 500; margin: 0; }
 </style>
 </head>
 <body>
@@ -106,6 +139,14 @@
     <p class="subtitle">Gestão de operações logísticas</p>
   </div>
 
+  <!-- Seletor de conferente -->
+  <div class="form-group" id="user-picker-group">
+    <span class="user-picker-label">👤 Selecione o conferente</span>
+    <div id="user-list">
+      <div class="user-picker-loading">Carregando conferentes…</div>
+    </div>
+  </div>
+
   <form id="login-form">
     <div class="form-group">
       <label for="email">E-mail</label>
@@ -115,37 +156,13 @@
       <label for="senha">Senha</label>
       <input type="password" id="senha" placeholder="••••••••" required autocomplete="current-password"/>
     </div>
+    <div class="remember-row">
+      <input type="checkbox" id="chk-lembrar"/>
+      <label for="chk-lembrar">Lembrar login e senha neste aparelho</label>
+    </div>
     <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
     <div class="error-msg" id="login-error"></div>
   </form>
-
-  <button id="setup-toggle" onclick="toggleSetup()">Primeiro acesso? Criar conta de administrador</button>
-
-  <div id="setup-section" style="display:none;">
-    <div class="divider"><span>CONFIGURAÇÃO INICIAL</span></div>
-    <div class="setup-section">
-      <h3>⚙️ Criar conta de Administrador</h3>
-      <p style="font-size:0.8rem;color:#7a5500;margin-bottom:12px;">Use apenas uma vez para criar sua conta admin.</p>
-      <div class="form-group">
-        <label>Nome completo</label>
-        <input type="text" id="setup-nome" placeholder="André Acosta"/>
-      </div>
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" id="setup-email" placeholder="alacosta27@gmail.com"/>
-      </div>
-      <div class="form-group">
-        <label>Senha (mín. 6 caracteres)</label>
-        <input type="password" id="setup-senha" placeholder="••••••••"/>
-      </div>
-      <div class="form-group">
-        <label>Confirmar senha</label>
-        <input type="password" id="setup-conf" placeholder="••••••••"/>
-      </div>
-      <button class="btn-amber" onclick="criarAdmin()">Criar conta admin</button>
-      <div class="error-msg" id="setup-error"></div>
-    </div>
-  </div>
 </div>
 
 <!-- Firebase SDKs -->
@@ -155,26 +172,112 @@
 <!-- Storage não utilizado neste plano -->
 <script src="firebase-config.js"></script>
 <script>
-// Verifica se já está logado
+const STORAGE_KEY = 'conf_saved_logins'; // { email: { nome, senha } }
+
+// ── Carrega credencial salva ao iniciar ──
+function loadSavedLogin(email) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (saved[email]) {
+      document.getElementById('senha').value = atob(saved[email].senha || '');
+      document.getElementById('chk-lembrar').checked = true;
+    }
+  } catch(e) {}
+}
+
+function saveLogin(email, senha) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    saved[email] = { senha: btoa(senha) };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+  } catch(e) {}
+}
+
+function clearLogin(email) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    delete saved[email];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+  } catch(e) {}
+}
+
+// ── Seleciona usuário da lista ──
+function selectUser(email, nome) {
+  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.user-btn[data-email="${CSS.escape(email)}"]`);
+  if (btn) btn.classList.add('active');
+  document.getElementById('email').value = email;
+  loadSavedLogin(email);
+  document.getElementById('senha').focus();
+}
+
+// ── Carrega lista de conferentes do Firestore ──
+async function loadUserList() {
+  const container = document.getElementById('user-list');
+  try {
+    const snap = await db.collection('users').where('ativo', '==', true).orderBy('nome').get();
+    if (snap.empty) {
+      container.innerHTML = '<div class="user-picker-loading">Nenhum conferente cadastrado.</div>';
+      return;
+    }
+    container.innerHTML = '';
+    snap.docs.forEach(doc => {
+      const u = doc.data();
+      const iniciais = (u.nome || u.email || '?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'user-btn';
+      btn.dataset.email = u.email;
+      btn.innerHTML = `
+        <div class="user-avatar">${iniciais}</div>
+        <div>
+          <div class="user-name">${u.nome || '—'}</div>
+          <div class="user-email">${u.email}</div>
+        </div>`;
+      btn.addEventListener('click', () => selectUser(u.email, u.nome));
+      container.appendChild(btn);
+    });
+
+    // Auto-seleciona se só tiver um ou se tiver login salvo
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const savedEmail = Object.keys(saved)[0];
+    if (savedEmail) {
+      const match = snap.docs.find(d => d.data().email === savedEmail);
+      if (match) selectUser(match.data().email, match.data().nome);
+    } else if (snap.docs.length === 1) {
+      const u = snap.docs[0].data();
+      selectUser(u.email, u.nome);
+    }
+  } catch(e) {
+    container.innerHTML = '<div class="user-picker-loading">Digite seu e-mail abaixo.</div>';
+    document.getElementById('user-picker-group').style.display = 'none';
+  }
+}
+
+// ── Verifica se já está logado ──
 auth.onAuthStateChanged(async user => {
   if (user) {
     const data = await getCurrentUserData();
     if (data) { redirectByRole(data); return; }
   }
+  loadUserList();
 });
 
-// Login
+// ── Login ──
 document.getElementById('login-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const btn = document.getElementById('btn-login');
+  const btn   = document.getElementById('btn-login');
   const errEl = document.getElementById('login-error');
   errEl.classList.remove('show');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Entrando…';
+  const email  = document.getElementById('email').value.trim();
+  const senha  = document.getElementById('senha').value;
+  const lembrar = document.getElementById('chk-lembrar').checked;
   try {
-    const email = document.getElementById('email').value.trim();
-    const senha = document.getElementById('senha').value;
     await auth.signInWithEmailAndPassword(email, senha);
+    if (lembrar) { saveLogin(email, senha); }
+    else         { clearLogin(email); }
     const data = await getCurrentUserData();
     redirectByRole(data);
   } catch (err) {
@@ -187,45 +290,6 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     btn.innerHTML = 'Entrar';
   }
 });
-
-function toggleSetup() {
-  const s = document.getElementById('setup-section');
-  const t = document.getElementById('setup-toggle');
-  const show = s.style.display === 'none';
-  s.style.display = show ? 'block' : 'none';
-  t.textContent = show ? 'Fechar configuração inicial' : 'Primeiro acesso? Criar conta de administrador';
-}
-
-async function criarAdmin() {
-  const errEl = document.getElementById('setup-error');
-  errEl.classList.remove('show');
-  const nome  = document.getElementById('setup-nome').value.trim();
-  const email = document.getElementById('setup-email').value.trim();
-  const senha = document.getElementById('setup-senha').value;
-  const conf  = document.getElementById('setup-conf').value;
-
-  if (!nome || !email || !senha) { errEl.textContent = 'Preencha todos os campos.'; errEl.classList.add('show'); return; }
-  if (senha !== conf)             { errEl.textContent = 'As senhas não coincidem.';    errEl.classList.add('show'); return; }
-  if (senha.length < 6)          { errEl.textContent = 'Senha mínima de 6 caracteres.'; errEl.classList.add('show'); return; }
-
-  // Verifica se já existe admin
-  const snap = await db.collection('users').where('role','==','admin').limit(1).get();
-  if (!snap.empty) { errEl.textContent = 'Já existe uma conta admin. Use o login.'; errEl.classList.add('show'); return; }
-
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, senha);
-    await db.collection('users').doc(cred.user.uid).set({
-      nome, email, role: 'admin', ativo: true, criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await initInsumosPadrao();
-    window.location.href = 'admin.html';
-  } catch (err) {
-    let msg = err.message;
-    if (err.code === 'auth/email-already-in-use') msg = 'Este e-mail já está cadastrado.';
-    errEl.textContent = msg;
-    errEl.classList.add('show');
-  }
-}
 </script>
 </body>
 </html>
