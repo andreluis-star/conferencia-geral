@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conferencia-v1';
+const CACHE_NAME = 'conferencia-v2';
 const URLS_TO_CACHE = [
   'conferente.html',
   'firebase-config.js',
