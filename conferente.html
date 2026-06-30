@@ -5,10 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="theme-color" content="#0d2137"/>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logo%20portoex.png">
 <title>Conferência Geral</title>
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -31,13 +27,6 @@
   #header-title { font-size:1rem; font-weight:700; color:var(--amber); }
   #header-user  { font-size:0.75rem; color:rgba(255,255,255,0.6); margin-top:2px; }
   .btn-logout-sm { background:none; border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer; }
-  #btn-install-header { display:none; background:var(--amber); color:var(--navy); border:none; border-radius:8px; padding:5px 10px; font-size:0.78rem; font-weight:800; cursor:pointer; margin-right:6px; }
-  #install-manual-tip { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; padding:24px; }
-  .install-tip-box { background:#fff; border-radius:16px; padding:24px; max-width:340px; text-align:center; }
-  .install-tip-box h3 { color:var(--navy); font-size:1rem; margin-bottom:12px; }
-  .install-tip-box p { font-size:0.88rem; color:#444; line-height:1.6; margin-bottom:16px; }
-  .install-tip-box .tip-step { background:#f0f4fa; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:0.85rem; color:var(--navy); font-weight:600; text-align:left; }
-  .install-tip-close { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:10px 24px; font-weight:700; cursor:pointer; width:100%; margin-top:4px; }
   #header-date { font-size:0.72rem; color:var(--amber); font-weight:600; margin-top:1px; }
 
   /* ── SCREENS ── */
@@ -67,13 +56,8 @@
     position:relative;
   }
   .placa-card:active { transform:scale(0.95); box-shadow:0 1px 4px rgba(0,0,0,0.1); }
-  .placa-card.done      { border-color:var(--green); }
+  .placa-card.done   { border-color:var(--green); }
   .placa-card.andamento { border-color:var(--amber); }
-  .placa-card.parcial   { border-color:var(--red); background:var(--red); }
-  .placa-card.parcial .placa-numero    { color:#000; }
-  .placa-card.parcial .placa-motorista { color:#111; }
-  .placa-card.parcial .placa-rodape    { background:rgba(0,0,0,0.18); border-top-color:rgba(0,0,0,0.1); }
-  .placa-card.parcial .placa-rodape span { color:#111; }
 
   .placa-topo {
     padding:4px 8px; font-size:0.68rem; font-weight:800; letter-spacing:2px;
@@ -98,7 +82,6 @@
   .placa-status-dot { position:absolute; top:6px; right:6px; width:10px; height:10px; border-radius:50%; }
   .dot-done      { background:var(--green); }
   .dot-andamento { background:var(--amber); }
-  .dot-parcial   { background:#7b0000; }
   .dot-pendente  { background:#ccc; }
 
   /* ── INSUMOS BTN ── */
@@ -159,16 +142,6 @@
   .servico-expresso     { color:#c0392b !important; font-weight:800; }
   .servico-personalizado{ color:#6c3483 !important; font-weight:800; }
   .servico-economico    { color:#1a3a5c !important; font-weight:800; }
-
-  /* Badge de tipo de operação acima do toggle */
-  .op-tipo-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
-  .op-tipo-badge {
-    font-size:0.58rem; font-weight:900; letter-spacing:0.5px;
-    border-radius:6px; padding:2px 7px; text-align:center; white-space:nowrap;
-  }
-  .op-tipo-badge.entrada { background:#1a5c1a; color:#fff; }
-  .op-tipo-badge.saida   { background:#7a1a1a; color:#fff; }
-  .op-tipo-badge.unknown { background:#888;    color:#fff; }
 
   /* Toggle único por linha */
   .toggle-bar { display:flex; border-radius:20px; overflow:hidden; border:1px solid #ddd; flex-shrink:0; }
@@ -289,24 +262,6 @@
   .form-label { font-size:0.8rem; font-weight:600; color:var(--navy); display:block; margin-bottom:5px; }
   .form-input { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px 12px; font-size:0.9rem; outline:none; }
   .form-input:focus { border-color:var(--blue); }
-
-  /* ── PWA INSTALL BANNER ── */
-  #pwa-install-banner {
-    display:none; position:fixed; bottom:0; left:0; right:0; z-index:9995;
-    background:var(--navy); color:#fff;
-    padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));
-    box-shadow:0 -4px 20px rgba(0,0,0,0.4);
-    animation:slideUp 0.35s ease;
-  }
-  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-  .pwa-row1 { display:flex; align-items:center; gap:12px; }
-  .pwa-icon { width:42px; height:42px; border-radius:10px; object-fit:cover; flex-shrink:0; }
-  .pwa-text { flex:1; }
-  .pwa-title { font-weight:800; font-size:0.92rem; }
-  .pwa-sub { font-size:0.74rem; color:rgba(255,255,255,0.65); margin-top:2px; line-height:1.4; }
-  .pwa-row2 { display:flex; gap:8px; margin-top:11px; }
-  #btn-pwa-install { flex:1; background:var(--amber); color:var(--navy); border:none; border-radius:10px; padding:11px 16px; font-weight:800; font-size:0.9rem; cursor:pointer; }
-  #btn-pwa-dismiss { background:transparent; color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.25); border-radius:10px; padding:11px 14px; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -318,22 +273,7 @@
     <div id="header-user"></div>
     <div id="header-date"></div>
   </div>
-  <div style="display:flex;align-items:center;gap:6px;">
-    <button id="btn-install-header" onclick="triggerInstall()">📲 Instalar</button>
-    <button class="btn-logout-sm" onclick="logout()">Sair</button>
-  </div>
-</div>
-
-<!-- Modal instrução instalação manual -->
-<div id="install-manual-tip" onclick="this.style.display='none'">
-  <div class="install-tip-box" onclick="event.stopPropagation()">
-    <h3>📲 Instalar como aplicativo</h3>
-    <p>Para instalar no seu celular, siga os passos no Chrome:</p>
-    <div class="tip-step">1. Toque nos 3 pontinhos ⋮ no canto superior direito</div>
-    <div class="tip-step">2. Toque em <strong>"Adicionar à tela inicial"</strong></div>
-    <div class="tip-step">3. Confirme tocando em <strong>"Adicionar"</strong></div>
-    <button class="install-tip-close" onclick="document.getElementById('install-manual-tip').style.display='none'">Entendi</button>
-  </div>
+  <button class="btn-logout-sm" onclick="logout()">Sair</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -408,10 +348,7 @@
 
       <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
       <div class="form-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
-          <h4 style="margin:0;border:none;padding:0;">📋 Conferência de Campos</h4>
-          <button onclick="marcarTodosOK()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap;">✔ TODOS OK</button>
-        </div>
+        <h4>📋 Conferência de Campos</h4>
         <!-- Os blocos por NF são renderizados aqui pelo JS -->
         <div id="campos-conferencia"></div>
       </div>
@@ -489,8 +426,7 @@
       </div>
       <div class="form-card">
         <h4>Insumos</h4>
-        <div id="ins-av-rows-list"></div>
-        <button class="btn-add-palete" onclick="addInsAvRow()">+ Adicionar insumo</button>
+        <div id="ins-av-rows-list" class="item-cards-grid"></div>
       </div>
       <div class="form-card">
         <h4>📷 Fotos</h4>
@@ -513,21 +449,6 @@
 
 <div id="toast-container"></div>
 <div id="global-loading"><div class="spin-big"></div></div>
-
-<!-- PWA Install Banner -->
-<div id="pwa-install-banner">
-  <div class="pwa-row1">
-    <img class="pwa-icon" src="logo%20portoex.png" alt="Logo" onerror="this.style.display='none'">
-    <div class="pwa-text">
-      <div class="pwa-title">Instalar Conferência Geral</div>
-      <div class="pwa-sub">Acesse pelo celular como um app, sem precisar abrir o navegador</div>
-    </div>
-  </div>
-  <div class="pwa-row2">
-    <button id="btn-pwa-install">📲 Instalar aplicativo</button>
-    <button id="btn-pwa-dismiss">Agora não</button>
-  </div>
-</div>
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -734,10 +655,8 @@ function buildPlacaCard(group) {
     const hasAtivS = doneS || parcialS;
     const isAndam  = !isDone && (hasAtivE || hasAtivS);
 
-    const isParcial = !isDone && (parcialE || parcialS);
-    const isAndamOnly = !isDone && !isParcial && (hasAtivE || hasAtivS);
-    const statusCls = isDone?'done': isParcial?'parcial': isAndamOnly?'andamento':'';
-    const dotCls    = isDone?'dot-done': isParcial?'dot-parcial': isAndamOnly?'dot-andamento':'dot-pendente';
+    const statusCls = isDone?'done':isAndam?'andamento':'';
+    const dotCls    = isDone?'dot-done':isAndam?'dot-andamento':'dot-pendente';
     const topoCls   = tipo==='ENTRADA'?'op-entrada':tipo==='SAIDA'?'op-saida':'op-entrada-saida';
     const topoTxt   = tipo==='ENTRADA'?'📥 ENTRADA':tipo==='SAIDA'?'📤 SAÍDA':'⇅ ENT / SAÍDA';
 
@@ -762,13 +681,13 @@ function buildPlacaCard(group) {
     if (isDone) {
       statusBadge = `<span class="placa-parcial-badge" style="background:var(--green);color:#fff;">CONCLUÍDO</span>`;
     } else if (tipo === 'ENTRADA' && parcialE) {
-      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
     } else if (tipo === 'SAIDA' && parcialS) {
-      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && hasAtivE && !hasAtivS) {
-      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL ENTRADA</span>`;
     } else if (tipo === 'ENTRADA_SAIDA' && !hasAtivE && hasAtivS) {
-      statusBadge = `<span class="placa-parcial-badge" style="background:var(--amber);color:#111;">PENDENTE</span>`;
+      statusBadge = `<span class="placa-parcial-badge" style="color:#111 !important;">PARCIAL SAÍDA</span>`;
     }
 
     const el = document.createElement('div');
@@ -1083,18 +1002,9 @@ function renderCamposConferencia(vehicles) {
           ${chip('Cidade Destino', cidadeVal)}
           ${chipServico(servicoVal)}
         </div>
-        <div class="op-tipo-wrap">
-          ${(()=>{
-            const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
-            if (t === 'ENTRADA')       return '<span class="op-tipo-badge entrada">📥 ENTRADA</span>';
-            if (t === 'SAIDA')         return '<span class="op-tipo-badge saida">📤 SAÍDA</span>';
-            if (t === 'ENTRADA_SAIDA') return '<span class="op-tipo-badge entrada">⇅ ENT/SAÍDA</span>';
-            return '<span class="op-tipo-badge unknown">⚠ STATUS NÃO ENCONTRADO</span>';
-          })()}
-          <div class="toggle-bar">
-            <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
-            <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
-          </div>
+        <div class="toggle-bar">
+          <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
+          <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
         </div>
       </div>
       <div class="nf-obs-row" id="${obsRowId}">
@@ -1123,26 +1033,10 @@ function setTipo(t) {
 
 function setNfStatus(btn, status, idx) {
   const bar = btn.closest('.toggle-bar');
-  const obsRow = document.getElementById('nf-obs-' + idx);
-  const alreadyActive = btn.classList.contains(status==='OK' ? 'ok-active' : 'naook-active');
   bar.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
-  obsRow?.classList.remove('show');
-  if (!alreadyActive) {
-    if (status==='OK')     { btn.classList.add('ok-active'); }
-    if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
-  }
-}
-
-function marcarTodosOK() {
-  document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
-    const btns = block.querySelectorAll('.toggle-btn');
-    const okBtn = btns[0];
-    if (!okBtn || okBtn.disabled) return;
-    btns.forEach(b => b.classList.remove('ok-active','naook-active'));
-    okBtn.classList.add('ok-active');
-    const obsRow = document.getElementById('nf-obs-' + block.dataset.idx);
-    obsRow?.classList.remove('show');
-  });
+  const obsRow = document.getElementById('nf-obs-' + idx);
+  if (status==='OK')     { btn.classList.add('ok-active');    obsRow?.classList.remove('show'); }
+  if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
 }
 
 function toggleClienteUnico() {
@@ -1553,18 +1447,24 @@ function setInsTipo(t) {
 }
 
 function renderInsumosAvulso() {
-  document.getElementById('ins-av-rows-list').innerHTML = '';
-}
-
-function addInsAvRow() {
-  const list = document.getElementById('ins-av-rows-list');
-  const row  = document.createElement('div');
-  row.className = 'palete-row';
-  row.innerHTML = `
-    <select style="flex:1;">${_insumoOptions(false)}</select>
-    <input type="number" value="1" min="1" placeholder="Qtd"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(row);
+  const container = document.getElementById('ins-av-rows-list');
+  if (!allInsumos.length) {
+    container.innerHTML = '<p style="color:#aaa;font-size:0.8rem;text-align:center;padding:8px;grid-column:1/-1;">Nenhum insumo cadastrado.</p>';
+    return;
+  }
+  container.innerHTML = allInsumos.map(ins => `
+    <div class="item-card insumo-card"
+        data-insumo-id="${ins.id}"
+        data-insumo-nome="${(ins.nome||'').replace(/"/g,'&quot;')}">
+      <span class="item-card-icon">${insumoIcon(ins.categoria||'')}</span>
+      <div class="item-card-name">${ins.nome}</div>
+      ${ins.categoria ? `<div class="item-card-sub">${ins.categoria}</div>` : ''}
+      <div class="qty-stepper">
+        <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
+        <span class="qty-val">0</span>
+        <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
+      </div>
+    </div>`).join('');
 }
 
 function handleInsumosAv_Fotos(input) {
@@ -1585,11 +1485,9 @@ async function submeterInsumosAvulso() {
   loading(true);
   try {
     const insumosSel=[];
-    document.querySelectorAll('#ins-av-rows-list .palete-row').forEach(row=>{
-      const sel=row.querySelector('select');
-      const qtd=parseInt(row.querySelector('input[type=number]')?.value)||0;
-      const ins=allInsumos.find(i=>i.id===sel?.value);
-      if(ins&&qtd>0) insumosSel.push({insumoId:ins.id,insumoNome:ins.nome,quantidade:qtd});
+    document.querySelectorAll('#ins-av-rows-list .insumo-card').forEach(card=>{
+      const qtd=parseInt(card.querySelector('.qty-val')?.textContent)||0;
+      if(qtd>0) insumosSel.push({insumoId:card.dataset.insumoId,insumoNome:card.dataset.insumoNome,quantidade:qtd});
     });
     if(!insumosSel.length){loading(false);showToast('Adicione pelo menos um insumo com quantidade.','warning');return;}
     const obs = document.getElementById('ins-obs').value.trim();
@@ -1640,66 +1538,4 @@ function goTo(screenId) {
 function goBack() {
   screenHistory.pop();
   const prev=screenHistory[screenHistory.length-1]||'screen-placas';
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(prev).classList.add('active');
-  document.getElementById(prev).scrollTop=0;
-  document.getElementById('btn-insumos-fixed').style.display=prev==='screen-placas'?'flex':'none';
-}
-</script>
-
-<!-- PWA: captura prompt de instalação e registra service worker -->
-<script>
-(function() {
-  let deferredPrompt = null;
-  const banner     = document.getElementById('pwa-install-banner');
-  const btnInst    = document.getElementById('btn-pwa-install');
-  const btnDismiss = document.getElementById('btn-pwa-dismiss');
-  const btnHeader  = document.getElementById('btn-install-header');
-  const manualTip  = document.getElementById('install-manual-tip');
-
-  // Mostra botão de instalar sempre (funciona em mobile e desktop)
-  if (btnHeader) btnHeader.style.display = 'block';
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    // Mostra banner automático na parte de baixo
-    if (banner) banner.style.display = 'block';
-    // Garante botão visível no header
-    if (btnHeader) btnHeader.style.display = 'block';
-  });
-
-  // Função chamada pelo botão do header e pelo banner
-  window.triggerInstall = async function() {
-    if (deferredPrompt) {
-      // Chrome suporta prompt nativo
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      if (banner) banner.style.display = 'none';
-      if (btnHeader) btnHeader.style.display = 'none';
-    } else {
-      // Fallback: mostra instrução manual
-      if (manualTip) manualTip.style.display = 'flex';
-    }
-  };
-
-  if (btnInst)    btnInst.addEventListener('click', () => window.triggerInstall());
-  if (btnDismiss) btnDismiss.addEventListener('click', () => { if (banner) banner.style.display = 'none'; });
-
-  window.addEventListener('appinstalled', () => {
-    if (banner)    banner.style.display = 'none';
-    if (btnHeader) btnHeader.style.display = 'none';
-    deferredPrompt = null;
-  });
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .catch(e => console.warn('SW registro:', e));
-    });
-  }
-})();
-</script>
-</body>
-</html>
+  document.querySelecto
