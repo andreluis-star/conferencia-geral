@@ -492,6 +492,22 @@
         </div>
       </div>
 
+      <!-- Manutenção de Dados -->
+      <div class="col-12">
+        <div class="form-section" style="background:#fdecea;border:1px solid #f5b8b1;">
+          <h5 style="color:#c0392b;">🗑️ Zerar Base Anterior a 30/06/2026</h5>
+          <p style="font-size:0.85rem;color:#555;margin-bottom:10px;">
+            Apaga permanentemente <b>todas</b> as Operações (Entrada e Saída), Discrepâncias e o histórico de Movimentações de insumos com data/hora <b>anterior a 30/06/2026 00:00</b>. O saldo atual dos insumos <b>não</b> é alterado — apenas o histórico anterior é removido. <span style="color:#c0392b;font-weight:700;">Esta ação não pode ser desfeita.</span>
+          </p>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:0.8rem;">Para confirmar, digite <code>ZERAR</code> abaixo:</label>
+            <input type="text" class="form-control form-control-sm" id="cfg-zerar-confirm" placeholder="ZERAR" style="max-width:220px;"/>
+          </div>
+          <button class="btn btn-sm" style="background:#c0392b;color:#fff;border:none;" onclick="zerarBaseAnterior()">Apagar Dados Anteriores a 30/06/2026</button>
+          <div id="cfg-zerar-result" style="margin-top:10px;font-size:0.82rem;"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -546,6 +562,7 @@ auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = 'index.html'; return; }
   const data = await getCurrentUserData();
   if (!data || data.role !== 'admin') { await auth.signOut(); window.location.href = 'index.html'; return; }
+  window.currentAdminData = data;
   document.getElementById('sb-user-name').textContent = data.nome || data.email;
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
   const today = new Date().toISOString().split('T')[0];
@@ -594,6 +611,46 @@ async function loadConfig() {
   } catch(e) {
     ativoEl.innerHTML = `<span style="color:#c0392b;">Erro ao ler configuração: ${e.message}<br>Verifique as Regras do Firestore (coleção "config" precisa de permissão).</span>`;
     console.warn('loadConfig:', e);
+  }
+}
+
+// ── MANUTENÇÃO: ZERAR BASE ANTERIOR A 30/06/2026 ───────────────
+async function zerarBaseAnterior() {
+  const confirmInput = document.getElementById('cfg-zerar-confirm');
+  const resultEl = document.getElementById('cfg-zerar-result');
+  if ((confirmInput.value||'').trim().toUpperCase() !== 'ZERAR') {
+    showToast('Digite ZERAR no campo de confirmação para prosseguir.', 'warning');
+    return;
+  }
+  if (!confirm('Tem certeza? Isso apagará PERMANENTEMENTE todas as operações, discrepâncias e movimentações anteriores a 30/06/2026. Esta ação não pode ser desfeita.')) return;
+
+  loading(true);
+  resultEl.innerHTML = '⏳ Apagando…';
+  try {
+    const cutoff = firebase.firestore.Timestamp.fromDate(new Date('2026-06-30T00:00:00'));
+    const colecoes = ['operacoes', 'discrepancias', 'movimentacoes'];
+    let totalApagado = 0;
+    for (const colName of colecoes) {
+      let continuar = true;
+      while (continuar) {
+        const snap = await db.collection(colName).where('timestamp', '<', cutoff).limit(400).get();
+        if (snap.empty) { continuar = false; break; }
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        totalApagado += snap.size;
+        if (snap.size < 400) continuar = false;
+      }
+    }
+    resultEl.innerHTML = `<span style="color:#1a5c1a;font-weight:600;">✅ ${totalApagado} registro(s) apagado(s) com sucesso. O saldo atual dos insumos foi mantido.</span>`;
+    confirmInput.value = '';
+    showToast('Base anterior a 30/06/2026 apagada com sucesso!');
+    loadDashboard();
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:#c0392b;">❌ Erro: ${e.message}</span>`;
+    showToast('Erro ao apagar dados: ' + e.message, 'error');
+  } finally {
+    loading(false);
   }
 }
 
@@ -888,40 +945,174 @@ async function loadOperacoes() {
     <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
     <td>${r.cliente||'—'}</td>
     <td>${r.conferenteNome||'—'}</td>
-    <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}</td>
-    <td><button class="btn btn-sm btn-outline-secondary" onclick="verDetalhes('${r.id}')">Ver</button></td>
+    <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}${r.corrigido?' <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Corrigido</span>':''}</td>
+    <td><button class="btn btn-sm btn-outline-secondary" onclick="verDetalhes('${r.id}')">Ver / Editar</button></td>
   </tr>`).join('');
 }
 
+function esc(s) { return (s==null?'':String(s)).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
 async function verDetalhes(id) {
-  const doc = await db.collection('operacoes').doc(id).get();
-  if (!doc.exists) return;
-  const r = doc.data();
-  const campos = (r.campos||[]).map(c=>`
-    <tr>
-      <td>${c.nome}</td>
-      <td>${c.status==='OK'?'<span class="badge-ok">OK</span>':'<span class="badge-naook">NÃO OK</span>'}</td>
-      <td>${c.quantidadeAveriguada||'—'}</td>
-      <td>${c.observacao||'—'}</td>
-    </tr>`).join('');
-  const paletes = (r.paletes||[]).map(p=>`<li>${p.tipo==='OUTROS'&&p.tipoCustom?p.tipoCustom:p.tipo}: <b>${p.quantidade}</b></li>`).join('');
-  const insumos = (r.insumos||[]).map(i=>`<li>${i.insumoNome}: <b>${i.quantidade}</b></li>`).join('');
-  document.getElementById('modal-op-title').textContent = `Operação — ${r.placa||'—'} (${r.tipoExecucao})`;
-  document.getElementById('modal-op-body').innerHTML = `
-    <div class="row g-3 mb-3">
-      <div class="col-6"><small class="text-muted">Conferente</small><div><b>${r.conferenteNome||'—'}</b></div></div>
-      <div class="col-6"><small class="text-muted">Horário</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
-      <div class="col-6"><small class="text-muted">Cliente</small><div>${r.cliente||'—'}</div></div>
-      <div class="col-6"><small class="text-muted">Data ref. planilha</small><div>${r.dataRef||'—'}</div></div>
-    </div>
-    ${campos?`<h6>Campos conferidos</h6><table class="tbl mb-3"><thead><tr><th>Campo</th><th>Status</th><th>Qtd Averig.</th><th>Obs.</th></tr></thead><tbody>${campos}</tbody></table>`:''}
-    ${paletes?`<h6>Paletes</h6><ul>${paletes}</ul>`:''}
-    ${insumos?`<h6>Insumos utilizados</h6><ul>${insumos}</ul>`:''}
-    ${r.observacoes?`<h6>Observações</h6><p>${r.observacoes}</p>`:''}
-    ${(r.fotos||[]).length?`<h6>Fotos</h6><div style="display:flex;gap:8px;flex-wrap:wrap;">${r.fotos.map(f=>`<img src="${f}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`:''}
-  `;
-  new bootstrap.Modal(document.getElementById('modal-op')).show();
+  loading(true);
+  try {
+    const doc = await db.collection('operacoes').doc(id).get();
+    if (!doc.exists) { loading(false); return; }
+    const r = doc.data();
+
+    const [cfSnap, histSnap] = await Promise.all([
+      db.collection('users').where('role','==','conferente').get(),
+      db.collection('operacoes').doc(id).collection('correcoes').orderBy('timestamp','desc').get()
+    ]);
+
+    const conferenteOptions = cfSnap.docs.map(d=>{
+      const u = d.data();
+      return `<option value="${d.id}" ${d.id===r.conferenteId?'selected':''}>${esc(u.nome||u.email)}</option>`;
+    }).join('') || `<option value="${r.conferenteId||''}" selected>${esc(r.conferenteNome||'—')}</option>`;
+
+    const nfsRows = (r.nfs||[]).map((nf,i)=>`
+      <tr data-idx="${i}">
+        <td style="font-size:0.78rem;max-width:180px;">
+          <b>${esc(nf.tituloOp || (nf.nf?('NF '+nf.nf):('Item '+(i+1))))}</b><br>
+          ${nf.nf?`<span class="text-muted">NF ${esc(nf.nf)}${nf.origemNF?` <span style="color:#c0392b;">(via ${esc(nf.origemNF)})</span>`:''}</span>`:''}
+        </td>
+        <td>
+          <select class="form-select form-select-sm ed-nf-status">
+            <option value="PENDENTE" ${(!nf.status||nf.status==='PENDENTE')?'selected':''}>Pendente</option>
+            <option value="OK" ${nf.status==='OK'?'selected':''}>OK</option>
+            <option value="NAO_OK" ${nf.status==='NAO_OK'?'selected':''}>NÃO OK</option>
+          </select>
+        </td>
+        <td><input type="number" min="0" class="form-control form-control-sm ed-nf-qtd" value="${nf.quantidadeAveriguada??''}"></td>
+        <td><input type="text" class="form-control form-control-sm ed-nf-obs" value="${esc(nf.observacao)}"></td>
+      </tr>`).join('');
+
+    const paletesRows = (r.paletes||[]).map((p,i)=>`
+      <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
+        <div class="col-7"><input class="form-control form-control-sm" value="${esc((p.tipo==='OUTROS'&&p.tipoCustom)?p.tipoCustom:p.tipo)}" readonly></div>
+        <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-pal-qtd" value="${p.quantidade||0}"></div>
+      </div>`).join('');
+
+    const insumosRows = (r.insumos||[]).map((ins,i)=>`
+      <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
+        <div class="col-7"><input class="form-control form-control-sm" value="${esc(ins.insumoNome)}" readonly></div>
+        <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-ins-qtd" value="${ins.quantidade||0}"></div>
+      </div>`).join('');
+
+    const historico = histSnap.docs.map(d=>d.data());
+    const historicoHtml = historico.length ? `
+      <h6>🕓 Histórico de Correções</h6>
+      <div style="max-height:150px;overflow-y:auto;font-size:0.78rem;background:#f8faff;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
+        ${historico.map(h=>`<div style="padding:4px 0;border-bottom:1px dashed #dde5f0;"><b>${esc(h.editadoPor)}</b> em ${fmtDate(h.timestamp)} — ${esc(h.resumo)}</div>`).join('')}
+      </div>` : '';
+
+    document.getElementById('modal-op-title').textContent = `Operação — ${r.placa||'—'} (${r.tipoExecucao})`;
+    document.getElementById('modal-op-body').innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Placa</label><input class="form-control form-control-sm" id="ed-placa" value="${esc(r.placa)}"></div>
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Cliente</label><input class="form-control form-control-sm" id="ed-cliente" value="${esc(r.cliente)}"></div>
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Conferente</label><select class="form-select form-select-sm" id="ed-conferente">${conferenteOptions}</select></div>
+        <div class="col-6"><small class="text-muted">Horário (não editável)</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
+      </div>
+      ${nfsRows?`<h6>NFs / Itens conferidos</h6><table class="tbl mb-3"><thead><tr><th>Item</th><th>Status</th><th>Qtd Averig.</th><th>Observação</th></tr></thead><tbody id="ed-nfs-body">${nfsRows}</tbody></table>`:''}
+      ${paletesRows?`<h6>Paletes</h6><div id="ed-paletes-body" class="mb-3">${paletesRows}</div>`:''}
+      ${insumosRows?`<h6>Insumos utilizados</h6><div id="ed-insumos-body" class="mb-3">${insumosRows}</div>`:''}
+      <div class="mb-3"><label class="form-label" style="font-size:0.8rem;">Observações Gerais</label><textarea class="form-control form-control-sm" id="ed-observacoes" rows="2">${esc(r.observacoes)}</textarea></div>
+      ${(r.fotos||[]).length?`<h6>Fotos</h6><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${r.fotos.map(f=>`<img src="${f}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`:''}
+      ${historicoHtml}
+      <button class="btn btn-navy w-100" onclick="salvarCorrecaoOperacao('${id}')">💾 Salvar Correção</button>
+    `;
+    new bootstrap.Modal(document.getElementById('modal-op')).show();
+  } finally {
+    loading(false);
+  }
 }
+
+async function salvarCorrecaoOperacao(id) {
+  loading(true);
+  try {
+    const docRef = db.collection('operacoes').doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) { showToast('Operação não encontrada.','error'); return; }
+    const original = snap.data();
+
+    const novaPlaca = document.getElementById('ed-placa').value.trim();
+    const novoCliente = document.getElementById('ed-cliente').value.trim();
+    const selConf = document.getElementById('ed-conferente');
+    const novoConferenteId = selConf.value;
+    const novoConferenteNome = selConf.options[selConf.selectedIndex]?.textContent || original.conferenteNome;
+    const novasObservacoes = document.getElementById('ed-observacoes').value.trim();
+
+    const novosNfs = (original.nfs||[]).map((nf,i)=>{
+      const row = document.querySelector(`#ed-nfs-body tr[data-idx="${i}"]`);
+      if (!row) return nf;
+      const qtd = row.querySelector('.ed-nf-qtd').value;
+      return {
+        ...nf,
+        status: row.querySelector('.ed-nf-status').value,
+        quantidadeAveriguada: qtd ? parseInt(qtd) : null,
+        observacao: row.querySelector('.ed-nf-obs').value.trim()
+      };
+    });
+
+    const novosPaletes = (original.paletes||[]).map((p,i)=>{
+      const row = document.querySelector(`#ed-paletes-body [data-idx="${i}"]`);
+      const qtdInput = row?.querySelector('.ed-pal-qtd');
+      return qtdInput ? { ...p, quantidade: parseInt(qtdInput.value)||0 } : p;
+    });
+
+    const novosInsumos = (original.insumos||[]).map((ins,i)=>{
+      const row = document.querySelector(`#ed-insumos-body [data-idx="${i}"]`);
+      const qtdInput = row?.querySelector('.ed-ins-qtd');
+      return qtdInput ? { ...ins, quantidade: parseInt(qtdInput.value)||0 } : ins;
+    });
+
+    const resumoPartes = [];
+    if (novaPlaca !== (original.placa||'')) resumoPartes.push(`placa "${original.placa||'—'}"→"${novaPlaca}"`);
+    if (novoCliente !== (original.cliente||'')) resumoPartes.push('cliente alterado');
+    if (novoConferenteId !== original.conferenteId) resumoPartes.push('conferente alterado');
+    if (JSON.stringify(novosNfs) !== JSON.stringify(original.nfs||[])) resumoPartes.push('NF(s)/item(ns) corrigido(s)');
+    if (JSON.stringify(novosPaletes) !== JSON.stringify(original.paletes||[])) resumoPartes.push('paletes corrigidos');
+    if (JSON.stringify(novosInsumos) !== JSON.stringify(original.insumos||[])) resumoPartes.push('insumos corrigidos');
+    if (novasObservacoes !== (original.observacoes||'')) resumoPartes.push('observações alteradas');
+
+    if (!resumoPartes.length) { showToast('Nenhuma alteração detectada.','warning'); return; }
+
+    const adminData = window.currentAdminData || {};
+    const editor = adminData.nome || adminData.email || 'Admin';
+
+    await docRef.collection('correcoes').add({
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      editadoPor: editor,
+      resumo: resumoPartes.join(', '),
+      valoresAntigos: {
+        placa: original.placa||null, cliente: original.cliente||null,
+        conferenteId: original.conferenteId||null, conferenteNome: original.conferenteNome||null,
+        nfs: original.nfs||[], paletes: original.paletes||[], insumos: original.insumos||[],
+        observacoes: original.observacoes||null
+      }
+    });
+
+    await docRef.update({
+      placa: novaPlaca, cliente: novoCliente,
+      conferenteId: novoConferenteId, conferenteNome: novoConferenteNome,
+      nfs: novosNfs, paletes: novosPaletes, insumos: novosInsumos,
+      observacoes: novasObservacoes,
+      corrigido: true,
+      corrigidoPor: editor,
+      corrigidoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('Correção salva com sucesso!');
+    const modalEl = document.getElementById('modal-op');
+    bootstrap.Modal.getInstance(modalEl)?.hide();
+    loadOperacoes();
+  } catch(e) {
+    showToast('Erro ao salvar correção: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
 
 // ── DISCREPÂNCIAS ─────────────────────────────────────────────
 async function loadDiscrepancias() {
@@ -959,7 +1150,7 @@ async function loadDiscrepancias() {
       detalhe = `<b>${r.tipoKey||'—'}</b> · Esperado: ${r.qtdEsperada||0} · Retornou: ${r.qtdRetornada||0} · <span style="color:${diff<0?'#c0392b':'#1a5c1a'};font-weight:700;">${diff>0?'+':''}${diff}</span>`;
     } else {
       const parts = [];
-      if (r.nf)          parts.push(`NF ${r.nf}`);
+      if (r.nf)          parts.push(`NF ${r.nf}${r.origemNF?` (via ${r.origemNF})`:''}`);
       if (r.tituloOp)    parts.push(r.tituloOp);
       if (r.quantidadeAveriguada) parts.push(`Qtd: ${r.quantidadeAveriguada}`);
       if (r.observacao)  parts.push(r.observacao);

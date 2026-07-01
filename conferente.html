@@ -1023,15 +1023,22 @@ function renderCamposConferencia(vehicles) {
   }
 
   function nfFallback(v) {
-    return col(v, 'M', 'NF', 'Nº NF')
-        || col(v, 'Q', 'OC')
-        || col(v, 'R', 'MD')
-        || col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
+    const direto = col(v, 'M', 'NF', 'Nº NF');
+    if (direto) return { value: direto, origem: null };
+    const oc = col(v, 'Q', 'OC');
+    if (oc) return { value: oc, origem: 'OC' };
+    const md = col(v, 'R', 'MD');
+    if (md) return { value: md, origem: 'MD' };
+    const di = col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
+    if (di) return { value: di, origem: 'DI/Cotação / R$ / Prazo' };
+    return { value: '', origem: null };
   }
 
   // ── Renderiza campos ──
   vehicles.forEach((v, idx) => {
-    const nfVal     = nfFallback(v);
+    const nfInfo    = nfFallback(v);
+    const nfVal     = nfInfo.value;
+    const nfOrigem  = nfInfo.origem;
     const destVal   = col(v, 'H', 'Destinatário', 'Destinatario');
     const cidadeVal = col(v, 'L', 'Cidade Destino');
     const volVal    = col(v, 'E', 'Volume');
@@ -1051,6 +1058,16 @@ function renderCamposConferencia(vehicles) {
       return `<div class="nf-field">
         <span class="nf-field-label">${label}</span>
         <span class="nf-field-val${empty?' empty':''}">${val||'—'}</span>
+      </div>`;
+    }
+
+    // Chip do Nº NF, indicando de qual coluna o valor foi obtido quando não veio da coluna de NF direta
+    function chipNF(val, origem) {
+      const empty = !val;
+      const tag = (origem && val) ? ` <span style="font-size:0.65rem;font-weight:700;color:#c0392b;background:#fde8e8;padding:1px 6px;border-radius:8px;">via ${origem}</span>` : '';
+      return `<div class="nf-field">
+        <span class="nf-field-label">Nº NF</span>
+        <span class="nf-field-val${empty?' empty':''}">${val||'—'}${tag}</span>
       </div>`;
     }
 
@@ -1077,7 +1094,7 @@ function renderCamposConferencia(vehicles) {
       <div class="nf-data-row">
         <div class="nf-fields">
           ${chip('Volume', volVal)}
-          ${chip('Nº NF', nfVal)}
+          ${chipNF(nfVal, nfOrigem)}
           ${chip('Destinatário', destVal)}
           ${chip('Cidade Destino', cidadeVal)}
           ${chipServico(servicoVal)}
@@ -1350,14 +1367,26 @@ async function submeterConferencia() {
       const qtdDiv  = obsRow?.querySelector('input[type=number]')?.value||'';
       const obsText = obsRow?.querySelector('input[type=text]')?.value||'';
 
-      const nfSalvo = _col('M','NF','Nº NF')
-                   || _col('Q','OC')
-                   || _col('R','MD')
-                   || _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
+      // Resolve NF com fallback, registrando de qual coluna o valor foi obtido
+      let nfSalvo = _col('M','NF','Nº NF');
+      let origemNF = null;
+      if (!nfSalvo) {
+        nfSalvo = _col('Q','OC');
+        if (nfSalvo) origemNF = 'OC';
+      }
+      if (!nfSalvo) {
+        nfSalvo = _col('R','MD');
+        if (nfSalvo) origemNF = 'MD';
+      }
+      if (!nfSalvo) {
+        nfSalvo = _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
+        if (nfSalvo) origemNF = 'DI/Cotação / R$ / Prazo';
+      }
 
       nfsData.push({
         blockIdx:             idx,   // índice real no DOM (data-idx do nf-block)
         nf:                   nfSalvo,
+        origemNF:             origemNF,   // coluna de onde a NF foi obtida quando não veio da coluna direta
         destinatario:         _col('H','Destinatário','Destinatario'),
         cidadeDestino:        _col('L','Cidade Destino'),
         volume:               _col('E','Volume'),
@@ -1456,7 +1485,7 @@ async function submeterConferencia() {
           await db.collection('discrepancias').add({
             tipo: 'NF',
             operacaoId:opRef.id, placa,
-            nf:nf.nf, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
+            nf:nf.nf, origemNF:nf.origemNF||null, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
             observacao:nf.observacao||'',
             quantidadeAveriguada:nf.quantidadeAveriguada||null,
             conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
