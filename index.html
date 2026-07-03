@@ -3,293 +3,1317 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Conferência Geral — Login</title>
+<title>Conferência Geral — Administrador</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --navy: #0d2137;
-    --blue: #1a3a5c;
-    --amber: #f0a500;
-    --amber-dark: #c88600;
-    --white: #fff;
-    --gray: #f4f6fa;
-    --text: #222;
-    --muted: #888;
-    --danger: #dc3545;
-    --success: #28a745;
-    --radius: 10px;
+    --navy:#0d2137; --blue:#1a3a5c; --amber:#f0a500; --amber-dk:#c88600;
+    --sidebar-w:240px; --header-h:56px;
   }
-  body {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 60%, #2a5298 100%);
-    font-family: 'Segoe UI', system-ui, sans-serif;
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#f0f4fa; overflow-x:hidden; }
+  /* SIDEBAR */
+  #sidebar {
+    position:fixed; top:0; left:0; height:100vh; width:var(--sidebar-w);
+    background:var(--navy); color:#fff; z-index:100;
+    display:flex; flex-direction:column;
+    transition: transform 0.3s;
   }
-  .card {
-    background: var(--white);
-    border-radius: 18px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-    padding: 40px 36px 32px;
-    width: 100%;
-    max-width: 420px;
-    margin: 20px;
+  .sb-logo { padding:20px 18px 12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  .sb-logo-title { font-size:1rem; font-weight:700; color:var(--amber); line-height:1.2; }
+  .sb-logo-sub   { font-size:0.72rem; color:rgba(255,255,255,0.5); }
+  .sb-nav { flex:1; overflow-y:auto; padding:8px 0; }
+  .sb-item {
+    display:flex; align-items:center; gap:10px; padding:11px 18px;
+    color:rgba(255,255,255,0.75); cursor:pointer; font-size:0.9rem;
+    transition: background 0.15s, color 0.15s; border-left:3px solid transparent;
+    text-decoration:none;
   }
-  .logo-area {
-    text-align: center;
-    margin-bottom: 32px;
+  .sb-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
+  .sb-item.active { background:rgba(240,165,0,0.15); color:var(--amber); border-left-color:var(--amber); font-weight:600; }
+  .sb-item svg { width:18px; height:18px; flex-shrink:0; }
+  .sb-section { padding:12px 18px 4px; font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; }
+  .sb-foot { padding:14px 18px; border-top:1px solid rgba(255,255,255,0.1); }
+  .sb-user { font-size:0.82rem; color:rgba(255,255,255,0.7); margin-bottom:8px; }
+  .btn-logout { width:100%; background:rgba(220,53,69,0.2); border:1px solid rgba(220,53,69,0.4); color:#f77; border-radius:8px; padding:7px; font-size:0.82rem; cursor:pointer; transition:background 0.2s; }
+  .btn-logout:hover { background:rgba(220,53,69,0.4); }
+  /* HEADER */
+  #topbar {
+    position:fixed; top:0; left:var(--sidebar-w); right:0; height:var(--header-h);
+    background:#fff; border-bottom:1px solid #dde3f0; z-index:99;
+    display:flex; align-items:center; justify-content:space-between; padding:0 24px;
   }
-  .logo-icon {
-    width: 110px; height: 110px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 14px;
+  #page-title { font-size:1.1rem; font-weight:700; color:var(--navy); }
+  /* MAIN */
+  #main { margin-left:var(--sidebar-w); margin-top:var(--header-h); padding:24px; }
+  .section { display:none; }
+  .section.active { display:block; }
+  /* CARDS */
+  .stat-card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  .stat-card .value { font-size:2rem; font-weight:800; color:var(--navy); }
+  .stat-card .label { font-size:0.82rem; color:#888; margin-top:2px; }
+  .stat-card .icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+  /* TABLE */
+  .table-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden; }
+  .table-card .tc-head { padding:16px 20px; border-bottom:1px solid #eef0f6; display:flex; align-items:center; justify-content:space-between; }
+  .tc-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  table.tbl { width:100%; border-collapse:collapse; }
+  table.tbl th { background:#f8f9fc; font-size:0.78rem; font-weight:700; color:#555; text-transform:uppercase; padding:10px 16px; text-align:left; border-bottom:1px solid #eef0f6; }
+  table.tbl td { padding:11px 16px; font-size:0.88rem; border-bottom:1px solid #f0f2f8; }
+  table.tbl tr:last-child td { border-bottom:none; }
+  table.tbl tr:hover td { background:#f8faff; }
+  /* BADGES */
+  .badge-ok      { background:#e6f9ee; color:#1a7a3c; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-naook   { background:#fff0f0; color:#c0392b; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-entrada { background:#e8f4ff; color:#0056b3; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-saida   { background:#fff3e0; color:#b35900; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .badge-pendente{ background:#f5f5f5; color:#666; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  /* FORMS */
+  .form-section { background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
+  .form-section h5 { font-size:1rem; font-weight:700; color:var(--navy); margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #eef0f6; }
+  .form-label { font-size:0.82rem; font-weight:600; color:var(--blue); }
+  .form-control:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(26,58,92,0.1); }
+  .btn-navy  { background:var(--navy); color:#fff; border:none; }
+  .btn-navy:hover  { background:var(--blue); color:#fff; }
+  .btn-amber { background:var(--amber); color:var(--navy); border:none; font-weight:700; }
+  .btn-amber:hover { background:var(--amber-dk); color:#fff; }
+  /* TOAST */
+  #toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+  .toast-msg { padding:12px 20px; border-radius:10px; font-size:0.88rem; font-weight:600; opacity:0; transform:translateY(20px); transition:all 0.3s; min-width:220px; }
+  .toast-msg.show { opacity:1; transform:translateY(0); }
+  .toast-success { background:var(--navy); color:#fff; }
+  .toast-error   { background:#dc3545; color:#fff; }
+  .toast-warning { background:var(--amber); color:var(--navy); }
+  /* LOADING */
+  #global-loading { display:none; position:fixed; inset:0; background:rgba(13,33,55,0.55); z-index:9998; align-items:center; justify-content:center; }
+  .spin-big { width:48px; height:48px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  /* INSUMO ITEMS */
+  .insumo-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f0f2f8; }
+  .insumo-row:last-child { border-bottom:none; }
+  .insumo-nome { flex:1; font-size:0.9rem; font-weight:500; }
+  .insumo-cat  { font-size:0.75rem; color:#888; }
+  .insumo-saldo{ font-size:1.3rem; font-weight:800; min-width:60px; text-align:right; }
+  .saldo-ok     { color:var(--navy); }
+  .saldo-warn   { color:#e67e22; }
+  .saldo-zero   { color:#dc3545; }
+  /* PLACA COMPARATIVO */
+  .placa-comp { background:#fff; border-radius:10px; padding:14px 18px; margin-bottom:10px; box-shadow:0 1px 6px rgba(0,0,0,0.07); display:flex; align-items:center; gap:14px; }
+  .placa-tag  { background:var(--navy); color:#fff; border-radius:8px; padding:4px 12px; font-weight:800; font-size:0.92rem; letter-spacing:1px; }
+  .comp-arrow { color:#ccc; font-size:1.2rem; }
+  .comp-ok    { color:#28a745; font-weight:700; }
+  .comp-diff  { color:#dc3545; font-weight:700; }
+  /* MOBILE SIDEBAR TOGGLE */
+  #sb-toggle { display:none; background:none; border:none; cursor:pointer; padding:4px; }
+  @media(max-width:768px) {
+    #sidebar { transform:translateX(-100%); }
+    #sidebar.open { transform:translateX(0); }
+    #topbar { left:0; }
+    #main   { margin-left:0; }
+    #sb-toggle { display:block; }
   }
-  .logo-icon img { width: 110px; height: 110px; object-fit: contain; }
-  h1 { font-size: 1.5rem; color: var(--navy); font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); font-size: 0.9rem; }
-  .form-group { margin-bottom: 18px; }
-  label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
-  input[type=email], input[type=password], input[type=text] {
-    width: 100%; padding: 13px 14px; border: 2px solid #dde3f0; border-radius: var(--radius);
-    font-size: 1rem; color: var(--text); background: var(--gray);
-    transition: border-color 0.2s;
-    outline: none;
-  }
-  input:focus { border-color: var(--blue); background: #fff; }
-  .btn-primary {
-    width: 100%; padding: 14px; background: var(--navy); color: var(--white);
-    border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 700;
-    cursor: pointer; transition: background 0.2s, transform 0.1s;
-    margin-top: 4px;
-  }
-  .btn-primary:hover { background: var(--blue); }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .error-msg {
-    background: #fff0f0; border: 1px solid #f5c6cb; color: var(--danger);
-    padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; margin-top: 14px;
-    display: none;
-  }
-  .error-msg.show { display: block; }
-  .divider { display: flex; align-items: center; gap: 10px; margin: 24px 0 20px; }
-  .divider::before, .divider::after { content:''; flex:1; height:1px; background:#e0e6f0; }
-  .divider span { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-  .setup-section { background: #f8f4e8; border: 1px solid #e8d8a0; border-radius: var(--radius); padding: 18px; }
-  .setup-section h3 { font-size: 0.95rem; color: #7a5500; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-  .setup-section .form-group { margin-bottom: 12px; }
-  .setup-section input { background: #fff; }
-  .btn-amber {
-    width: 100%; padding: 12px; background: var(--amber); color: var(--navy);
-    border: none; border-radius: var(--radius); font-size: 0.95rem; font-weight: 700;
-    cursor: pointer; transition: background 0.2s;
-  }
-  .btn-amber:hover { background: var(--amber-dark); color: #fff; }
-  .spinner {
-    display: inline-block; width: 18px; height: 18px;
-    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-    border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  /* ── SELETOR DE USUÁRIO ── */
-  .user-picker-label { font-size: 0.85rem; font-weight: 600; color: var(--blue); margin-bottom: 6px; display: block; }
-  #user-list {
-    display: flex; flex-direction: column; gap: 6px;
-    max-height: 200px; overflow-y: auto; margin-bottom: 4px;
-    border: 2px solid #dde3f0; border-radius: var(--radius);
-    background: var(--gray); padding: 6px;
-  }
-  .user-btn {
-    display: flex; align-items: center; gap: 10px;
-    background: #fff; border: 2px solid transparent;
-    border-radius: 8px; padding: 9px 12px; cursor: pointer;
-    text-align: left; transition: border-color 0.15s, background 0.15s;
-    width: 100%;
-  }
-  .user-btn:hover   { border-color: var(--blue); background: #f0f4ff; }
-  .user-btn.active  { border-color: var(--navy); background: #e8f0ff; }
-  .user-avatar {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: var(--navy); color: var(--amber);
-    font-weight: 800; font-size: 0.9rem;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .user-name  { font-size: 0.88rem; font-weight: 700; color: var(--navy); }
-  .user-email { font-size: 0.75rem; color: var(--muted); }
-  .user-picker-loading { text-align:center; color: var(--muted); font-size:0.82rem; padding:8px; }
-
-  /* ── LEMBRAR SENHA ── */
-  .remember-row {
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 18px; margin-top: -6px;
-  }
-  .remember-row input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--navy); flex-shrink: 0; }
-  .remember-row label { font-size: 0.83rem; color: var(--muted); cursor: pointer; font-weight: 500; margin: 0; }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo-area">
-    <div class="logo-icon">
-      <img src="logo%20portoex.png" alt="Portoex"/>
-    </div>
-    <h1>Conferência Geral</h1>
-    <p class="subtitle">Gestão de operações logísticas</p>
-  </div>
 
-  <!-- Seletor de conferente -->
-  <div class="form-group" id="user-picker-group">
-    <span class="user-picker-label">👤 Selecione o conferente</span>
-    <div id="user-list">
-      <div class="user-picker-loading">Carregando conferentes…</div>
-    </div>
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">🚛 Conferência Geral</div>
+    <div class="sb-logo-sub">Painel Administrativo</div>
   </div>
+  <div class="sb-nav">
+    <div class="sb-section">Principal</div>
+    <a class="sb-item active" data-section="dashboard" onclick="showSection('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <div class="sb-section">Cadastros</div>
+    <a class="sb-item" data-section="conferentes" onclick="showSection('conferentes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/></svg>
+      Conferentes
+    </a>
+    <a class="sb-item" data-section="insumos" onclick="showSection('insumos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Insumos / Estoque
+    </a>
+    <div class="sb-section">Acompanhamento</div>
+    <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Operações
+    </a>
+    <a class="sb-item" data-section="discrepancias" onclick="showSection('discrepancias')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Discrepâncias
+    </a>
+    <a class="sb-item" data-section="paletes" onclick="showSection('paletes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      Paletes
+    </a>
+    <div class="sb-section">Sistema</div>
+    <a class="sb-item" data-section="config" onclick="showSection('config')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações
+    </a>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-user" id="sb-user-name">Carregando…</div>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</nav>
 
-  <form id="login-form">
-    <div class="form-group">
-      <label for="email">E-mail</label>
-      <input type="email" id="email" placeholder="seu@email.com" required autocomplete="username"/>
-    </div>
-    <div class="form-group">
-      <label for="senha">Senha</label>
-      <input type="password" id="senha" placeholder="••••••••" required autocomplete="current-password"/>
-    </div>
-    <div class="remember-row">
-      <input type="checkbox" id="chk-lembrar"/>
-      <label for="chk-lembrar">Lembrar login e senha neste aparelho</label>
-    </div>
-    <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
-    <div class="error-msg" id="login-error"></div>
-  </form>
+<!-- TOPBAR -->
+<div id="topbar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="sb-toggle" onclick="toggleSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span id="page-title">Dashboard</span>
+  </div>
+  <div id="topbar-date" style="font-size:0.82rem;color:#888;"></div>
 </div>
 
-<!-- Firebase SDKs -->
+<!-- MAIN -->
+<div id="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="section active" id="sec-dashboard">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#e8f4ff;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0056b3" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          </div>
+          <div class="value" id="stat-total">—</div>
+          <div class="label">Operações Hoje</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#e8ffe8;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a7a3c" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="value text-success" id="stat-concluidas">—</div>
+          <div class="label">Concluídas</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#fff0f0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+          </div>
+          <div class="value text-danger" id="stat-disc">—</div>
+          <div class="label">Discrepâncias</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="icon" style="background:#fff8e0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b35900" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          </div>
+          <div class="value" style="color:var(--amber);" id="stat-conf">—</div>
+          <div class="label">Conferentes Ativos</div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="table-card p-3">
+          <div class="tc-title mb-3">Operações por Conferente</div>
+          <canvas id="chart-conf" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="table-card p-3">
+          <div class="tc-title mb-3">Operações por Veículo</div>
+          <canvas id="chart-veic" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">Últimas Operações</span>
+            <input type="date" id="dash-date" class="form-control form-control-sm" style="width:160px;" onchange="loadDashboard()"/>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Placa</th><th>Tipo</th><th>Conferente</th><th>Horário</th><th>Status</th></tr></thead>
+              <tbody id="dash-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONFERENTES ===== -->
+  <div class="section" id="sec-conferentes">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-section">
+          <h5>➕ Novo Conferente</h5>
+          <div class="mb-3">
+            <label class="form-label">Nome</label>
+            <input type="text" class="form-control" id="cf-nome" placeholder="Nome completo"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-control" id="cf-email" placeholder="email@exemplo.com"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Senha inicial</label>
+            <input type="password" class="form-control" id="cf-senha" placeholder="Mínimo 6 caracteres"/>
+          </div>
+          <button class="btn btn-navy w-100" onclick="addConferente()">Criar Conferente</button>
+          <div id="cf-error" class="text-danger mt-2" style="font-size:0.82rem;display:none;"></div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Conferentes Cadastrados</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Operações</th><th>Ações</th></tr></thead>
+              <tbody id="cf-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INSUMOS ===== -->
+  <div class="section" id="sec-insumos">
+    <div class="row g-3">
+      <!-- Painel de saldo atual -->
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">📦 Estoque Atual</span>
+            <button class="btn btn-sm btn-navy" onclick="showModalInsumo()">+ Novo Insumo</button>
+          </div>
+          <div id="insumos-list" style="padding:8px 16px;"></div>
+        </div>
+      </div>
+      <!-- Início de contagem -->
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5>🗓️ Início de Contagem (Inventário)</h5>
+          <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">Define a data de referência e o saldo inicial de cada insumo. Use ao realizar um inventário.</p>
+          <div class="mb-3">
+            <label class="form-label">Insumo</label>
+            <select class="form-select" id="inv-insumo"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Saldo inicial</label>
+            <input type="number" class="form-control" id="inv-saldo" placeholder="0" min="0"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Data do inventário</label>
+            <input type="date" class="form-control" id="inv-data"/>
+          </div>
+          <button class="btn btn-amber w-100" onclick="salvarInventario()">Salvar Início de Contagem</button>
+        </div>
+      </div>
+      <!-- Ajuste manual -->
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5>⚖️ Ajuste Manual de Saldo</h5>
+          <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">Para corrigir divergências ou lançar movimentações avulsas.</p>
+          <div class="mb-3">
+            <label class="form-label">Insumo</label>
+            <select class="form-select" id="adj-insumo"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="adj-tipo">
+              <option value="ENTRADA">ENTRADA (adicionar)</option>
+              <option value="SAIDA">SAÍDA (remover)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantidade</label>
+            <input type="number" class="form-control" id="adj-qtd" placeholder="0" min="1"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Observação</label>
+            <input type="text" class="form-control" id="adj-obs" placeholder="Motivo do ajuste"/>
+          </div>
+          <button class="btn btn-navy w-100" onclick="salvarAjuste()">Aplicar Ajuste</button>
+        </div>
+      </div>
+      <!-- Histórico -->
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">Histórico de Movimentações</span>
+            <select class="form-select form-select-sm" id="hist-filtro" style="width:200px;" onchange="loadHistorico()">
+              <option value="">Todos os insumos</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Data/Hora</th><th>Insumo</th><th>Tipo</th><th>Qtd</th><th>Placa</th><th>Conferente</th><th>Obs.</th></tr></thead>
+              <tbody id="hist-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPERAÇÕES ===== -->
+  <div class="section" id="sec-operacoes">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">Log de Operações</span>
+        <div class="d-flex gap-2">
+          <input type="date" id="op-data" class="form-control form-control-sm" style="width:150px;" onchange="loadOperacoes()"/>
+          <select class="form-select form-select-sm" id="op-tipo" style="width:130px;" onchange="loadOperacoes()">
+            <option value="">Todos os tipos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
+          </select>
+          <select class="form-select form-select-sm" id="op-transferencia" style="width:180px;" onchange="loadOperacoes()">
+            <option value="">Transferência: Todos</option>
+            <option value="SIM">Somente Transferência</option>
+            <option value="NAO">Excluir Transferência</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Transferência</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
+          <tbody id="op-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DISCREPÂNCIAS ===== -->
+  <div class="section" id="sec-discrepancias">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">⚠️ Discrepâncias</span>
+        <div class="d-flex gap-2 flex-wrap">
+          <input type="date" id="disc-data" class="form-control form-control-sm" style="width:150px;" onchange="loadDiscrepancias()"/>
+          <select class="form-select form-select-sm" id="disc-tipo" style="width:150px;" onchange="loadDiscrepancias()">
+            <option value="">Todos os tipos</option>
+            <option value="NF">NF (Não OK)</option>
+            <option value="PALETE">Palete</option>
+          </select>
+          <select class="form-select form-select-sm" id="disc-status" style="width:150px;" onchange="loadDiscrepancias()">
+            <option value="">Todos os status</option>
+            <option value="PENDENTE">Pendentes</option>
+            <option value="RESOLVIDA">Resolvidas</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Data</th><th>Placa</th><th>Tipo</th><th>Detalhe</th><th>Conferente</th><th>Status</th><th>Ação</th></tr></thead>
+          <tbody id="disc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PALETES ===== -->
+  <div class="section" id="sec-paletes">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="form-section" style="padding:14px 20px;">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span style="font-weight:600;color:var(--navy);">Comparativo de Paletes por Veículo</span>
+            <input type="date" id="pal-data-ini" class="form-control form-control-sm" style="width:150px;"/>
+            <span style="color:#888;">até</span>
+            <input type="date" id="pal-data-fim" class="form-control form-control-sm" style="width:150px;"/>
+            <button class="btn btn-sm btn-navy" onclick="loadPaletes()">Filtrar</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Totais de Paletes no Período (Entradas × Saídas)</span></div>
+          <div id="paletes-resumo-diario" style="padding:12px 20px;"></div>
+          <div style="padding:0 20px 12px;font-size:0.72rem;color:#aaa;">* Veículos marcados como TRANSFERÊNCIA SC × SP têm controle paralelo e não entram neste total.</div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Saída de Paletes × 1ª Chegada Posterior</span></div>
+          <div id="paletes-list" style="padding:12px 20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== CONFIGURAÇÕES ===== -->
+  <div class="section" id="sec-config">
+    <div class="row g-3">
+
+      <!-- Planilha ativa -->
+      <div class="col-12">
+        <div class="form-section" style="background:#e8f5e9;border:1px solid #a5d6a7;">
+          <h5 style="color:#1a5c1a;">✅ Planilha Atualmente Ativa</h5>
+          <p style="font-size:0.83rem;color:#555;margin-bottom:6px;">
+            Este é o ID da planilha que o sistema está usando agora:
+          </p>
+          <code id="cfg-ativo-id" style="font-size:0.8rem;background:#fff;padding:6px 10px;border-radius:6px;display:block;word-break:break-all;color:#1a3a5c;border:1px solid #c8e6c9;">
+            Carregando…
+          </code>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadConfig()">🔄 Recarregar</button>
+            <button class="btn btn-sm btn-outline-primary" onclick="testarPlanilha()">🔍 Testar hoje</button>
+          </div>
+          <div id="cfg-teste-result" style="margin-top:8px;font-size:0.82rem;"></div>
+        </div>
+      </div>
+
+      <!-- Formulário de alteração -->
+      <div class="col-12 col-lg-6">
+        <div class="form-section">
+          <h5>📋 Alterar Planilha</h5>
+          <p style="font-size:0.88rem;color:#666;margin-bottom:16px;">
+            Cole o link ou ID da nova planilha. A troca entra em vigor imediatamente para todos os conferentes.
+          </p>
+          <div class="mb-3">
+            <label class="form-label">Link ou ID da Nova Planilha</label>
+            <input type="text" class="form-control" id="cfg-sheet-input"
+              placeholder="https://docs.google.com/spreadsheets/d/… ou só o ID"/>
+            <div class="form-text" id="cfg-sheet-preview" style="color:#888;margin-top:6px;"></div>
+          </div>
+          <button class="btn btn-navy" onclick="salvarSheetId()">Salvar Nova Planilha</button>
+        </div>
+      </div>
+
+      <!-- Instruções -->
+      <div class="col-12 col-lg-6">
+        <div class="form-section" style="background:#f8faff;">
+          <h5 style="color:#555;">Como encontrar o ID?</h5>
+          <p style="font-size:0.85rem;color:#666;line-height:1.7;">
+            Abra a planilha no Google Sheets. O link terá este formato:<br>
+            <code style="font-size:0.78rem;background:#eef0f6;padding:2px 6px;border-radius:4px;">
+              docs.google.com/spreadsheets/d/<strong>ID_AQUI</strong>/edit
+            </code><br><br>
+            Cole o link completo ou só o ID em negrito. A planilha precisa estar como <strong>pública para visualização</strong>.<br><br>
+            <span style="color:#c0392b;font-weight:600;">⚠ Se o ID não estiver salvando:</span>
+            verifique as <strong>Regras do Firestore</strong> no Firebase Console e certifique-se de que usuários autenticados têm permissão de leitura e escrita. A coleção usada é <code>config</code>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Manutenção de Dados -->
+      <div class="col-12">
+        <div class="form-section" style="background:#fdecea;border:1px solid #f5b8b1;">
+          <h5 style="color:#c0392b;">🗑️ Zerar Base Anterior a 30/06/2026</h5>
+          <p style="font-size:0.85rem;color:#555;margin-bottom:10px;">
+            Apaga permanentemente <b>todas</b> as Operações (Entrada e Saída), Discrepâncias e o histórico de Movimentações de insumos com data/hora <b>anterior a 30/06/2026 00:00</b>. O saldo atual dos insumos <b>não</b> é alterado — apenas o histórico anterior é removido. <span style="color:#c0392b;font-weight:700;">Esta ação não pode ser desfeita.</span>
+          </p>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:0.8rem;">Para confirmar, digite <code>ZERAR</code> abaixo:</label>
+            <input type="text" class="form-control form-control-sm" id="cfg-zerar-confirm" placeholder="ZERAR" style="max-width:220px;"/>
+          </div>
+          <button class="btn btn-sm" style="background:#c0392b;color:#fff;border:none;" onclick="zerarBaseAnterior()">Apagar Dados Anteriores a 30/06/2026</button>
+          <div id="cfg-zerar-result" style="margin-top:10px;font-size:0.82rem;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL: Detalhe Operação -->
+<div class="modal fade" id="modal-op" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title" id="modal-op-title">Detalhes da Operação</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-op-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Novo Insumo -->
+<div class="modal fade" id="modal-ins" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title">Novo Insumo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Nome do Insumo</label><input type="text" class="form-control" id="ins-nome" placeholder="Ex: Cinta Plástica"/></div>
+        <div class="mb-3"><label class="form-label">Categoria</label><input type="text" class="form-control" id="ins-cat" placeholder="Ex: Embalagem"/></div>
+        <div class="mb-3"><label class="form-label">Unidade</label><input type="text" class="form-control" id="ins-uni" placeholder="Ex: rolo, un, cx"/></div>
+        <button class="btn btn-navy w-100" onclick="salvarNovoInsumo()">Salvar Insumo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div id="global-loading"><div class="spin-big"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <!-- Storage não utilizado neste plano -->
 <script src="firebase-config.js"></script>
 <script>
-const STORAGE_KEY = 'conf_saved_logins'; // { email: { nome, senha } }
+let chartConf, chartVeic;
+let allInsumos = [];
 
-// ── Carrega credencial salva ao iniciar ──
-function loadSavedLogin(email) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    if (saved[email]) {
-      document.getElementById('senha').value = atob(saved[email].senha || '');
-      document.getElementById('chk-lembrar').checked = true;
-    }
-  } catch(e) {}
+// ── INIT ──────────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  const data = await getCurrentUserData();
+  if (!data || data.role !== 'admin') { await auth.signOut(); window.location.href = 'index.html'; return; }
+  window.currentAdminData = data;
+  document.getElementById('sb-user-name').textContent = data.nome || data.email;
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dash-date').value = today;
+  document.getElementById('op-data').value   = today;
+  document.getElementById('disc-data').value = today;
+  document.getElementById('inv-data').value  = today;
+  const d30 = new Date(); d30.setDate(d30.getDate()-30);
+  document.getElementById('pal-data-ini').value = d30.toISOString().split('T')[0];
+  document.getElementById('pal-data-fim').value = today;
+  await loadInsumos();
+  await loadConferentes();
+  await loadDashboard();
+});
+
+function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',config:'Configurações'};
+  document.getElementById('page-title').textContent = titles[id]||id;
+  if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
+  if (id==='operacoes')     loadOperacoes();
+  if (id==='discrepancias') loadDiscrepancias();
+  if (id==='paletes')       loadPaletes();
+  if (id==='config')        loadConfig();
 }
 
-function saveLogin(email, senha) {
+// ── CONFIGURAÇÕES ──────────────────────────────────────────────
+async function loadConfig() {
+  const ativoEl = document.getElementById('cfg-ativo-id');
+  const inputEl = document.getElementById('cfg-sheet-input');
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    saved[email] = { senha: btoa(senha) };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  } catch(e) {}
-}
-
-function clearLogin(email) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    delete saved[email];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  } catch(e) {}
-}
-
-// ── Seleciona usuário da lista ──
-function selectUser(email, nome) {
-  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
-  const btn = document.querySelector(`.user-btn[data-email="${CSS.escape(email)}"]`);
-  if (btn) btn.classList.add('active');
-  document.getElementById('email').value = email;
-  loadSavedLogin(email);
-  document.getElementById('senha').focus();
-}
-
-// ── Carrega lista de conferentes do Firestore ──
-async function loadUserList() {
-  const container = document.getElementById('user-list');
-  try {
-    const snap = await db.collection('users').where('ativo', '==', true).orderBy('nome').get();
-    if (snap.empty) {
-      container.innerHTML = '<div class="user-picker-loading">Nenhum conferente cadastrado.</div>';
-      return;
-    }
-    container.innerHTML = '';
-    snap.docs.forEach(doc => {
-      const u = doc.data();
-      const iniciais = (u.nome || u.email || '?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'user-btn';
-      btn.dataset.email = u.email;
-      btn.innerHTML = `
-        <div class="user-avatar">${iniciais}</div>
-        <div>
-          <div class="user-name">${u.nome || '—'}</div>
-          <div class="user-email">${u.email}</div>
-        </div>`;
-      btn.addEventListener('click', () => selectUser(u.email, u.nome));
-      container.appendChild(btn);
-    });
-
-    // Auto-seleciona se só tiver um ou se tiver login salvo
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const savedEmail = Object.keys(saved)[0];
-    if (savedEmail) {
-      const match = snap.docs.find(d => d.data().email === savedEmail);
-      if (match) selectUser(match.data().email, match.data().nome);
-    } else if (snap.docs.length === 1) {
-      const u = snap.docs[0].data();
-      selectUser(u.email, u.nome);
+    const doc = await db.collection('config').doc('app').get();
+    const sheetId = doc.exists ? (doc.data().sheetId || '') : '';
+    if (sheetId) {
+      ativoEl.textContent = sheetId;
+      inputEl.value = sheetId;
+      updateSheetPreview(sheetId);
+    } else {
+      ativoEl.innerHTML = '<span style="color:#888;">Nenhuma planilha configurada — usando padrão do sistema.</span>';
     }
   } catch(e) {
-    container.innerHTML = '<div class="user-picker-loading">Digite seu e-mail abaixo.</div>';
-    document.getElementById('user-picker-group').style.display = 'none';
+    ativoEl.innerHTML = `<span style="color:#c0392b;">Erro ao ler configuração: ${e.message}<br>Verifique as Regras do Firestore (coleção "config" precisa de permissão).</span>`;
+    console.warn('loadConfig:', e);
   }
 }
 
-// ── Verifica se já está logado ──
-auth.onAuthStateChanged(async user => {
-  if (user) {
-    const data = await getCurrentUserData();
-    if (data) { redirectByRole(data); return; }
+// ── MANUTENÇÃO: ZERAR BASE ANTERIOR A 30/06/2026 ───────────────
+async function zerarBaseAnterior() {
+  const confirmInput = document.getElementById('cfg-zerar-confirm');
+  const resultEl = document.getElementById('cfg-zerar-result');
+  if ((confirmInput.value||'').trim().toUpperCase() !== 'ZERAR') {
+    showToast('Digite ZERAR no campo de confirmação para prosseguir.', 'warning');
+    return;
   }
-  loadUserList();
+  if (!confirm('Tem certeza? Isso apagará PERMANENTEMENTE todas as operações, discrepâncias e movimentações anteriores a 30/06/2026. Esta ação não pode ser desfeita.')) return;
+
+  loading(true);
+  resultEl.innerHTML = '⏳ Apagando…';
+  try {
+    const cutoff = firebase.firestore.Timestamp.fromDate(new Date('2026-06-30T00:00:00'));
+    const colecoes = ['operacoes', 'discrepancias', 'movimentacoes'];
+    let totalApagado = 0;
+    for (const colName of colecoes) {
+      let continuar = true;
+      while (continuar) {
+        const snap = await db.collection(colName).where('timestamp', '<', cutoff).limit(400).get();
+        if (snap.empty) { continuar = false; break; }
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        totalApagado += snap.size;
+        if (snap.size < 400) continuar = false;
+      }
+    }
+    resultEl.innerHTML = `<span style="color:#1a5c1a;font-weight:600;">✅ ${totalApagado} registro(s) apagado(s) com sucesso. O saldo atual dos insumos foi mantido.</span>`;
+    confirmInput.value = '';
+    showToast('Base anterior a 30/06/2026 apagada com sucesso!');
+    loadDashboard();
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:#c0392b;">❌ Erro: ${e.message}</span>`;
+    showToast('Erro ao apagar dados: ' + e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+async function testarPlanilha() {
+  const resultEl = document.getElementById('cfg-teste-result');
+  resultEl.textContent = '⏳ Testando…';
+  try {
+    const hoje = getTodayTabName();
+    const rows = await fetchSheetVehicles(hoje);
+    if (rows.length > 0) {
+      resultEl.innerHTML = `<span style="color:#1a5c1a;">✅ OK — aba "${hoje}" encontrada com ${rows.length} linha(s). Planilha ID: <code>${window._activeSheetId||'?'}</code></span>`;
+    } else {
+      resultEl.innerHTML = `<span style="color:#f39c12;">⚠ Aba "${hoje}" não encontrada ou vazia na planilha <code>${window._activeSheetId||'?'}</code>. Verifique se existe uma aba com esse nome exato.</span>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:#c0392b;">❌ Erro: ${e.message}</span>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('cfg-sheet-input');
+  if (input) {
+    input.addEventListener('input', () => updateSheetPreview(input.value));
+  }
 });
 
-// ── Login ──
-document.getElementById('login-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn   = document.getElementById('btn-login');
-  const errEl = document.getElementById('login-error');
-  errEl.classList.remove('show');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Entrando…';
-  const email  = document.getElementById('email').value.trim();
-  const senha  = document.getElementById('senha').value;
-  const lembrar = document.getElementById('chk-lembrar').checked;
+function updateSheetPreview(val) {
+  const preview = document.getElementById('cfg-sheet-preview');
+  if (!preview) return;
+  const id = parseSheetIdFromUrl(val);
+  if (!id) { preview.textContent = ''; return; }
+  const isUrl = (val||'').includes('/spreadsheets/');
+  preview.textContent = isUrl
+    ? `✔ ID identificado: ${id}`
+    : `ID: ${id}`;
+  preview.style.color = id ? '#1a5c1a' : '#888';
+}
+
+async function salvarSheetId() {
+  const raw = document.getElementById('cfg-sheet-input').value.trim();
+  const id  = parseSheetIdFromUrl(raw);
+  if (!id) { showToast('Cole um link ou ID válido.', 'warning'); return; }
   try {
-    await auth.signInWithEmailAndPassword(email, senha);
-    if (lembrar) { saveLogin(email, senha); }
-    else         { clearLogin(email); }
-    const data = await getCurrentUserData();
-    redirectByRole(data);
-  } catch (err) {
-    let msg = 'E-mail ou senha incorretos.';
-    if (err.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde alguns minutos.';
-    if (err.code === 'auth/user-disabled')     msg = 'Esta conta foi desativada.';
-    errEl.textContent = msg;
-    errEl.classList.add('show');
-    btn.disabled = false;
-    btn.innerHTML = 'Entrar';
+    await db.collection('config').doc('app').set({ sheetId: id }, { merge: true });
+    resetSheetIdCache();           // limpa o cache para a próxima busca
+    document.getElementById('cfg-sheet-input').value = id;
+    updateSheetPreview(id);
+    showToast('Planilha atualizada com sucesso!');
+  } catch(e) {
+    showToast('Erro ao salvar: ' + e.message, 'error');
   }
-});
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+async function loadDashboard() {
+  const date = document.getElementById('dash-date').value;
+  const start = new Date(date + 'T00:00:00');
+  const end   = new Date(date + 'T23:59:59');
+
+  const ops = await db.collection('operacoes')
+    .where('timestamp','>=', firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=', firebase.firestore.Timestamp.fromDate(end))
+    .orderBy('timestamp','desc').get();
+
+  const rows = ops.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('stat-total').textContent = rows.length;
+  document.getElementById('stat-concluidas').textContent = rows.filter(r=>r.status==='CONCLUIDA').length;
+
+  // Discrepâncias
+  const discSnap = await db.collection('discrepancias')
+    .where('timestamp','>=', firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=', firebase.firestore.Timestamp.fromDate(end)).get();
+  document.getElementById('stat-disc').textContent = discSnap.size;
+
+  // Conferentes ativos
+  const cfSnap = await db.collection('users').where('role','==','conferente').where('ativo','==',true).get();
+  document.getElementById('stat-conf').textContent = cfSnap.size;
+
+  // Tabela
+  const tbody = document.getElementById('dash-tbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação nesta data</td></tr>'; }
+  else tbody.innerHTML = rows.slice(0,20).map(r=>`
+    <tr>
+      <td><b>${r.placa||'—'}</b></td>
+      <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
+      <td>${r.conferenteNome||'—'}</td>
+      <td>${fmtDate(r.timestamp)}</td>
+      <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}</td>
+    </tr>`).join('');
+
+  // Gráficos
+  const confMap={}, veicMap={};
+  rows.forEach(r=>{
+    confMap[r.conferenteNome||'—'] = (confMap[r.conferenteNome||'—']||0)+1;
+    veicMap[r.placa||'—']          = (veicMap[r.placa||'—']||0)+1;
+  });
+  buildBar('chart-conf', Object.keys(confMap), Object.values(confMap), 'rgba(26,58,92,0.8)');
+  buildBar('chart-veic', Object.keys(veicMap),  Object.values(veicMap),  'rgba(240,165,0,0.8)');
+}
+
+function buildBar(canvasId, labels, data, color) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const ref = canvasId==='chart-conf' ? chartConf : chartVeic;
+  if (ref) ref.destroy();
+  const chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, backgroundColor:color, borderRadius:6 }] }, options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{stepSize:1}}, x:{ticks:{font:{size:11}}} } } });
+  if (canvasId==='chart-conf') chartConf=chart; else chartVeic=chart;
+}
+
+// ── CONFERENTES ───────────────────────────────────────────────
+async function loadConferentes() {
+  const snap = await db.collection('users').where('role','==','conferente').get();
+  const tbody = document.getElementById('cf-tbody');
+  if (snap.empty) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px;">Nenhum conferente cadastrado</td></tr>'; return; }
+
+  // Conta ops por conferente
+  const opSnap = await db.collection('operacoes').get();
+  const opCounts = {};
+  opSnap.docs.forEach(d=>{ const id=d.data().conferenteId; opCounts[id]=(opCounts[id]||0)+1; });
+
+  tbody.innerHTML = snap.docs.map(d=>{
+    const u={id:d.id,...d.data()};
+    return `<tr>
+      <td><b>${u.nome||'—'}</b></td>
+      <td>${u.email}</td>
+      <td>${u.ativo?'<span class="badge-ok">Ativo</span>':'<span class="badge-naook">Inativo</span>'}</td>
+      <td>${opCounts[u.id]||0}</td>
+      <td>
+        <button class="btn btn-sm ${u.ativo?'btn-outline-danger':'btn-outline-success'}" onclick="toggleConferente('${u.id}',${u.ativo})">
+          ${u.ativo?'Desativar':'Ativar'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function addConferente() {
+  const errEl = document.getElementById('cf-error');
+  errEl.style.display='none';
+  const nome  = document.getElementById('cf-nome').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const senha = document.getElementById('cf-senha').value;
+  if (!nome||!email||!senha) { errEl.textContent='Preencha todos os campos.'; errEl.style.display='block'; return; }
+  loading(true);
+  const r = await createConferente(nome, email, senha);
+  loading(false);
+  if (r.ok) {
+    showToast('Conferente criado com sucesso!');
+    document.getElementById('cf-nome').value='';
+    document.getElementById('cf-email').value='';
+    document.getElementById('cf-senha').value='';
+    loadConferentes();
+  } else {
+    let msg = r.error;
+    if (msg.includes('email-already-in-use')) msg='Este e-mail já está cadastrado.';
+    errEl.textContent = msg;
+    errEl.style.display='block';
+  }
+}
+
+async function toggleConferente(uid, ativo) {
+  await db.collection('users').doc(uid).update({ ativo: !ativo });
+  showToast(ativo ? 'Conferente desativado.' : 'Conferente ativado.', ativo?'warning':'success');
+  loadConferentes();
+}
+
+// ── INSUMOS ───────────────────────────────────────────────────
+async function loadInsumos() {
+  const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
+  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Lista principal
+  const container = document.getElementById('insumos-list');
+  if (!allInsumos.length) { container.innerHTML='<p style="color:#aaa;padding:10px;">Nenhum insumo cadastrado.</p>'; return; }
+
+  let lastCat='';
+  container.innerHTML = allInsumos.map(ins=>{
+    const header = ins.categoria!==lastCat ? `<div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:10px 0 4px;">${ins.categoria}</div>` : '';
+    lastCat = ins.categoria;
+    const saldoCls = ins.saldo>10?'saldo-ok':ins.saldo>0?'saldo-warn':'saldo-zero';
+    const dataIni = ins.dataInicio ? ` <span style="font-size:0.72rem;color:#aaa;">desde ${fmtDateOnly(ins.dataInicio)}</span>` : '';
+    return `${header}<div class="insumo-row">
+      <div class="flex-grow-1">
+        <div class="insumo-nome">${ins.nome}</div>
+        <div class="insumo-cat">${ins.unidade||'un'}${dataIni}</div>
+      </div>
+      <div class="insumo-saldo ${saldoCls}">${ins.saldo}</div>
+    </div>`;
+  }).join('');
+
+  // Selects de inventário, ajuste e histórico
+  const opts = allInsumos.map(i=>`<option value="${i.id}">${i.nome}</option>`).join('');
+  document.getElementById('inv-insumo').innerHTML = opts;
+  document.getElementById('adj-insumo').innerHTML = opts;
+  const histSel = document.getElementById('hist-filtro');
+  histSel.innerHTML = '<option value="">Todos os insumos</option>' + opts;
+}
+
+function showModalInsumo() { new bootstrap.Modal(document.getElementById('modal-ins')).show(); }
+
+async function salvarNovoInsumo() {
+  const nome = document.getElementById('ins-nome').value.trim();
+  const cat  = document.getElementById('ins-cat').value.trim();
+  const uni  = document.getElementById('ins-uni').value.trim();
+  if (!nome) { showToast('Informe o nome do insumo.','error'); return; }
+  loading(true);
+  await db.collection('insumos').add({ nome, categoria:cat||'Geral', unidade:uni||'un', saldo:0, saldoInicial:0, dataInicio:null, ativo:true, criadoEm:firebase.firestore.FieldValue.serverTimestamp() });
+  loading(false);
+  bootstrap.Modal.getInstance(document.getElementById('modal-ins')).hide();
+  showToast('Insumo cadastrado!');
+  document.getElementById('ins-nome').value='';
+  document.getElementById('ins-cat').value='';
+  document.getElementById('ins-uni').value='';
+  loadInsumos();
+}
+
+async function salvarInventario() {
+  const id    = document.getElementById('inv-insumo').value;
+  const saldo = parseInt(document.getElementById('inv-saldo').value)||0;
+  const data  = document.getElementById('inv-data').value;
+  if (!id||!data) { showToast('Selecione o insumo e a data.','error'); return; }
+  loading(true);
+  const ts = firebase.firestore.Timestamp.fromDate(new Date(data+'T12:00:00'));
+  await db.collection('insumos').doc(id).update({ saldo, saldoInicial:saldo, dataInicio:ts });
+  await db.collection('movimentacoes').add({ insumoId:id, insumoNome: allInsumos.find(i=>i.id===id)?.nome||'', tipo:'INVENTARIO', quantidade:saldo, operacaoId:'inventario', placa:'—', conferenteId:'admin', conferenteNome:'Admin', timestamp:firebase.firestore.FieldValue.serverTimestamp(), observacao:`Início de contagem em ${data}` });
+  loading(false);
+  showToast('Saldo inicial salvo!');
+  loadInsumos();
+}
+
+async function salvarAjuste() {
+  const id   = document.getElementById('adj-insumo').value;
+  const tipo = document.getElementById('adj-tipo').value;
+  const qtd  = parseInt(document.getElementById('adj-qtd').value)||0;
+  const obs  = document.getElementById('adj-obs').value.trim();
+  if (!id||qtd<=0) { showToast('Selecione o insumo e informe a quantidade.','error'); return; }
+  loading(true);
+  const ins = allInsumos.find(i=>i.id===id);
+  const delta = tipo==='ENTRADA' ? qtd : -qtd;
+  const novoSaldo = (ins.saldo||0) + delta;
+  if (novoSaldo<0) { loading(false); showToast('Saldo não pode ficar negativo.','error'); return; }
+  await db.collection('insumos').doc(id).update({ saldo: novoSaldo });
+  await db.collection('movimentacoes').add({ insumoId:id, insumoNome:ins.nome, tipo, quantidade:qtd, operacaoId:'ajuste-manual', placa:'—', conferenteId:'admin', conferenteNome:'Admin', timestamp:firebase.firestore.FieldValue.serverTimestamp(), observacao: obs||'Ajuste manual' });
+  loading(false);
+  showToast('Ajuste aplicado!');
+  document.getElementById('adj-qtd').value='';
+  document.getElementById('adj-obs').value='';
+  loadInsumos();
+  loadHistorico();
+}
+
+async function loadHistorico() {
+  const filtro = document.getElementById('hist-filtro').value;
+  let q = db.collection('movimentacoes').orderBy('timestamp','desc').limit(100);
+  if (filtro) q = db.collection('movimentacoes').where('insumoId','==',filtro).orderBy('timestamp','desc').limit(100);
+  const snap = await q.get();
+  const tbody = document.getElementById('hist-tbody');
+  if (snap.empty) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Sem movimentações</td></tr>'; return; }
+  tbody.innerHTML = snap.docs.map(d=>{
+    const m={...d.data()};
+    const color = m.tipo==='ENTRADA'?'badge-entrada':m.tipo==='SAIDA'?'badge-saida':'badge-pendente';
+    return `<tr>
+      <td>${fmtDate(m.timestamp)}</td>
+      <td>${m.insumoNome||'—'}</td>
+      <td><span class="${color}">${m.tipo}</span></td>
+      <td><b>${m.quantidade}</b></td>
+      <td>${m.placa||'—'}</td>
+      <td>${m.conferenteNome||'—'}</td>
+      <td>${m.observacao||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── OPERAÇÕES ─────────────────────────────────────────────────
+async function loadOperacoes() {
+  const date = document.getElementById('op-data').value;
+  const tipo = document.getElementById('op-tipo').value;
+  const transf = document.getElementById('op-transferencia').value;
+  if (!date) return;
+  const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
+  let q = db.collection('operacoes')
+    .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+    .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end))
+    .orderBy('timestamp','desc');
+  const snap = await q.get();
+  let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+  if (tipo) rows = rows.filter(r=>r.tipoExecucao===tipo);
+  if (transf==='SIM') rows = rows.filter(r=>!!r.transferencia);
+  if (transf==='NAO') rows = rows.filter(r=>!r.transferencia);
+  const tbody = document.getElementById('op-tbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td>${fmtDate(r.timestamp)}</td>
+    <td><b>${r.placa||'—'}</b></td>
+    <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
+    <td>${r.transferencia?'<span class="badge bg-info text-dark" style="font-size:0.72rem;">🔄 SC×SP</span>':'<span class="text-muted" style="font-size:0.78rem;">—</span>'}</td>
+    <td>${r.cliente||'—'}</td>
+    <td>${r.conferenteNome||'—'}</td>
+    <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}${r.corrigido?' <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Corrigido</span>':''}</td>
+    <td><button class="btn btn-sm btn-outline-secondary" onclick="verDetalhes('${r.id}')">Ver / Editar</button></td>
+  </tr>`).join('');
+}
+
+function esc(s) { return (s==null?'':String(s)).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+async function verDetalhes(id) {
+  loading(true);
+  try {
+    const doc = await db.collection('operacoes').doc(id).get();
+    if (!doc.exists) { loading(false); return; }
+    const r = doc.data();
+
+    const [cfSnap, histSnap] = await Promise.all([
+      db.collection('users').where('role','==','conferente').get(),
+      db.collection('operacoes').doc(id).collection('correcoes').orderBy('timestamp','desc').get()
+    ]);
+
+    const conferenteOptions = cfSnap.docs.map(d=>{
+      const u = d.data();
+      return `<option value="${d.id}" ${d.id===r.conferenteId?'selected':''}>${esc(u.nome||u.email)}</option>`;
+    }).join('') || `<option value="${r.conferenteId||''}" selected>${esc(r.conferenteNome||'—')}</option>`;
+
+    const nfsRows = (r.nfs||[]).map((nf,i)=>{
+      const extras = [];
+      if (nf.nf) extras.push(`NF ${esc(nf.nf)}`);
+      if (nf.md) extras.push(`MD ${esc(nf.md)}`);
+      if (nf.oc) extras.push(`OC ${esc(nf.oc)}`);
+      if (nf.di) extras.push(`DI/Cotação ${esc(nf.di)}`);
+      return `
+      <tr data-idx="${i}">
+        <td style="font-size:0.78rem;max-width:180px;">
+          <b>${esc(nf.tituloOp || (nf.nf?('NF '+nf.nf):('Item '+(i+1))))}</b><br>
+          ${extras.length?`<span class="text-muted">${extras.join(' · ')}</span>`:''}
+        </td>
+        <td>
+          <select class="form-select form-select-sm ed-nf-status">
+            <option value="PENDENTE" ${(!nf.status||nf.status==='PENDENTE')?'selected':''}>Pendente</option>
+            <option value="OK" ${nf.status==='OK'?'selected':''}>OK</option>
+            <option value="NAO_OK" ${nf.status==='NAO_OK'?'selected':''}>NÃO OK</option>
+          </select>
+        </td>
+        <td><input type="number" min="0" class="form-control form-control-sm ed-nf-qtd" value="${nf.quantidadeAveriguada??''}"></td>
+        <td><input type="text" class="form-control form-control-sm ed-nf-obs" value="${esc(nf.observacao)}"></td>
+      </tr>`;
+    }).join('');
+
+    const paletesRows = (r.paletes||[]).map((p,i)=>`
+      <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
+        <div class="col-7"><input class="form-control form-control-sm" value="${esc((p.tipo==='OUTROS'&&p.tipoCustom)?p.tipoCustom:p.tipo)}" readonly></div>
+        <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-pal-qtd" value="${p.quantidade||0}"></div>
+      </div>`).join('');
+
+    const insumosRows = (r.insumos||[]).map((ins,i)=>`
+      <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
+        <div class="col-7"><input class="form-control form-control-sm" value="${esc(ins.insumoNome)}" readonly></div>
+        <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-ins-qtd" value="${ins.quantidade||0}"></div>
+      </div>`).join('');
+
+    const historico = histSnap.docs.map(d=>d.data());
+    const historicoHtml = historico.length ? `
+      <h6>🕓 Histórico de Correções</h6>
+      <div style="max-height:150px;overflow-y:auto;font-size:0.78rem;background:#f8faff;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
+        ${historico.map(h=>`<div style="padding:4px 0;border-bottom:1px dashed #dde5f0;"><b>${esc(h.editadoPor)}</b> em ${fmtDate(h.timestamp)} — ${esc(h.resumo)}</div>`).join('')}
+      </div>` : '';
+
+    document.getElementById('modal-op-title').textContent = `Operação — ${r.placa||'—'} (${r.tipoExecucao})`;
+    document.getElementById('modal-op-body').innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Placa</label><input class="form-control form-control-sm" id="ed-placa" value="${esc(r.placa)}"></div>
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Cliente</label><input class="form-control form-control-sm" id="ed-cliente" value="${esc(r.cliente)}"></div>
+        <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Conferente</label><select class="form-select form-select-sm" id="ed-conferente">${conferenteOptions}</select></div>
+        <div class="col-6"><small class="text-muted">Horário (não editável)</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="ed-transferencia" ${r.transferencia?'checked':''}>
+            <label class="form-check-label" for="ed-transferencia" style="font-size:0.85rem;">🔄 Transferência SC × SP</label>
+          </div>
+        </div>
+      </div>
+      ${nfsRows?`<h6>NFs / Itens conferidos</h6><table class="tbl mb-3"><thead><tr><th>Item</th><th>Status</th><th>Qtd Averig.</th><th>Observação</th></tr></thead><tbody id="ed-nfs-body">${nfsRows}</tbody></table>`:''}
+      ${paletesRows?`<h6>Paletes</h6><div id="ed-paletes-body" class="mb-3">${paletesRows}</div>`:''}
+      ${insumosRows?`<h6>Insumos utilizados</h6><div id="ed-insumos-body" class="mb-3">${insumosRows}</div>`:''}
+      <div class="mb-3"><label class="form-label" style="font-size:0.8rem;">Observações Gerais</label><textarea class="form-control form-control-sm" id="ed-observacoes" rows="2">${esc(r.observacoes)}</textarea></div>
+      ${(r.fotos||[]).length?`<h6>Fotos</h6><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${r.fotos.map(f=>`<img src="${f}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`:''}
+      ${historicoHtml}
+      <button class="btn btn-navy w-100" onclick="salvarCorrecaoOperacao('${id}')">💾 Salvar Correção</button>
+    `;
+    new bootstrap.Modal(document.getElementById('modal-op')).show();
+  } finally {
+    loading(false);
+  }
+}
+
+async function salvarCorrecaoOperacao(id) {
+  loading(true);
+  try {
+    const docRef = db.collection('operacoes').doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) { showToast('Operação não encontrada.','error'); return; }
+    const original = snap.data();
+
+    const novaPlaca = document.getElementById('ed-placa').value.trim();
+    const novoCliente = document.getElementById('ed-cliente').value.trim();
+    const selConf = document.getElementById('ed-conferente');
+    const novoConferenteId = selConf.value;
+    const novoConferenteNome = selConf.options[selConf.selectedIndex]?.textContent || original.conferenteNome;
+    const novasObservacoes = document.getElementById('ed-observacoes').value.trim();
+    const novaTransferencia = document.getElementById('ed-transferencia').checked;
+
+    const novosNfs = (original.nfs||[]).map((nf,i)=>{
+      const row = document.querySelector(`#ed-nfs-body tr[data-idx="${i}"]`);
+      if (!row) return nf;
+      const qtd = row.querySelector('.ed-nf-qtd').value;
+      return {
+        ...nf,
+        status: row.querySelector('.ed-nf-status').value,
+        quantidadeAveriguada: qtd ? parseInt(qtd) : null,
+        observacao: row.querySelector('.ed-nf-obs').value.trim()
+      };
+    });
+
+    const novosPaletes = (original.paletes||[]).map((p,i)=>{
+      const row = document.querySelector(`#ed-paletes-body [data-idx="${i}"]`);
+      const qtdInput = row?.querySelector('.ed-pal-qtd');
+      return qtdInput ? { ...p, quantidade: parseInt(qtdInput.value)||0 } : p;
+    });
+
+    const novosInsumos = (original.insumos||[]).map((ins,i)=>{
+      const row = document.querySelector(`#ed-insumos-body [data-idx="${i}"]`);
+      const qtdInput = row?.querySelector('.ed-ins-qtd');
+      return qtdInput ? { ...ins, quantidade: parseInt(qtdInput.value)||0 } : ins;
+    });
+
+    const resumoPartes = [];
+    if (novaPlaca !== (original.placa||'')) resumoPartes.push(`placa "${original.placa||'—'}"→"${novaPlaca}"`);
+    if (novoCliente !== (original.cliente||'')) resumoPartes.push('cliente alterado');
+    if (novoConferenteId !== original.conferenteId) resumoPartes.push('conferente alterado');
+    if (novaTransferencia !== !!original.transferencia) resumoPartes.push(`transferência ${novaTransferencia?'marcada':'desmarcada'}`);
+    if (JSON.stringify(novosNfs) !== JSON.stringify(original.nfs||[])) resumoPartes.push('NF(s)/item(ns) corrigido(s)');
+    if (JSON.stringify(novosPaletes) !== JSON.stringify(original.paletes||[])) resumoPartes.push('paletes corrigidos');
+    if (JSON.stringify(novosInsumos) !== JSON.stringify(original.insumos||[])) resumoPartes.push('insumos corrigidos');
+    if (novasObservacoes !== (original.observacoes||'')) resumoPartes.push('observações alteradas');
+
+    if (!resumoPartes.length) { showToast('Nenhuma alteração detectada.','warning'); return; }
+
+    const adminData = window.currentAdminData || {};
+    const editor = adminData.nome || adminData.email || 'Admin';
+
+    await docRef.collection('correcoes').add({
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      editadoPor: editor,
+      resumo: resumoPartes.join(', '),
+      valoresAntigos: {
+        placa: original.placa||null, cliente: original.cliente||null,
+        conferenteId: original.conferenteId||null, conferenteNome: original.conferenteNome||null,
+        nfs: original.nfs||[], paletes: original.paletes||[], insumos: original.insumos||[],
+        observacoes: original.observacoes||null, transferencia: !!original.transferencia
+      }
+    });
+
+    await docRef.update({
+      placa: novaPlaca, cliente: novoCliente,
+      conferenteId: novoConferenteId, conferenteNome: novoConferenteNome,
+      nfs: novosNfs, paletes: novosPaletes, insumos: novosInsumos,
+      observacoes: novasObservacoes, transferencia: novaTransferencia,
+      corrigido: true,
+      corrigidoPor: editor,
+      corrigidoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('Correção salva com sucesso!');
+    const modalEl = document.getElementById('modal-op');
+    bootstrap.Modal.getInstance(modalEl)?.hide();
+    loadOperacoes();
+  } catch(e) {
+    showToast('Erro ao salvar correção: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+
+// ── DISCREPÂNCIAS ─────────────────────────────────────────────
+async function loadDiscrepancias() {
+  const date   = document.getElementById('disc-data').value;
+  const status = document.getElementById('disc-status').value;
+  const tipo   = document.getElementById('disc-tipo').value;
+  let q = db.collection('discrepancias').orderBy('timestamp','desc').limit(200);
+  if (date) {
+    const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
+    q = db.collection('discrepancias')
+      .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
+      .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end))
+      .orderBy('timestamp','desc');
+  }
+  const snap = await q.get();
+  let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+  if (status) rows = rows.filter(r=>r.status===status);
+  if (tipo)   rows = rows.filter(r=>(r.tipo||'NF')===tipo);
+
+  const tbody = document.getElementById('disc-tbody');
+  if (!rows.length) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Nenhuma discrepância</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const isPalete = r.tipo === 'PALETE';
+    const tipoBadge = isPalete
+      ? '<span class="badge bg-warning text-dark" style="font-size:0.72rem;">Palete</span>'
+      : '<span class="badge bg-secondary"        style="font-size:0.72rem;">NF</span>';
+
+    let detalhe;
+    if (isPalete) {
+      const diff = r.diferenca || 0;
+      detalhe = `<b>${r.tipoKey||'—'}</b> · Esperado: ${r.qtdEsperada||0} · Retornou: ${r.qtdRetornada||0} · <span style="color:${diff<0?'#c0392b':'#1a5c1a'};font-weight:700;">${diff>0?'+':''}${diff}</span>`;
+    } else {
+      const parts = [];
+      if (r.nf)          parts.push(`NF ${r.nf}`);
+      if (r.md)          parts.push(`MD ${r.md}`);
+      if (r.oc)          parts.push(`OC ${r.oc}`);
+      if (r.di)          parts.push(`DI/Cotação ${r.di}`);
+      if (r.tituloOp)    parts.push(r.tituloOp);
+      if (r.quantidadeAveriguada) parts.push(`Qtd: ${r.quantidadeAveriguada}`);
+      if (r.observacao)  parts.push(r.observacao);
+      detalhe = parts.join(' · ') || '—';
+    }
+
+    return `<tr>
+      <td style="white-space:nowrap;">${fmtDate(r.timestamp)}</td>
+      <td><b>${r.placa||'—'}</b></td>
+      <td>${tipoBadge}</td>
+      <td style="font-size:0.83rem;">${detalhe}</td>
+      <td>${r.conferenteNome||'—'}</td>
+      <td>${r.status==='RESOLVIDA'?'<span class="badge-ok">Resolvida</span>':'<span class="badge-naook">Pendente</span>'}</td>
+      <td>${r.status!=='RESOLVIDA'?`<button class="btn btn-sm btn-outline-success" onclick="resolverDisc('${r.id}')">Resolver</button>`:''}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function resolverDisc(id) {
+  await db.collection('discrepancias').doc(id).update({ status:'RESOLVIDA', resolvidaEm:firebase.firestore.FieldValue.serverTimestamp() });
+  showToast('Discrepância marcada como resolvida.');
+  loadDiscrepancias();
+}
+
+// ── PALETES ────────────────────────────────────────────────────
+
+/**
+ * Contabiliza entradas e saídas de paletes por tipo (PBR, Descartável, Outros)
+ * no período filtrado. Operações marcadas como TRANSFERÊNCIA SC×SP têm
+ * controle paralelo e são excluídas deste total.
+ */
+function renderResumoPaletesPeriodo(ops) {
+  const totais = {
+    PBR:         { entrada: 0, saida: 0 },
+    DESCARTAVEL: { entrada: 0, saida: 0 },
+    OUTROS:      { entrada: 0, saida: 0 },
+  };
+
+  ops.forEach(op => {
+    if (op.transferencia) return;
+    if (!op.paletes || !op.paletes.length) return;
+    const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
+    op.paletes.forEach(p => {
+      const key = p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'DESCARTAVEL' : 'OUTROS';
+      totais[key][dir] += (parseInt(p.quantidade) || 0);
+    });
+  });
+
+  const linhas = [
+    { key:'PBR',         nome:'PBR' },
+    { key:'DESCARTAVEL', nome:'Descartável' },
+    { key:'OUTROS',      nome:'Outros' },
+  ];
+
+  document.getElementById('paletes-resumo-diario').innerHTML = `
+    <div class="row g-2">
+      ${linhas.map(l => {
+        const t = totais[l.key];
+        return `<div class="col-12 col-md-4">
+          <div style="background:#f8f9fc;border-radius:10px;padding:10px 14px;">
+            <div style="font-weight:700;color:var(--navy);font-size:0.9rem;margin-bottom:4px;">${l.nome}</div>
+            <div style="font-size:0.85rem;"><span style="color:#1a7a3c;font-weight:700;">↓ Entrada ${t.entrada}</span> &nbsp; <span style="color:#c0392b;font-weight:700;">↑ Saída ${t.saida}</span></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function loadPaletes() {
+  const ini = document.getElementById('pal-data-ini').value;
+  const fim = document.getElementById('pal-data-fim').value;
+  if (!ini||!fim) return;
+  const start = firebase.firestore.Timestamp.fromDate(new Date(ini+'T00:00:00'));
+  const end   = firebase.firestore.Timestamp.fromDate(new Date(fim+'T23:59:59'));
+
+  const snap = await db.collection('operacoes')
+    .where('timestamp','>=',start).where('timestamp','<=',end)
+    .orderBy('timestamp','asc').get();
+
+  const ops = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  renderResumoPaletesPeriodo(ops);
+
+  // Agrupa por placa
+  const byPlaca = {};
+  ops.forEach(op=>{
+    const p = op.placa||'?';
+    if (!byPlaca[p]) byPlaca[p]=[];
+    byPlaca[p].push(op);
+  });
+
+  const container = document.getElementById('paletes-list');
+  const items = [];
+
+  Object.entries(byPlaca).forEach(([placa, lista])=>{
+    // Encontra pares: saída seguida de entrada
+    const saidas  = lista.filter(o=>o.tipoExecucao==='SAIDA');
+    const entradas = lista.filter(o=>o.tipoExecucao==='ENTRADA');
+
+    saidas.forEach(saida=>{
+      const saidaTs = saida.timestamp?.toDate?.()?.getTime()||0;
+      const totalSaida = (saida.paletes||[]).reduce((s,p)=>s+p.quantidade,0);
+      // Primeira entrada posterior à saída
+      const proxEntrada = entradas.find(e=>(e.timestamp?.toDate?.()?.getTime()||0) > saidaTs);
+      const totalEntrada = proxEntrada ? (proxEntrada.paletes||[]).reduce((s,p)=>s+p.quantidade,0) : null;
+      const ok = totalEntrada !== null && totalEntrada >= totalSaida;
+      const diff = totalEntrada !== null ? totalEntrada - totalSaida : null;
+      items.push({ placa, saidaTs:fmtDate(saida.timestamp), totalSaida, totalEntrada, ok, diff, conferente:saida.conferenteNome });
+    });
+  });
+
+  if (!items.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período.</p>'; return; }
+
+  container.innerHTML = items.map(i=>`
+    <div class="placa-comp">
+      <div class="placa-tag">${i.placa}</div>
+      <div style="flex:1">
+        <div style="font-size:0.78rem;color:#888;">${i.saidaTs} • ${i.conferente||'—'}</div>
+        <div style="font-size:0.88rem;margin-top:2px;">
+          Saiu: <b>${i.totalSaida} palete(s)</b>
+          <span class="comp-arrow">→</span>
+          ${i.totalEntrada!==null
+            ? `Voltou: <b>${i.totalEntrada} palete(s)</b> <span class="${i.ok?'comp-ok':'comp-diff'}">${i.ok?'✔ OK':`⚠ Diferença: ${i.diff>0?'+':''}${i.diff}`}</span>`
+            : '<span style="color:#aaa;">Sem retorno registrado ainda</span>'
+          }
+        </div>
+      </div>
+    </div>`).join('');
+}
 </script>
 </body>
 </html>
