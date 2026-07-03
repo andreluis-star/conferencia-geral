@@ -346,6 +346,11 @@
       <input type="date" id="sel-date" onchange="loadPlacas()"/>
       <button class="btn-refresh" onclick="loadPlacas()">↻</button>
     </div>
+    <div class="form-card" id="resumo-paletes-dia">
+      <h4>🪵 Movimentação de Paletes — Hoje</h4>
+      <div id="resumo-paletes-content"></div>
+      <p style="font-size:0.68rem;color:#aaa;margin-top:6px;">* Veículos marcados como TRANSFERÊNCIA têm controle paralelo e não entram neste resumo.</p>
+    </div>
     <div id="loading-placas" class="empty-state" style="display:none;">
       <div class="icon">⏳</div><p>Buscando dados da planilha…</p>
     </div>
@@ -404,6 +409,16 @@
           <div class="tipo-opt e-active" id="tipo-entrada" onclick="setTipo('ENTRADA')">📥 ENTRADA</div>
           <div class="tipo-opt" id="tipo-saida" onclick="setTipo('SAIDA')">📤 SAÍDA</div>
         </div>
+      </div>
+
+      <!-- TRANSFERÊNCIA SC x SP -->
+      <div class="form-card" id="card-transferencia">
+        <h4>🔄 Transferência SC × SP</h4>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
+          <input type="checkbox" id="chk-transferencia" style="width:18px;height:18px;accent-color:var(--navy);"/>
+          Este veículo faz a transferência SC × SP de hoje
+        </label>
+        <p style="font-size:0.72rem;color:#888;margin-top:6px;">Paletes e insumos desta transferência têm controle paralelo próprio.</p>
       </div>
 
       <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
@@ -710,13 +725,59 @@ async function loadPlacas() {
     const opsSnap = await db.collection('operacoes')
       .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
       .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
-    opsSnap.docs.forEach(doc=>{
-      const op = doc.data();
+    const opsDoDia = opsSnap.docs.map(d=>d.data());
+    opsDoDia.forEach(op=>{
       completedOps[`${op.placa}_${op.tipoExecucao}`] = op.status;
     });
-  } catch(e) { console.warn('Aviso ao buscar operações:', e.message); }
+    renderResumoPaletesDia(opsDoDia);
+  } catch(e) {
+    console.warn('Aviso ao buscar operações:', e.message);
+    renderResumoPaletesDia([]);
+  }
 
   renderPlacasGrid();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESUMO DIÁRIO DE PALETES (PBR / Descartável / Outros)
+//  Contabiliza entradas e saídas do dia selecionado.
+//  Veículos marcados como TRANSFERÊNCIA têm controle paralelo
+//  próprio e não entram neste resumo.
+// ═══════════════════════════════════════════════════════
+function renderResumoPaletesDia(ops) {
+  const totais = {
+    PBR:         { entrada: 0, saida: 0 },
+    DESCARTAVEL: { entrada: 0, saida: 0 },
+    OUTROS:      { entrada: 0, saida: 0 },
+  };
+
+  ops.forEach(op => {
+    if (op.transferencia) return;               // controle paralelo — não soma aqui
+    if (!op.paletes || !op.paletes.length) return;
+    const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
+    op.paletes.forEach(p => {
+      const key = p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'DESCARTAVEL' : 'OUTROS';
+      totais[key][dir] += (parseInt(p.quantidade) || 0);
+    });
+  });
+
+  const linhas = [
+    { key:'PBR',         icon:'🪵', nome:'PBR' },
+    { key:'DESCARTAVEL', icon:'♻️', nome:'Descartável' },
+    { key:'OUTROS',      icon:'📦', nome:'Outros' },
+  ];
+
+  document.getElementById('resumo-paletes-content').innerHTML = linhas.map(l => {
+    const t = totais[l.key];
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;">
+      <span style="font-size:0.85rem;font-weight:700;color:var(--navy);">${l.icon} ${l.nome}</span>
+      <span style="font-size:0.8rem;white-space:nowrap;">
+        <span style="color:#1a5c1a;font-weight:700;">↓ Entrada ${t.entrada}</span>
+        &nbsp;&nbsp;
+        <span style="color:#7a1a1a;font-weight:700;">↑ Saída ${t.saida}</span>
+      </span>
+    </div>`;
+  }).join('');
 }
 
 function buildPlacaCard(group) {
@@ -851,6 +912,11 @@ async function openConferencia(group) {
   // Sempre reativa o botão ao abrir novo formulário
   document.getElementById('btn-submit').disabled = false;
 
+  // Reset campo TRANSFERÊNCIA
+  const chkTransf = document.getElementById('chk-transferencia');
+  chkTransf.checked = false;
+  chkTransf.disabled = false;
+
   // Tipo operação
   const inicialTipo = group.tipo==='SAIDA'?'SAIDA':'ENTRADA';
 
@@ -946,6 +1012,13 @@ async function prefillFromExistingOp(placa, tipo) {
     const isReference = op.tipoExecucao !== tipo;
     // shouldDisableAll = trava tudo quando é referência cruzada ou op já está concluída
     const shouldDisableAll = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
+
+    // Prefill TRANSFERÊNCIA (só do mesmo tipo, não referência cruzada)
+    if (!isReference) {
+      const chkTransf = document.getElementById('chk-transferencia');
+      chkTransf.checked = !!op.transferencia;
+      if (shouldDisableAll) chkTransf.disabled = true;
+    }
     // isParcialMesmoTipo = op parcial do mesmo tipo → trava só os NFs já respondidos
     const isParcialMesmoTipo = !isReference && op.status === 'PARCIAL';
 
@@ -1022,30 +1095,32 @@ function renderCamposConferencia(vehicles) {
     return colVal(v, ...names) || colLetter(v, letter);
   }
 
-  function nfFallback(v) {
-    const direto = col(v, 'M', 'NF', 'Nº NF');
-    if (direto) return { value: direto, origem: null };
-    const oc = col(v, 'Q', 'OC');
-    if (oc) return { value: oc, origem: 'OC' };
-    const md = col(v, 'R', 'MD');
-    if (md) return { value: md, origem: 'MD' };
-    const di = col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI');
-    if (di) return { value: di, origem: 'DI/Cotação / R$ / Prazo' };
-    return { value: '', origem: null };
+  // Cada um destes campos é buscado de forma independente — não há mais fallback
+  // sequencial (achar NF e parar). Todos os 4 campos são sempre retornados quando
+  // preenchidos na planilha, independente uns dos outros.
+  function camposIndependentes(v) {
+    return {
+      nf: col(v, 'M', 'NF', 'Nº NF'),
+      di: col(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI'),
+      oc: col(v, 'Q', 'OC'),
+      md: col(v, 'R', 'MD'),
+    };
   }
 
   // ── Renderiza campos ──
   vehicles.forEach((v, idx) => {
-    const nfInfo    = nfFallback(v);
-    const nfVal     = nfInfo.value;
-    const nfOrigem  = nfInfo.origem;
+    const campos    = camposIndependentes(v);
+    const nfVal     = campos.nf;
+    const diVal     = campos.di;
+    const ocVal     = campos.oc;
+    const mdVal     = campos.md;
     const destVal   = col(v, 'H', 'Destinatário', 'Destinatario');
     const cidadeVal = col(v, 'L', 'Cidade Destino');
     const volVal    = col(v, 'E', 'Volume');
     const servicoVal= col(v, 'O', 'Serviço', 'Servico');
 
     // Ignora linhas sem nenhum campo relevante preenchido
-    if (!nfVal && !destVal && !cidadeVal && !volVal) return;
+    if (!nfVal && !diVal && !ocVal && !mdVal && !destVal && !cidadeVal && !volVal) return;
 
     // Título: conteúdo da coluna A (operação/cliente)
     const tituloOp = col(v, 'A', 'Coleta/Entrega/processo/cliente') || (nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`);
@@ -1061,15 +1136,6 @@ function renderCamposConferencia(vehicles) {
       </div>`;
     }
 
-    // Chip do Nº NF, indicando de qual coluna o valor foi obtido quando não veio da coluna de NF direta
-    function chipNF(val, origem) {
-      const empty = !val;
-      const tag = (origem && val) ? ` <span style="font-size:0.65rem;font-weight:700;color:#c0392b;background:#fde8e8;padding:1px 6px;border-radius:8px;">via ${origem}</span>` : '';
-      return `<div class="nf-field">
-        <span class="nf-field-label">Nº NF</span>
-        <span class="nf-field-val${empty?' empty':''}">${val||'—'}${tag}</span>
-      </div>`;
-    }
 
     // Chip do Serviço com cor por tipo
     function chipServico(val) {
@@ -1094,7 +1160,10 @@ function renderCamposConferencia(vehicles) {
       <div class="nf-data-row">
         <div class="nf-fields">
           ${chip('Volume', volVal)}
-          ${chipNF(nfVal, nfOrigem)}
+          ${chip('NF', nfVal)}
+          ${chip('MD', mdVal)}
+          ${chip('OC', ocVal)}
+          ${chip('DI/Cotação / R$ / Prazo', diVal)}
           ${chip('Destinatário', destVal)}
           ${chip('Cidade Destino', cidadeVal)}
           ${chipServico(servicoVal)}
@@ -1141,6 +1210,13 @@ function setNfStatus(btn, status, idx) {
   const bar = btn.closest('.toggle-bar');
   const obsRow = document.getElementById('nf-obs-' + idx);
   const alreadyActive = btn.classList.contains(status==='OK' ? 'ok-active' : 'naook-active');
+  // Ao clicar de novo no botão já ativo, o usuário está tentando REVERTER a marcação — confirma antes.
+  if (alreadyActive) {
+    const confirmMsg = status === 'OK'
+      ? 'Deseja realmente reverter esta marcação de OK?'
+      : 'Deseja realmente reverter esta marcação de NÃO OK?';
+    if (!confirm(confirmMsg)) return;
+  }
   bar.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('ok-active','naook-active'));
   obsRow?.classList.remove('show');
   if (!alreadyActive) {
@@ -1367,26 +1443,18 @@ async function submeterConferencia() {
       const qtdDiv  = obsRow?.querySelector('input[type=number]')?.value||'';
       const obsText = obsRow?.querySelector('input[type=text]')?.value||'';
 
-      // Resolve NF com fallback, registrando de qual coluna o valor foi obtido
-      let nfSalvo = _col('M','NF','Nº NF');
-      let origemNF = null;
-      if (!nfSalvo) {
-        nfSalvo = _col('Q','OC');
-        if (nfSalvo) origemNF = 'OC';
-      }
-      if (!nfSalvo) {
-        nfSalvo = _col('R','MD');
-        if (nfSalvo) origemNF = 'MD';
-      }
-      if (!nfSalvo) {
-        nfSalvo = _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
-        if (nfSalvo) origemNF = 'DI/Cotação / R$ / Prazo';
-      }
+      // Campos buscados de forma independente — sem fallback sequencial entre eles
+      const nfSalvo = _col('M','NF','Nº NF');
+      const ocSalvo = _col('Q','OC');
+      const mdSalvo = _col('R','MD');
+      const diSalvo = _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
 
       nfsData.push({
         blockIdx:             idx,   // índice real no DOM (data-idx do nf-block)
         nf:                   nfSalvo,
-        origemNF:             origemNF,   // coluna de onde a NF foi obtida quando não veio da coluna direta
+        oc:                   ocSalvo,
+        md:                   mdSalvo,
+        di:                   diSalvo,
         destinatario:         _col('H','Destinatário','Destinatario'),
         cidadeDestino:        _col('L','Cidade Destino'),
         volume:               _col('E','Volume'),
@@ -1425,6 +1493,7 @@ async function submeterConferencia() {
     const clienteUnico = document.getElementById('chk-cliente-unico').checked;
     const cliente = clienteUnico ? document.getElementById('inp-cliente').value.trim() : '';
     const observacoes = document.getElementById('obs-geral').value.trim();
+    const transferencia = document.getElementById('chk-transferencia').checked;
 
     // ── Fotos ──
     const fotosUrls = [];
@@ -1451,7 +1520,7 @@ async function submeterConferencia() {
       placa, tipoOperacao:tipoOp, tipoExecucao:currentTipo,
       conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-      dataRef, cliente, clienteUnico,
+      dataRef, cliente, clienteUnico, transferencia,
       nfs:nfsData,
       totalNfs:nfsData.length,
       paletes,
@@ -1485,7 +1554,7 @@ async function submeterConferencia() {
           await db.collection('discrepancias').add({
             tipo: 'NF',
             operacaoId:opRef.id, placa,
-            nf:nf.nf, origemNF:nf.origemNF||null, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
+            nf:nf.nf, oc:nf.oc||null, md:nf.md||null, di:nf.di||null, destinatario:nf.destinatario, tituloOp:nf.tituloOp||'',
             observacao:nf.observacao||'',
             quantidadeAveriguada:nf.quantidadeAveriguada||null,
             conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
