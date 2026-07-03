@@ -374,11 +374,16 @@
             <option value="ENTRADA">Entrada</option>
             <option value="SAIDA">Saída</option>
           </select>
+          <select class="form-select form-select-sm" id="op-transferencia" style="width:180px;" onchange="loadOperacoes()">
+            <option value="">Transferência: Todos</option>
+            <option value="SIM">Somente Transferência</option>
+            <option value="NAO">Excluir Transferência</option>
+          </select>
         </div>
       </div>
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Transferência</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
           <tbody id="op-tbody"></tbody>
         </table>
       </div>
@@ -425,6 +430,13 @@
             <input type="date" id="pal-data-fim" class="form-control form-control-sm" style="width:150px;"/>
             <button class="btn btn-sm btn-navy" onclick="loadPaletes()">Filtrar</button>
           </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Totais de Paletes no Período (Entradas × Saídas)</span></div>
+          <div id="paletes-resumo-diario" style="padding:12px 20px;"></div>
+          <div style="padding:0 20px 12px;font-size:0.72rem;color:#aaa;">* Veículos marcados como TRANSFERÊNCIA SC × SP têm controle paralelo e não entram neste total.</div>
         </div>
       </div>
       <div class="col-12">
@@ -928,6 +940,7 @@ async function loadHistorico() {
 async function loadOperacoes() {
   const date = document.getElementById('op-data').value;
   const tipo = document.getElementById('op-tipo').value;
+  const transf = document.getElementById('op-transferencia').value;
   if (!date) return;
   const start = new Date(date+'T00:00:00'), end = new Date(date+'T23:59:59');
   let q = db.collection('operacoes')
@@ -937,12 +950,15 @@ async function loadOperacoes() {
   const snap = await q.get();
   let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
   if (tipo) rows = rows.filter(r=>r.tipoExecucao===tipo);
+  if (transf==='SIM') rows = rows.filter(r=>!!r.transferencia);
+  if (transf==='NAO') rows = rows.filter(r=>!r.transferencia);
   const tbody = document.getElementById('op-tbody');
-  if (!rows.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
   tbody.innerHTML = rows.map(r=>`<tr>
     <td>${fmtDate(r.timestamp)}</td>
     <td><b>${r.placa||'—'}</b></td>
     <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
+    <td>${r.transferencia?'<span class="badge bg-info text-dark" style="font-size:0.72rem;">🔄 SC×SP</span>':'<span class="text-muted" style="font-size:0.78rem;">—</span>'}</td>
     <td>${r.cliente||'—'}</td>
     <td>${r.conferenteNome||'—'}</td>
     <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}${r.corrigido?' <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Corrigido</span>':''}</td>
@@ -969,11 +985,17 @@ async function verDetalhes(id) {
       return `<option value="${d.id}" ${d.id===r.conferenteId?'selected':''}>${esc(u.nome||u.email)}</option>`;
     }).join('') || `<option value="${r.conferenteId||''}" selected>${esc(r.conferenteNome||'—')}</option>`;
 
-    const nfsRows = (r.nfs||[]).map((nf,i)=>`
+    const nfsRows = (r.nfs||[]).map((nf,i)=>{
+      const extras = [];
+      if (nf.nf) extras.push(`NF ${esc(nf.nf)}`);
+      if (nf.md) extras.push(`MD ${esc(nf.md)}`);
+      if (nf.oc) extras.push(`OC ${esc(nf.oc)}`);
+      if (nf.di) extras.push(`DI/Cotação ${esc(nf.di)}`);
+      return `
       <tr data-idx="${i}">
         <td style="font-size:0.78rem;max-width:180px;">
           <b>${esc(nf.tituloOp || (nf.nf?('NF '+nf.nf):('Item '+(i+1))))}</b><br>
-          ${nf.nf?`<span class="text-muted">NF ${esc(nf.nf)}${nf.origemNF?` <span style="color:#c0392b;">(via ${esc(nf.origemNF)})</span>`:''}</span>`:''}
+          ${extras.length?`<span class="text-muted">${extras.join(' · ')}</span>`:''}
         </td>
         <td>
           <select class="form-select form-select-sm ed-nf-status">
@@ -984,7 +1006,8 @@ async function verDetalhes(id) {
         </td>
         <td><input type="number" min="0" class="form-control form-control-sm ed-nf-qtd" value="${nf.quantidadeAveriguada??''}"></td>
         <td><input type="text" class="form-control form-control-sm ed-nf-obs" value="${esc(nf.observacao)}"></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
     const paletesRows = (r.paletes||[]).map((p,i)=>`
       <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
@@ -1012,6 +1035,12 @@ async function verDetalhes(id) {
         <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Cliente</label><input class="form-control form-control-sm" id="ed-cliente" value="${esc(r.cliente)}"></div>
         <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Conferente</label><select class="form-select form-select-sm" id="ed-conferente">${conferenteOptions}</select></div>
         <div class="col-6"><small class="text-muted">Horário (não editável)</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="ed-transferencia" ${r.transferencia?'checked':''}>
+            <label class="form-check-label" for="ed-transferencia" style="font-size:0.85rem;">🔄 Transferência SC × SP</label>
+          </div>
+        </div>
       </div>
       ${nfsRows?`<h6>NFs / Itens conferidos</h6><table class="tbl mb-3"><thead><tr><th>Item</th><th>Status</th><th>Qtd Averig.</th><th>Observação</th></tr></thead><tbody id="ed-nfs-body">${nfsRows}</tbody></table>`:''}
       ${paletesRows?`<h6>Paletes</h6><div id="ed-paletes-body" class="mb-3">${paletesRows}</div>`:''}
@@ -1041,6 +1070,7 @@ async function salvarCorrecaoOperacao(id) {
     const novoConferenteId = selConf.value;
     const novoConferenteNome = selConf.options[selConf.selectedIndex]?.textContent || original.conferenteNome;
     const novasObservacoes = document.getElementById('ed-observacoes').value.trim();
+    const novaTransferencia = document.getElementById('ed-transferencia').checked;
 
     const novosNfs = (original.nfs||[]).map((nf,i)=>{
       const row = document.querySelector(`#ed-nfs-body tr[data-idx="${i}"]`);
@@ -1070,6 +1100,7 @@ async function salvarCorrecaoOperacao(id) {
     if (novaPlaca !== (original.placa||'')) resumoPartes.push(`placa "${original.placa||'—'}"→"${novaPlaca}"`);
     if (novoCliente !== (original.cliente||'')) resumoPartes.push('cliente alterado');
     if (novoConferenteId !== original.conferenteId) resumoPartes.push('conferente alterado');
+    if (novaTransferencia !== !!original.transferencia) resumoPartes.push(`transferência ${novaTransferencia?'marcada':'desmarcada'}`);
     if (JSON.stringify(novosNfs) !== JSON.stringify(original.nfs||[])) resumoPartes.push('NF(s)/item(ns) corrigido(s)');
     if (JSON.stringify(novosPaletes) !== JSON.stringify(original.paletes||[])) resumoPartes.push('paletes corrigidos');
     if (JSON.stringify(novosInsumos) !== JSON.stringify(original.insumos||[])) resumoPartes.push('insumos corrigidos');
@@ -1088,7 +1119,7 @@ async function salvarCorrecaoOperacao(id) {
         placa: original.placa||null, cliente: original.cliente||null,
         conferenteId: original.conferenteId||null, conferenteNome: original.conferenteNome||null,
         nfs: original.nfs||[], paletes: original.paletes||[], insumos: original.insumos||[],
-        observacoes: original.observacoes||null
+        observacoes: original.observacoes||null, transferencia: !!original.transferencia
       }
     });
 
@@ -1096,7 +1127,7 @@ async function salvarCorrecaoOperacao(id) {
       placa: novaPlaca, cliente: novoCliente,
       conferenteId: novoConferenteId, conferenteNome: novoConferenteNome,
       nfs: novosNfs, paletes: novosPaletes, insumos: novosInsumos,
-      observacoes: novasObservacoes,
+      observacoes: novasObservacoes, transferencia: novaTransferencia,
       corrigido: true,
       corrigidoPor: editor,
       corrigidoEm: firebase.firestore.FieldValue.serverTimestamp()
@@ -1150,7 +1181,10 @@ async function loadDiscrepancias() {
       detalhe = `<b>${r.tipoKey||'—'}</b> · Esperado: ${r.qtdEsperada||0} · Retornou: ${r.qtdRetornada||0} · <span style="color:${diff<0?'#c0392b':'#1a5c1a'};font-weight:700;">${diff>0?'+':''}${diff}</span>`;
     } else {
       const parts = [];
-      if (r.nf)          parts.push(`NF ${r.nf}${r.origemNF?` (via ${r.origemNF})`:''}`);
+      if (r.nf)          parts.push(`NF ${r.nf}`);
+      if (r.md)          parts.push(`MD ${r.md}`);
+      if (r.oc)          parts.push(`OC ${r.oc}`);
+      if (r.di)          parts.push(`DI/Cotação ${r.di}`);
       if (r.tituloOp)    parts.push(r.tituloOp);
       if (r.quantidadeAveriguada) parts.push(`Qtd: ${r.quantidadeAveriguada}`);
       if (r.observacao)  parts.push(r.observacao);
@@ -1176,6 +1210,49 @@ async function resolverDisc(id) {
 }
 
 // ── PALETES ────────────────────────────────────────────────────
+
+/**
+ * Contabiliza entradas e saídas de paletes por tipo (PBR, Descartável, Outros)
+ * no período filtrado. Operações marcadas como TRANSFERÊNCIA SC×SP têm
+ * controle paralelo e são excluídas deste total.
+ */
+function renderResumoPaletesPeriodo(ops) {
+  const totais = {
+    PBR:         { entrada: 0, saida: 0 },
+    DESCARTAVEL: { entrada: 0, saida: 0 },
+    OUTROS:      { entrada: 0, saida: 0 },
+  };
+
+  ops.forEach(op => {
+    if (op.transferencia) return;
+    if (!op.paletes || !op.paletes.length) return;
+    const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
+    op.paletes.forEach(p => {
+      const key = p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'DESCARTAVEL' : 'OUTROS';
+      totais[key][dir] += (parseInt(p.quantidade) || 0);
+    });
+  });
+
+  const linhas = [
+    { key:'PBR',         nome:'PBR' },
+    { key:'DESCARTAVEL', nome:'Descartável' },
+    { key:'OUTROS',      nome:'Outros' },
+  ];
+
+  document.getElementById('paletes-resumo-diario').innerHTML = `
+    <div class="row g-2">
+      ${linhas.map(l => {
+        const t = totais[l.key];
+        return `<div class="col-12 col-md-4">
+          <div style="background:#f8f9fc;border-radius:10px;padding:10px 14px;">
+            <div style="font-weight:700;color:var(--navy);font-size:0.9rem;margin-bottom:4px;">${l.nome}</div>
+            <div style="font-size:0.85rem;"><span style="color:#1a7a3c;font-weight:700;">↓ Entrada ${t.entrada}</span> &nbsp; <span style="color:#c0392b;font-weight:700;">↑ Saída ${t.saida}</span></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 async function loadPaletes() {
   const ini = document.getElementById('pal-data-ini').value;
   const fim = document.getElementById('pal-data-fim').value;
@@ -1188,6 +1265,9 @@ async function loadPaletes() {
     .orderBy('timestamp','asc').get();
 
   const ops = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  renderResumoPaletesPeriodo(ops);
+
   // Agrupa por placa
   const byPlaca = {};
   ops.forEach(op=>{
