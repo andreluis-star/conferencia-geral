@@ -111,6 +111,30 @@
   }
   #btn-insumos-fixed:active { transform:scale(0.96); }
 
+  /* ── ENDEREÇOS BTN ── */
+  #btn-enderecos-fixed {
+    position:fixed; bottom:calc(20px + var(--safe-bottom)); left:16px; z-index:60;
+    background:var(--navy); color:#fff; border:none; border-radius:50px;
+    padding:14px 20px; font-size:0.9rem; font-weight:800; box-shadow:0 4px 16px rgba(13,33,55,0.4);
+    cursor:pointer; display:flex; align-items:center; gap:8px;
+    transition:transform 0.1s;
+  }
+  #btn-enderecos-fixed:active { transform:scale(0.96); }
+
+  /* ── TELA DE ENDEREÇOS ── */
+  .end-busca-row { display:flex; gap:8px; margin-bottom:14px; }
+  .end-busca-row input { flex:1; border:1px solid #ddd; border-radius:8px; padding:10px 12px; font-size:0.9rem; outline:none; }
+  .end-resultado-card { background:#fff; border-radius:var(--radius); padding:14px; margin-bottom:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07); }
+  .end-resultado-titulo { font-size:0.92rem; font-weight:800; color:var(--navy); }
+  .end-resultado-sub { font-size:0.76rem; color:#888; margin-bottom:8px; }
+  .end-slot-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; border-top:1px solid #f0f4fa; }
+  .end-slot-cadeia { font-size:0.85rem; font-weight:700; color:var(--navy); }
+  .end-slot-actions { display:flex; gap:6px; flex-shrink:0; }
+  .end-slot-actions button { border:none; border-radius:8px; padding:6px 10px; font-size:0.76rem; font-weight:700; cursor:pointer; }
+  .btn-end-mudar { background:var(--amber); color:var(--navy); }
+  .btn-end-rm    { background:#fff0f0; color:var(--red); }
+  .btn-end-add-slot { background:none; border:2px dashed #ccc; border-radius:8px; padding:7px; width:100%; color:#888; font-size:0.78rem; cursor:pointer; margin-top:8px; }
+
   /* ── FORM SCREEN ── */
   .form-header {
     background:var(--navy); color:#fff; padding:12px 16px;
@@ -195,6 +219,22 @@
   .tipo-opt.s-active { background:#7a1a1a; color:#fff; }
   .tipo-opt.op-concluida { opacity:0.45; cursor:not-allowed; }
   .tipo-opt.op-concluida::after { content:'✔'; position:absolute; top:3px; right:6px; font-size:0.65rem; }
+
+  /* ── ENDEREÇAMENTO ── */
+  .endereco-section { margin-top:10px; padding-top:10px; border-top:1px dashed #e0e8f5; }
+  .endereco-label { font-size:0.68rem; font-weight:800; color:#c88600; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.5px; }
+  .endereco-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .endereco-row select { flex:1; border:1px solid #ddd; border-radius:8px; padding:7px 8px; font-size:0.83rem; outline:none; min-width:0; }
+  .endereco-row select:invalid { color:#aaa; }
+  .endereco-row .end-cadeia { font-size:0.68rem; color:#888; white-space:nowrap; }
+  .endereco-row .rm-btn { background:none; border:1px solid #ddd; border-radius:8px; padding:5px 9px; color:var(--red); cursor:pointer; font-size:0.9rem; flex-shrink:0; }
+  .btn-add-endereco { background:none; border:2px dashed #ccc; border-radius:8px; padding:7px; width:100%; color:#888; font-size:0.78rem; cursor:pointer; }
+  .btn-add-endereco:hover { border-color:var(--navy); color:var(--navy); }
+  .endereco-chip { display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; font-weight:800; background:#fff8e1; color:#7a5800; border-radius:10px; padding:3px 9px; margin:2px 4px 2px 0; border:1px solid #f0d090; }
+  .endereco-chip.cat-trf      { background:#e8f5e9; color:#1a5c1a; border-color:#a5d6a7; }
+  .endereco-chip.cat-diversas { background:#fff3e0; color:#b35900; border-color:#ffcc80; }
+  .endereco-chip.cat-mattel   { background:#f3e5f5; color:#6c3483; border-color:#ce93d8; }
+  .endereco-req-missing { border-color:var(--red) !important; }
 
   /* ── PALETES ── */
   .palete-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
@@ -387,6 +427,34 @@
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
   INSUMOS
 </button>
+
+<!-- BOTÃO FIXO ENDEREÇOS -->
+<button id="btn-enderecos-fixed" onclick="openEnderecos()">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  ENDEREÇOS
+</button>
+
+<!-- ═══════════════════════════════════════════════════
+     TELA 4: ENDEREÇOS — busca e atualização
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-enderecos">
+  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+    <div class="form-header">
+      <button class="back-btn" onclick="goBack()">◀</button>
+      <div>
+        <div class="form-header-title">📍 Endereços</div>
+        <div class="form-header-sub">Buscar e atualizar posição no galpão</div>
+      </div>
+    </div>
+    <div style="padding:14px 14px calc(80px + var(--safe-bottom));">
+      <div class="end-busca-row">
+        <input type="text" id="end-busca-input" placeholder="Buscar por placa, NF ou destinatário…" oninput="buscarEnderecosDebounced()"/>
+        <button class="btn-refresh" onclick="buscarEnderecos()">🔍</button>
+      </div>
+      <div id="end-resultados"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      TELA 2: FORMULÁRIO DE CONFERÊNCIA
@@ -582,6 +650,53 @@ let allInsumos        = [];
 let fotosBase64       = [];
 let insAv_fotosBase64 = [];
 let paletesUltimaSaida = [];    // paletes da última SAÍDA desta placa (para checar retorno)
+let enderecosExistentes = {};   // idx do nf-block → doc de enderecamento já existente (Firestore)
+
+// ═══════════════════════════════════════════════════════
+//  ENDEREÇAMENTO — faixas do galpão
+//  01-10: TRF (Transferências) · 11-29: Cargas Diversas · 30-31: Mattel
+// ═══════════════════════════════════════════════════════
+const ENDERECO_FAIXAS = [
+  { de:1,  ate:10, categoria:'TRF (Transferências)', cls:'cat-trf' },
+  { de:11, ate:29, categoria:'Cargas Diversas',       cls:'cat-diversas' },
+  { de:30, ate:31, categoria:'Mattel',                cls:'cat-mattel' },
+];
+
+function enderecoCategoria(codigo) {
+  const n = parseInt(codigo, 10);
+  const faixa = ENDERECO_FAIXAS.find(f => n >= f.de && n <= f.ate);
+  return faixa || { categoria:'—', cls:'' };
+}
+
+/** Monta as <option> agrupadas por faixa (01 a 31, com zero à esquerda) */
+function enderecoSelectOptionsHtml(selecionado) {
+  return ENDERECO_FAIXAS.map(f => {
+    const opts = [];
+    for (let n = f.de; n <= f.ate; n++) {
+      const cod = String(n).padStart(2, '0');
+      opts.push(`<option value="${cod}" ${cod===selecionado?'selected':''}>${cod}</option>`);
+    }
+    return `<optgroup label="${f.categoria}">${opts.join('')}</optgroup>`;
+  }).join('');
+}
+
+/** Chave única para localizar o enderecamento de uma carga (placa + identificador do processo) */
+function chaveEndereco(placa, ident) {
+  return `${(placa||'').toUpperCase()}__${(ident||'').toUpperCase().trim()}`;
+}
+
+/** Identificador do processo dentro de um veículo — usa NF, senão OC/MD/DI/título, nessa ordem */
+function identEndereco(v, camposIndep, tituloOp) {
+  return (camposIndep.nf || camposIndep.oc || camposIndep.md || camposIndep.di || tituloOp || '').trim();
+}
+
+/** Exibe a cadeia de um slot (ex.: 01>03>08) com cor da categoria do código atual */
+function renderCadeiaEndereco(historico) {
+  if (!historico || !historico.length) return '';
+  const atual = historico[historico.length - 1];
+  const cat = enderecoCategoria(atual);
+  return `<span class="endereco-chip ${cat.cls}">📍 ${historico.join('&gt;')}</span>`;
+}
 
 // ═══════════════════════════════════════════════════════
 //  INIT
@@ -969,6 +1084,9 @@ async function openConferencia(group) {
   // Renderiza blocos por NF com dados da planilha
   renderCamposConferencia(group.vehicles);
 
+  // Busca endereços já registrados (pré-preenche ENTRADA reaberta / mostra cadeia na SAÍDA)
+  await popularEnderecosPorBloco(group.vehicles);
+
   // Cliente único
   document.getElementById('chk-cliente-unico').checked = false;
   document.getElementById('cliente-unico-input').style.display = 'none';
@@ -1154,6 +1272,26 @@ function renderCamposConferencia(vehicles) {
     const block = document.createElement('div');
     block.className = 'nf-block';
     block.dataset.idx = idx;
+    block.dataset.enderecoIdent = identEndereco(v, campos, tituloOp);
+
+    // ── Seção de Endereço: obrigatória (editável) na ENTRADA, somente leitura no restante ──
+    const enderecoHtml = currentTipo === 'ENTRADA'
+      ? `<div class="endereco-section" id="endereco-section-${idx}">
+           <div class="endereco-label">📍 Endereço (obrigatório)</div>
+           <div id="endereco-rows-${idx}">
+             <div class="endereco-row">
+               <select>
+                 <option value="">Selecione…</option>
+                 ${enderecoSelectOptionsHtml('')}
+               </select>
+             </div>
+           </div>
+           <button type="button" class="btn-add-endereco" onclick="addEnderecoRow(${idx})">+ Adicionar outro endereço</button>
+         </div>`
+      : `<div class="endereco-section" id="endereco-section-${idx}">
+           <div class="endereco-label">📍 Endereço atual</div>
+           <div id="endereco-chip-${idx}"><span style="font-size:0.78rem;color:#aaa;">Carregando…</span></div>
+         </div>`;
 
     block.innerHTML = `
       <div class="nf-titulo-op">${tituloOp}</div>
@@ -1186,10 +1324,151 @@ function renderCamposConferencia(vehicles) {
         <div class="nf-obs-label">⚠ Informe a divergência encontrada:</div>
         <input type="number" placeholder="Qtd averiguada" min="0"/>
         <input type="text" placeholder="Observação sobre a divergência"/>
-      </div>`;
+      </div>
+      ${enderecoHtml}`;
 
     container.appendChild(block);
   });
+}
+
+/** Adiciona outra linha de endereço no bloco de NF (carga dividida em mais de um endereço) */
+function addEnderecoRow(idx) {
+  const container = document.getElementById('endereco-rows-' + idx);
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'endereco-row';
+  row.innerHTML = `
+    <select>
+      <option value="">Selecione…</option>
+      ${enderecoSelectOptionsHtml('')}
+    </select>
+    <button type="button" class="rm-btn" onclick="this.closest('.endereco-row').remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENDEREÇAMENTO — busca dados já registrados para os blocos
+//  abertos na tela de conferência (mostra cadeia na SAÍDA,
+//  pré-preenche na ENTRADA quando reabre um PARCIAL).
+// ═══════════════════════════════════════════════════════
+async function popularEnderecosPorBloco(vehicles) {
+  enderecosExistentes = {};
+  const placa = formatPlaca(vehicles[0]['Placa'] || '');
+  const blocks = Array.from(document.querySelectorAll('#campos-conferencia .nf-block'));
+
+  await Promise.all(blocks.map(async block => {
+    const idx   = parseInt(block.dataset.idx);
+    const ident = block.dataset.enderecoIdent || '';
+    if (!ident) { aplicarEnderecoNoBloco(idx); return; }
+
+    try {
+      const chave = chaveEndereco(placa, ident);
+      const snap = await db.collection('enderecamentos')
+        .where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
+      if (!snap.empty) {
+        enderecosExistentes[idx] = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      }
+    } catch(e) { console.warn('popularEnderecosPorBloco:', e.message); }
+
+    aplicarEnderecoNoBloco(idx);
+  }));
+}
+
+/** Aplica o resultado da busca de endereço no bloco correspondente (edita o DOM já renderizado) */
+function aplicarEnderecoNoBloco(idx) {
+  const doc = enderecosExistentes[idx];
+
+  if (currentTipo === 'ENTRADA') {
+    // Reabertura de um PARCIAL: pré-preenche os slots já salvos anteriormente
+    if (!doc || !doc.enderecos || !doc.enderecos.length) return;
+    const container = document.getElementById('endereco-rows-' + idx);
+    if (!container) return;
+    container.innerHTML = doc.enderecos.map((slot, slotIdx) => {
+      const atual = slot.historico[slot.historico.length - 1];
+      const cadeia = slot.historico.length > 1
+        ? `<span class="end-cadeia">${slot.historico.join('&gt;')}</span>` : '';
+      const rmBtn = slotIdx > 0
+        ? `<button type="button" class="rm-btn" onclick="this.closest('.endereco-row').remove()">✕</button>` : '';
+      return `<div class="endereco-row">
+        <select>
+          <option value="">Selecione…</option>
+          ${enderecoSelectOptionsHtml(atual)}
+        </select>
+        ${cadeia}${rmBtn}
+      </div>`;
+    }).join('');
+  } else {
+    // SAÍDA / referência: mostra a cadeia atual, somente leitura
+    const chipEl = document.getElementById('endereco-chip-' + idx);
+    if (!chipEl) return;
+    if (doc && doc.enderecos && doc.enderecos.length) {
+      chipEl.innerHTML = doc.enderecos.map(slot => renderCadeiaEndereco(slot.historico)).join('');
+    } else {
+      chipEl.innerHTML = '<span style="font-size:0.78rem;color:#aaa;">Nenhum endereço registrado</span>';
+    }
+  }
+}
+
+/**
+ * Cria ou atualiza o registro de endereçamento de uma carga na ENTRADA.
+ * Cada posição do array `codigosEndereco` corresponde a um "slot" — se já
+ * existir um slot naquela posição e o código mudou, o novo código é
+ * acrescentado à cadeia (histórico); se é slot novo, começa a própria cadeia.
+ */
+async function upsertEnderecamento(placa, nf, operacaoId, dataRef) {
+  const chave = chaveEndereco(placa, nf.enderecoIdent);
+  const autor = currentUser?.nome || currentUser?.email || '—';
+  try {
+    const snap = await db.collection('enderecamentos')
+      .where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
+
+    if (snap.empty) {
+      await db.collection('enderecamentos').add({
+        chave, placa, ident: nf.enderecoIdent,
+        tituloOp: nf.tituloOp || '', destinatario: nf.destinatario || '', cidadeDestino: nf.cidadeDestino || '',
+        nf: nf.nf || '', oc: nf.oc || '', md: nf.md || '', di: nf.di || '',
+        enderecos: nf.codigosEndereco.map(cod => ({ historico: [cod] })),
+        ativo: true,
+        operacaoId, dataEntrada: dataRef,
+        criadoEm: firebase.firestore.FieldValue.serverTimestamp(), criadoPor: autor,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(), atualizadoPor: autor
+      });
+      return;
+    }
+
+    const doc = snap.docs[0];
+    const slotsAtuais = doc.data().enderecos || [];
+    const novosSlots = nf.codigosEndereco.map((cod, i) => {
+      const slotAntigo = slotsAtuais[i];
+      if (!slotAntigo) return { historico: [cod] };                    // slot novo (endereço adicional)
+      const atual = slotAntigo.historico[slotAntigo.historico.length - 1];
+      if (atual === cod) return slotAntigo;                            // sem mudança
+      return { historico: [...slotAntigo.historico, cod] };            // mudou → cresce a cadeia
+    });
+
+    await doc.ref.update({
+      enderecos: novosSlots,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      atualizadoPor: autor
+    });
+  } catch(e) { console.warn('upsertEnderecamento:', e.message); }
+}
+
+/** Fecha (desativa) o endereçamento de uma carga quando ela sai do galpão na SAÍDA */
+async function fecharEnderecamento(placa, ident) {
+  if (!ident) return;
+  try {
+    const chave = chaveEndereco(placa, ident);
+    const snap = await db.collection('enderecamentos')
+      .where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
+    if (!snap.empty) {
+      await snap.docs[0].ref.update({
+        ativo: false,
+        saidaEm: firebase.firestore.FieldValue.serverTimestamp(),
+        saidaPor: currentUser?.nome || currentUser?.email || '—'
+      });
+    }
+  } catch(e) { console.warn('fecharEnderecamento:', e.message); }
 }
 
 function setTipo(t) {
@@ -1421,6 +1700,22 @@ async function submeterConferencia() {
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
 
+    // ── Validação: endereço é obrigatório em toda ENTRADA ──
+    if (currentTipo === 'ENTRADA') {
+      let faltando = false;
+      document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
+        const selects = block.querySelectorAll('.endereco-row select');
+        const algumPreenchido = Array.from(selects).some(s => s.value);
+        selects.forEach(s => s.classList.toggle('endereco-req-missing', !algumPreenchido));
+        if (!algumPreenchido) faltando = true;
+      });
+      if (faltando) {
+        loading(false); btn.disabled = false;
+        showToast('Selecione ao menos um endereço para cada item antes de continuar.', 'warning');
+        return;
+      }
+    }
+
     // ── Coleta status por bloco de NF ──
     const nfsData = [];
     document.querySelectorAll('#campos-conferencia .nf-block').forEach(block=>{
@@ -1449,6 +1744,10 @@ async function submeterConferencia() {
       const mdSalvo = _col('R','MD');
       const diSalvo = _col('N','DI/Cotação / R$ / Prazo','DI/Cotação','DI');
 
+      // Endereços selecionados neste bloco (só relevante em ENTRADA)
+      const codigosEndereco = Array.from(block.querySelectorAll('.endereco-row select'))
+        .map(s => s.value).filter(Boolean);
+
       nfsData.push({
         blockIdx:             idx,   // índice real no DOM (data-idx do nf-block)
         nf:                   nfSalvo,
@@ -1462,7 +1761,9 @@ async function submeterConferencia() {
         tituloOp:             _col('A','Coleta/Entrega/processo/cliente'),
         status,
         quantidadeAveriguada: qtdDiv ? parseInt(qtdDiv) : null,
-        observacao:           obsText
+        observacao:           obsText,
+        enderecoIdent:        block.dataset.enderecoIdent || '',
+        codigosEndereco
       });
     });
 
@@ -1529,6 +1830,22 @@ async function submeterConferencia() {
       fotos:fotosUrls, observacoes, status:opStatus,
       motorista:currentVehicles[0]['Motorista']||''
     });
+
+    // ── Endereçamento: registra/atualiza na ENTRADA, fecha na SAÍDA ──
+    // Roda independente de CONCLUIDA/PARCIAL — a posição física do produto
+    // não depende do resultado da conferência da NF.
+    for (const nf of nfsData) {
+      if (!nf.enderecoIdent) continue;
+      if (currentTipo === 'ENTRADA') {
+        if (nf.codigosEndereco && nf.codigosEndereco.length) {
+          await upsertEnderecamento(placa, nf, opRef.id, dataRef);
+        }
+      } else if (currentTipo === 'SAIDA') {
+        if (nf.status === 'OK' || nf.status === 'NAO_OK') {
+          await fecharEnderecamento(placa, nf.enderecoIdent);
+        }
+      }
+    }
 
     // Efeitos colaterais (estoque e discrepâncias) somente em operações CONCLUIDAS
     if (opStatus === 'CONCLUIDA') {
@@ -1727,6 +2044,178 @@ async function submeterInsumosAvulso() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  TELA 4: ENDEREÇOS — busca e atualização de posição
+// ═══════════════════════════════════════════════════════
+let _endBuscaTimeout = null;
+function buscarEnderecosDebounced() {
+  clearTimeout(_endBuscaTimeout);
+  _endBuscaTimeout = setTimeout(buscarEnderecos, 350);
+}
+
+async function openEnderecos() {
+  document.getElementById('end-busca-input').value = '';
+  goTo('screen-enderecos');
+  await buscarEnderecos();
+}
+
+async function buscarEnderecos() {
+  const termo = document.getElementById('end-busca-input').value.trim().toUpperCase();
+  const container = document.getElementById('end-resultados');
+  container.innerHTML = '<p style="text-align:center;color:#aaa;padding:16px;">Buscando…</p>';
+
+  try {
+    const snap = await db.collection('enderecamentos').where('ativo','==',true).get();
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (termo) {
+      docs = docs.filter(d =>
+        (d.placa||'').toUpperCase().includes(termo) ||
+        (d.nf||'').toUpperCase().includes(termo) ||
+        (d.oc||'').toUpperCase().includes(termo) ||
+        (d.md||'').toUpperCase().includes(termo) ||
+        (d.destinatario||'').toUpperCase().includes(termo) ||
+        (d.tituloOp||'').toUpperCase().includes(termo)
+      );
+    }
+    docs.sort((a,b) => (a.placa||'').localeCompare(b.placa||''));
+
+    if (!docs.length) {
+      container.innerHTML = '<p style="text-align:center;color:#aaa;padding:16px;">Nenhum endereço ativo encontrado.</p>';
+      return;
+    }
+    container.innerHTML = docs.map(renderEnderecoResultCard).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="text-align:center;color:#dc3545;padding:16px;">Erro ao buscar: ${esc(e.message)}</p>`;
+  }
+}
+
+function esc(s) { return (s==null?'':String(s)).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function renderEnderecoResultCard(d) {
+  const slotsHtml = (d.enderecos||[]).map((slot, i) => {
+    const atual = slot.historico[slot.historico.length-1];
+    const cat = enderecoCategoria(atual);
+    return `<div class="end-slot-row">
+      <span class="endereco-chip ${cat.cls}">📍 ${slot.historico.join('&gt;')}</span>
+      <div class="end-slot-actions">
+        <button class="btn-end-mudar" onclick="mudarSlotEndereco('${d.id}',${i})">Mudar</button>
+        <button class="btn-end-rm" onclick="removerSlotEndereco('${d.id}',${i})">Remover</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="end-resultado-card" data-doc-id="${d.id}">
+    <div class="end-resultado-titulo">${esc(d.placa)||'—'} ${d.nf?('· NF '+esc(d.nf)):''}</div>
+    <div class="end-resultado-sub">${esc([d.tituloOp, d.destinatario, d.cidadeDestino].filter(Boolean).join(' · ')) || '—'}</div>
+    ${slotsHtml || '<p style="color:#aaa;font-size:0.8rem;">Nenhum endereço.</p>'}
+    <button class="btn-end-add-slot" onclick="adicionarSlotEndereco('${d.id}')">+ Adicionar novo endereço</button>
+  </div>`;
+}
+
+/** Substitui a linha do slot por um seletor para escolher o novo endereço */
+function mudarSlotEndereco(docId, slotIdx) {
+  const card = document.querySelector(`.end-resultado-card[data-doc-id="${docId}"]`);
+  const row  = card?.querySelectorAll('.end-slot-row')[slotIdx];
+  if (!row) return;
+  row.innerHTML = `
+    <select id="end-novo-cod-${docId}-${slotIdx}">
+      <option value="">Selecione o novo endereço…</option>
+      ${enderecoSelectOptionsHtml('')}
+    </select>
+    <div class="end-slot-actions">
+      <button class="btn-end-mudar" onclick="confirmarMudancaSlot('${docId}',${slotIdx})">Confirmar</button>
+      <button class="btn-end-rm" onclick="buscarEnderecos()">Cancelar</button>
+    </div>`;
+}
+
+async function confirmarMudancaSlot(docId, slotIdx) {
+  const sel = document.getElementById(`end-novo-cod-${docId}-${slotIdx}`);
+  const novoCod = sel?.value;
+  if (!novoCod) { showToast('Selecione um endereço.', 'warning'); return; }
+  loading(true);
+  try {
+    const docRef = db.collection('enderecamentos').doc(docId);
+    const doc = await docRef.get();
+    const slots = doc.data().enderecos || [];
+    if (!slots[slotIdx]) { loading(false); return; }
+    const atual = slots[slotIdx].historico[slots[slotIdx].historico.length-1];
+    if (atual !== novoCod) {
+      slots[slotIdx] = { historico: [...slots[slotIdx].historico, novoCod] };
+      await docRef.update({
+        enderecos: slots,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+      });
+      showToast('Endereço atualizado! ✔');
+    }
+    await buscarEnderecos();
+  } catch(e) {
+    showToast('Erro ao atualizar: '+e.message, 'error');
+  } finally { loading(false); }
+}
+
+/** Remove um endereço da carga (com confirmação) */
+async function removerSlotEndereco(docId, slotIdx) {
+  if (!confirm('Deseja realmente remover este endereço da carga?')) return;
+  loading(true);
+  try {
+    const docRef = db.collection('enderecamentos').doc(docId);
+    const doc = await docRef.get();
+    const slots = doc.data().enderecos || [];
+    slots.splice(slotIdx, 1);
+    await docRef.update({
+      enderecos: slots,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+    });
+    showToast('Endereço removido.');
+    await buscarEnderecos();
+  } catch(e) {
+    showToast('Erro ao remover: '+e.message, 'error');
+  } finally { loading(false); }
+}
+
+/** Mostra seletor para adicionar mais um endereço à mesma carga (split entre endereços) */
+function adicionarSlotEndereco(docId) {
+  const card = document.querySelector(`.end-resultado-card[data-doc-id="${docId}"]`);
+  const btn  = card?.querySelector('.btn-end-add-slot');
+  if (!btn) return;
+  const row = document.createElement('div');
+  row.className = 'end-slot-row';
+  row.innerHTML = `
+    <select id="end-novo-slot-${docId}">
+      <option value="">Selecione o endereço…</option>
+      ${enderecoSelectOptionsHtml('')}
+    </select>
+    <div class="end-slot-actions">
+      <button class="btn-end-mudar" onclick="confirmarNovoSlot('${docId}')">Adicionar</button>
+      <button class="btn-end-rm" onclick="buscarEnderecos()">Cancelar</button>
+    </div>`;
+  card.insertBefore(row, btn);
+}
+
+async function confirmarNovoSlot(docId) {
+  const sel = document.getElementById('end-novo-slot-' + docId);
+  const cod = sel?.value;
+  if (!cod) { showToast('Selecione um endereço.', 'warning'); return; }
+  loading(true);
+  try {
+    const docRef = db.collection('enderecamentos').doc(docId);
+    const doc = await docRef.get();
+    const slots = doc.data().enderecos || [];
+    slots.push({ historico: [cod] });
+    await docRef.update({
+      enderecos: slots,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+    });
+    showToast('Endereço adicionado! ✔');
+    await buscarEnderecos();
+  } catch(e) {
+    showToast('Erro ao adicionar: '+e.message, 'error');
+  } finally { loading(false); }
+}
+
+// ═══════════════════════════════════════════════════════
 //  NAVEGAÇÃO
 // ═══════════════════════════════════════════════════════
 let screenHistory = ['screen-placas'];
@@ -1737,6 +2226,7 @@ function goTo(screenId) {
   document.getElementById(screenId).scrollTop=0;
   screenHistory.push(screenId);
   document.getElementById('btn-insumos-fixed').style.display=screenId==='screen-placas'?'flex':'none';
+  document.getElementById('btn-enderecos-fixed').style.display=screenId==='screen-placas'?'flex':'none';
 }
 function goBack() {
   screenHistory.pop();
@@ -1745,6 +2235,7 @@ function goBack() {
   document.getElementById(prev).classList.add('active');
   document.getElementById(prev).scrollTop=0;
   document.getElementById('btn-insumos-fixed').style.display=prev==='screen-placas'?'flex':'none';
+  document.getElementById('btn-enderecos-fixed').style.display=prev==='screen-placas'?'flex':'none';
 }
 </script>
 
