@@ -664,8 +664,12 @@ let catalogoEnderecos = [];
 
 async function loadCatalogoEnderecos() {
   try {
-    const snap = await db.collection('enderecos_catalogo').where('ativo','==',true).orderBy('codigo').get();
-    catalogoEnderecos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Sem .where() combinado ao .orderBy() de propósito — evita exigir um índice
+    // composto no Firestore. O filtro de ativo é feito aqui no cliente.
+    const snap = await db.collection('enderecos_catalogo').orderBy('codigo').get();
+    catalogoEnderecos = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => e.ativo !== false);
   } catch(e) {
     console.warn('loadCatalogoEnderecos:', e.message);
     showToast('Não foi possível carregar o catálogo de endereços: ' + e.message, 'error');
