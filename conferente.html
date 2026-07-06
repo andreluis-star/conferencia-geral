@@ -645,6 +645,7 @@ let sheetVehicles     = [];     // todas as linhas da planilha
 let groupedByPlate    = [];     // [ { placa, tipo, vehicles:[] }, ... ]
 let completedOps      = {};     // `${placa}_${tipo}` → status
 let currentVehicles   = [];     // grupo selecionado para conferência
+let currentPlaca      = '';     // identidade do grupo (placa real OU "JEM"/"AGENTES" nos grupos virtuais)
 let currentTipo       = 'ENTRADA';
 let insTipo           = 'ENTRADA';
 let allInsumos        = [];
@@ -665,7 +666,10 @@ async function loadCatalogoEnderecos() {
   try {
     const snap = await db.collection('enderecos_catalogo').where('ativo','==',true).orderBy('codigo').get();
     catalogoEnderecos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch(e) { console.warn('loadCatalogoEnderecos:', e.message); }
+  } catch(e) {
+    console.warn('loadCatalogoEnderecos:', e.message);
+    showToast('Não foi possível carregar o catálogo de endereços: ' + e.message, 'error');
+  }
 }
 
 /** Classe CSS de cor para a categoria (mantém as 3 cores originais + cinza genérico para novas categorias) */
@@ -808,6 +812,84 @@ function groupHasNfData(vehicles) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  GRUPOS VIRTUAIS — "JEM" e "AGENTES"
+//  Essas duas "placas" não vêm da coluna Placa: são montadas a
+//  partir de um marcador de texto na coluna A (ex.: "EMBARQUE JEM").
+//  Regra: a partir da linha do marcador, as linhas seguintes
+//  (sempre com "EMBARQUE" ou "ENTREGA" na coluna A) pertencem ao
+//  grupo até a primeira linha vazia (o corte).
+// ═══════════════════════════════════════════════════════
+function _normVirtual(s) {
+  return (s||'').toString().toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+}
+
+function _colAVirtual(v) {
+  return _normVirtual(v['Coleta/Entrega/processo/cliente'] || v['_CA'] || '');
+}
+
+/** true = linha sem nenhum dado relevante (corte do bloco) */
+function _linhaVaziaVirtual(v) {
+  const colA = _colAVirtual(v);
+  const nf   = (v['NF']||v['Nº NF']||v['_CM']||'').toString().trim();
+  const dest = (v['Destinatário']||v['Destinatario']||v['_CH']||'').toString().trim();
+  const vol  = (v['Volume']||v['_CE']||'').toString().trim();
+  return !colA && !nf && !dest && !vol;
+}
+
+/** Índices (na lista de linhas) cuja coluna A contenha algum dos termos buscados */
+function _acharMarcadores(rows, termos) {
+  const termosNorm = termos.map(_normVirtual);
+  const idxs = [];
+  rows.forEach((v, i) => {
+    const colA = _colAVirtual(v);
+    if (termosNorm.some(t => colA.includes(t))) idxs.push(i);
+  });
+  return idxs;
+}
+
+/** A partir de um índice de marcador, coleta as linhas seguintes até a primeira linha vazia (corte) */
+function _coletarBloco(rows, idxMarcador) {
+  const bloco = [];
+  for (let i = idxMarcador + 1; i < rows.length; i++) {
+    if (_linhaVaziaVirtual(rows[i])) break;
+    bloco.push(rows[i]);
+  }
+  return bloco;
+}
+
+function _montarGrupoVirtual(nomePlaca, vehicles) {
+  const tipos = [...new Set(vehicles.map(v => v._operationType))];
+  let tipo;
+  if (tipos.length > 1 || tipos[0] === 'ENTRADA_SAIDA') tipo = 'ENTRADA_SAIDA';
+  else tipo = tipos[0] || 'ENTRADA';
+  return { placa: nomePlaca, tipo, vehicles };
+}
+
+/**
+ * Monta os grupos virtuais "JEM" e "AGENTES" a partir dos marcadores de texto
+ * na coluna A. "AGENTES" combina os blocos de GRITSCH e de SETE LAGOAS/7 LAGOAS
+ * quando ambos existirem na planilha do dia.
+ */
+function extrairGruposVirtuais(rows) {
+  const grupos = [];
+
+  // ── JEM ──
+  const veiculosJem = [];
+  _acharMarcadores(rows, ['EMBARQUE JEM']).forEach(idx => veiculosJem.push(..._coletarBloco(rows, idx)));
+  if (veiculosJem.length) grupos.push(_montarGrupoVirtual('JEM', veiculosJem));
+
+  // ── AGENTES (GRITSCH + SETE LAGOAS/LAGOS ou 7 LAGOAS/LAGOS) ──
+  const veiculosAgentes = [];
+  _acharMarcadores(rows, ['EMBARQUE GRITSCH']).forEach(idx => veiculosAgentes.push(..._coletarBloco(rows, idx)));
+  _acharMarcadores(rows, ['EMBARQUE SETE LAGOAS', 'EMBARQUE SETE LAGOS', 'EMBARQUE 7 LAGOAS', 'EMBARQUE 7 LAGOS'])
+    .forEach(idx => veiculosAgentes.push(..._coletarBloco(rows, idx)));
+  if (veiculosAgentes.length) grupos.push(_montarGrupoVirtual('AGENTES', veiculosAgentes));
+
+  return grupos;
+}
+
+// ═══════════════════════════════════════════════════════
 //  TELA 1: PLACAS — carrega e agrupa por placa
 // ═══════════════════════════════════════════════════════
 async function loadPlacas() {
@@ -839,9 +921,18 @@ async function loadPlacas() {
     return;
   }
 
+  // ── Grupos virtuais JEM / AGENTES (marcador de texto na coluna A) ──
+  const gruposVirtuais = extrairGruposVirtuais(sheetVehicles)
+    .filter(g => groupHasNfData(g.vehicles));
+  const idxUsadosVirtual = new Set();
+  gruposVirtuais.forEach(g => g.vehicles.forEach(v => {
+    if (v._rowIdx !== undefined) idxUsadosVirtual.add(v._rowIdx);
+  }));
+
   // ── Agrupa por placa (com filtros) ──
   const map = {};
   sheetVehicles.forEach(v => {
+    if (idxUsadosVirtual.has(v._rowIdx)) return;      // já usada em JEM/AGENTES
     if (shouldSkipRow(v)) return;                    // FECHAR / NÃO CONTRATADO
     const plates = extractPlates(v['Placa']||'');   // suporta dupla placa
     if (!plates.length) return;                      // sem placa válida
@@ -859,6 +950,9 @@ async function loadPlacas() {
       return { placa, tipo, vehicles };
     })
     .filter(g => groupHasNfData(g.vehicles));        // descarta grupos sem dados de NF
+
+  // Adiciona JEM / AGENTES junto com as placas normais
+  groupedByPlate.push(...gruposVirtuais);
 
   // Busca operações já realizadas
   completedOps = {};
@@ -1041,7 +1135,14 @@ function campoObsId(rowIdx, nomeCampo) {
 // ═══════════════════════════════════════════════════════
 async function openConferencia(group) {
   currentVehicles = group.vehicles;
+  currentPlaca = group.placa;   // usa a identidade do grupo (cobre também JEM/AGENTES, que não vêm da coluna Placa)
   fotosBase64 = [];
+
+  // Garante que o catálogo de endereços já esteja carregado antes de renderizar
+  // os dropdowns — evita ficar preso em "Carregando catálogo…" por corrida de carregamento.
+  if (!catalogoEnderecos.length) {
+    await loadCatalogoEnderecos();
+  }
 
   // Reset fotos
   document.getElementById('foto-area').innerHTML = `
@@ -1381,7 +1482,7 @@ function addEnderecoRow(idx) {
 // ═══════════════════════════════════════════════════════
 async function popularEnderecosPorBloco(vehicles) {
   enderecosExistentes = {};
-  const placa = formatPlaca(vehicles[0]['Placa'] || '');
+  const placa = currentPlaca;
   const blocks = Array.from(document.querySelectorAll('#campos-conferencia .nf-block'));
 
   await Promise.all(blocks.map(async block => {
@@ -1757,7 +1858,7 @@ async function submeterConferencia() {
   btn.disabled=true; loading(true);
 
   try {
-    const placa   = formatPlaca(currentVehicles[0]['Placa']||'');
+    const placa   = currentPlaca;
 
     // Guard: bloqueia re-inserção de op já concluída
     if (completedOps[`${placa}_${currentTipo}`] === 'CONCLUIDA') {
