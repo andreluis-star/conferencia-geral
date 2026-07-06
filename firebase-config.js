@@ -290,6 +290,39 @@ async function initInsumosPadrao() {
 }
 
 // ============================================================
+//  ENDEREÇOS — catálogo padrão (inicializado na primeira execução)
+//  Layout atual do galpão: 01-10 TRF · 11-29 Diversas · 30-31 Mattel
+//  Fica editável pelo admin depois (coleção 'enderecos_catalogo').
+// ============================================================
+const ENDERECOS_FAIXAS_PADRAO = [
+  { de: 1,  ate: 10, categoria: 'TRF (Transferências)' },
+  { de: 11, ate: 29, categoria: 'Cargas Diversas' },
+  { de: 30, ate: 31, categoria: 'Mattel' },
+];
+
+function gerarEnderecosPadrao() {
+  const lista = [];
+  ENDERECOS_FAIXAS_PADRAO.forEach(f => {
+    for (let n = f.de; n <= f.ate; n++) {
+      lista.push({ codigo: String(n).padStart(2, '0'), categoria: f.categoria });
+    }
+  });
+  return lista;
+}
+
+/** Cria o catálogo padrão de endereços no Firestore se ainda não existir */
+async function initEnderecosPadrao() {
+  const snap = await db.collection('enderecos_catalogo').limit(1).get();
+  if (!snap.empty) return;
+  const batch = db.batch();
+  gerarEnderecosPadrao().forEach(end => {
+    const ref = db.collection('enderecos_catalogo').doc();
+    batch.set(ref, { ...end, ativo: true, criadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+  });
+  await batch.commit();
+}
+
+// ============================================================
 //  AUTENTICAÇÃO — helpers
 // ============================================================
 
