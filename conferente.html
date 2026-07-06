@@ -234,6 +234,7 @@
   .endereco-chip.cat-trf      { background:#e8f5e9; color:#1a5c1a; border-color:#a5d6a7; }
   .endereco-chip.cat-diversas { background:#fff3e0; color:#b35900; border-color:#ffcc80; }
   .endereco-chip.cat-mattel   { background:#f3e5f5; color:#6c3483; border-color:#ce93d8; }
+  .endereco-chip.cat-outro    { background:#eeeeee; color:#555; border-color:#ccc; }
   .endereco-req-missing { border-color:var(--red) !important; }
 
   /* ── PALETES ── */
@@ -656,27 +657,52 @@ let enderecosExistentes = {};   // idx do nf-block → doc de enderecamento já 
 //  ENDEREÇAMENTO — faixas do galpão
 //  01-10: TRF (Transferências) · 11-29: Cargas Diversas · 30-31: Mattel
 // ═══════════════════════════════════════════════════════
-const ENDERECO_FAIXAS = [
-  { de:1,  ate:10, categoria:'TRF (Transferências)', cls:'cat-trf' },
-  { de:11, ate:29, categoria:'Cargas Diversas',       cls:'cat-diversas' },
-  { de:30, ate:31, categoria:'Mattel',                cls:'cat-mattel' },
-];
+// Catálogo carregado do Firestore (coleção 'enderecos_catalogo') — editável pelo admin.
+// Substitui as faixas fixas que existiam antes; loadCatalogoEnderecos() popula isto no INIT.
+let catalogoEnderecos = [];
 
-function enderecoCategoria(codigo) {
-  const n = parseInt(codigo, 10);
-  const faixa = ENDERECO_FAIXAS.find(f => n >= f.de && n <= f.ate);
-  return faixa || { categoria:'—', cls:'' };
+async function loadCatalogoEnderecos() {
+  try {
+    const snap = await db.collection('enderecos_catalogo').where('ativo','==',true).orderBy('codigo').get();
+    catalogoEnderecos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { console.warn('loadCatalogoEnderecos:', e.message); }
 }
 
-/** Monta as <option> agrupadas por faixa (01 a 31, com zero à esquerda) */
+/** Classe CSS de cor para a categoria (mantém as 3 cores originais + cinza genérico para novas categorias) */
+function enderecoCategoriaClass(categoria) {
+  const cat = (categoria||'').toUpperCase();
+  if (cat.includes('TRF'))      return 'cat-trf';
+  if (cat.includes('DIVERSA'))  return 'cat-diversas';
+  if (cat.includes('MATTEL'))   return 'cat-mattel';
+  return 'cat-outro';
+}
+
+function enderecoCategoria(codigo) {
+  const item = catalogoEnderecos.find(e => e.codigo === codigo);
+  return item
+    ? { categoria: item.categoria, cls: enderecoCategoriaClass(item.categoria) }
+    : { categoria: '—', cls: '' };
+}
+
+/** Monta as <option> agrupadas por categoria, conforme o catálogo carregado do Firestore */
 function enderecoSelectOptionsHtml(selecionado) {
-  return ENDERECO_FAIXAS.map(f => {
-    const opts = [];
-    for (let n = f.de; n <= f.ate; n++) {
-      const cod = String(n).padStart(2, '0');
-      opts.push(`<option value="${cod}" ${cod===selecionado?'selected':''}>${cod}</option>`);
+  if (!catalogoEnderecos.length) return '<option value="">Carregando catálogo…</option>';
+
+  const grupos = [];
+  const posDoGrupo = {};
+  catalogoEnderecos.forEach(e => {
+    if (!(e.categoria in posDoGrupo)) {
+      posDoGrupo[e.categoria] = grupos.length;
+      grupos.push({ categoria: e.categoria, itens: [] });
     }
-    return `<optgroup label="${f.categoria}">${opts.join('')}</optgroup>`;
+    grupos[posDoGrupo[e.categoria]].itens.push(e);
+  });
+
+  return grupos.map(grupo => {
+    const opts = grupo.itens.map(e =>
+      `<option value="${e.codigo}" ${e.codigo===selecionado?'selected':''}>${e.codigo}</option>`
+    ).join('');
+    return `<optgroup label="${grupo.categoria}">${opts}</optgroup>`;
   }).join('');
 }
 
@@ -719,6 +745,8 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('sel-date').value = today;
 
   await loadInsumos();
+  await initEnderecosPadrao();
+  await loadCatalogoEnderecos();
   await loadPlacas();
 });
 
@@ -1415,6 +1443,25 @@ function aplicarEnderecoNoBloco(idx) {
  * existir um slot naquela posição e o código mudou, o novo código é
  * acrescentado à cadeia (histórico); se é slot novo, começa a própria cadeia.
  */
+/**
+ * Registra uma entrada no log de auditoria de endereçamento.
+ * Usado pela tela de Acompanhamento no admin (busca por placa ou por endereço,
+ * mostrando quem fez cada ação).
+ */
+async function registrarLogEndereco({ enderecamentoId, placa, ident, acao, slotIdx, codigoAnterior, codigoNovo, origem }) {
+  try {
+    await db.collection('enderecamentos_log').add({
+      enderecamentoId: enderecamentoId || null,
+      placa: placa || '', ident: ident || '',
+      acao, slotIdx: slotIdx ?? null,
+      codigoAnterior: codigoAnterior || null, codigoNovo: codigoNovo || null,
+      origem: origem || '',
+      autor: currentUser?.nome || currentUser?.email || '—',
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { console.warn('registrarLogEndereco:', e.message); }
+}
+
 async function upsertEnderecamento(placa, nf, operacaoId, dataRef) {
   const chave = chaveEndereco(placa, nf.enderecoIdent);
   const autor = currentUser?.nome || currentUser?.email || '—';
@@ -1423,7 +1470,7 @@ async function upsertEnderecamento(placa, nf, operacaoId, dataRef) {
       .where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
 
     if (snap.empty) {
-      await db.collection('enderecamentos').add({
+      const novoRef = await db.collection('enderecamentos').add({
         chave, placa, ident: nf.enderecoIdent,
         tituloOp: nf.tituloOp || '', destinatario: nf.destinatario || '', cidadeDestino: nf.cidadeDestino || '',
         nf: nf.nf || '', oc: nf.oc || '', md: nf.md || '', di: nf.di || '',
@@ -1433,18 +1480,37 @@ async function upsertEnderecamento(placa, nf, operacaoId, dataRef) {
         criadoEm: firebase.firestore.FieldValue.serverTimestamp(), criadoPor: autor,
         atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(), atualizadoPor: autor
       });
+      for (const cod of nf.codigosEndereco) {
+        await registrarLogEndereco({
+          enderecamentoId: novoRef.id, placa, ident: nf.enderecoIdent,
+          acao: 'CRIADO', codigoNovo: cod, origem: 'ENTRADA'
+        });
+      }
       return;
     }
 
     const doc = snap.docs[0];
     const slotsAtuais = doc.data().enderecos || [];
-    const novosSlots = nf.codigosEndereco.map((cod, i) => {
+    const novosSlots = [];
+    for (let i = 0; i < nf.codigosEndereco.length; i++) {
+      const cod = nf.codigosEndereco[i];
       const slotAntigo = slotsAtuais[i];
-      if (!slotAntigo) return { historico: [cod] };                    // slot novo (endereço adicional)
+      if (!slotAntigo) {
+        novosSlots.push({ historico: [cod] });                          // slot novo (endereço adicional)
+        await registrarLogEndereco({
+          enderecamentoId: doc.id, placa, ident: nf.enderecoIdent,
+          acao: 'SLOT_ADICIONADO', slotIdx: i, codigoNovo: cod, origem: 'ENTRADA'
+        });
+        continue;
+      }
       const atual = slotAntigo.historico[slotAntigo.historico.length - 1];
-      if (atual === cod) return slotAntigo;                            // sem mudança
-      return { historico: [...slotAntigo.historico, cod] };            // mudou → cresce a cadeia
-    });
+      if (atual === cod) { novosSlots.push(slotAntigo); continue; }      // sem mudança
+      novosSlots.push({ historico: [...slotAntigo.historico, cod] });    // mudou → cresce a cadeia
+      await registrarLogEndereco({
+        enderecamentoId: doc.id, placa, ident: nf.enderecoIdent,
+        acao: 'MUDANCA', slotIdx: i, codigoAnterior: atual, codigoNovo: cod, origem: 'ENTRADA'
+      });
+    }
 
     await doc.ref.update({
       enderecos: novosSlots,
@@ -1462,10 +1528,14 @@ async function fecharEnderecamento(placa, ident) {
     const snap = await db.collection('enderecamentos')
       .where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
     if (!snap.empty) {
-      await snap.docs[0].ref.update({
+      const doc = snap.docs[0];
+      await doc.ref.update({
         ativo: false,
         saidaEm: firebase.firestore.FieldValue.serverTimestamp(),
         saidaPor: currentUser?.nome || currentUser?.email || '—'
+      });
+      await registrarLogEndereco({
+        enderecamentoId: doc.id, placa, ident, acao: 'FECHADO', origem: 'SAIDA'
       });
     }
   } catch(e) { console.warn('fecharEnderecamento:', e.message); }
@@ -2135,7 +2205,8 @@ async function confirmarMudancaSlot(docId, slotIdx) {
   try {
     const docRef = db.collection('enderecamentos').doc(docId);
     const doc = await docRef.get();
-    const slots = doc.data().enderecos || [];
+    const dados = doc.data();
+    const slots = dados.enderecos || [];
     if (!slots[slotIdx]) { loading(false); return; }
     const atual = slots[slotIdx].historico[slots[slotIdx].historico.length-1];
     if (atual !== novoCod) {
@@ -2144,6 +2215,10 @@ async function confirmarMudancaSlot(docId, slotIdx) {
         enderecos: slots,
         atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
         atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+      });
+      await registrarLogEndereco({
+        enderecamentoId: docId, placa: dados.placa, ident: dados.ident,
+        acao: 'MUDANCA', slotIdx, codigoAnterior: atual, codigoNovo: novoCod, origem: 'TELA_ENDERECOS'
       });
       showToast('Endereço atualizado! ✔');
     }
@@ -2160,12 +2235,18 @@ async function removerSlotEndereco(docId, slotIdx) {
   try {
     const docRef = db.collection('enderecamentos').doc(docId);
     const doc = await docRef.get();
-    const slots = doc.data().enderecos || [];
+    const dados = doc.data();
+    const slots = dados.enderecos || [];
+    const codigoRemovido = slots[slotIdx]?.historico?.[slots[slotIdx].historico.length-1] || null;
     slots.splice(slotIdx, 1);
     await docRef.update({
       enderecos: slots,
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
       atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+    });
+    await registrarLogEndereco({
+      enderecamentoId: docId, placa: dados.placa, ident: dados.ident,
+      acao: 'SLOT_REMOVIDO', slotIdx, codigoAnterior: codigoRemovido, origem: 'TELA_ENDERECOS'
     });
     showToast('Endereço removido.');
     await buscarEnderecos();
@@ -2201,12 +2282,18 @@ async function confirmarNovoSlot(docId) {
   try {
     const docRef = db.collection('enderecamentos').doc(docId);
     const doc = await docRef.get();
-    const slots = doc.data().enderecos || [];
+    const dados = doc.data();
+    const slots = dados.enderecos || [];
+    const novoSlotIdx = slots.length;
     slots.push({ historico: [cod] });
     await docRef.update({
       enderecos: slots,
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
       atualizadoPor: currentUser?.nome || currentUser?.email || '—'
+    });
+    await registrarLogEndereco({
+      enderecamentoId: docId, placa: dados.placa, ident: dados.ident,
+      acao: 'SLOT_ADICIONADO', slotIdx: novoSlotIdx, codigoNovo: cod, origem: 'TELA_ENDERECOS'
     });
     showToast('Endereço adicionado! ✔');
     await buscarEnderecos();
