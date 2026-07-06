@@ -143,17 +143,18 @@ function parseGvizTable(table) {
       if (col) obj[col] = val;                          // por nome do cabeçalho
       obj['_C' + (_COL_LETTERS[i] || i)] = val;        // por letra de coluna (ex: _CA, _CB)
     });
-    // Placa: tenta coluna rotulada "Placa", depois coluna C (índice 2)
+    // Placa: tenta coluna rotulada "Placa", depois coluna C (índice 2) — pode ficar vazia
     const placa = (placaIdx >= 0 && row.c[placaIdx]?.v
       ? String(row.c[placaIdx].v)
       : obj['Placa'] || obj['_CC'] || '').trim();
-    if (placa.length >= 3) {
-      obj['Placa'] = placa;
-      const opInfo = getOperationInfo(obj);
-      obj._operationType = opInfo.tipo;
-      obj._cliente       = opInfo.cliente;
-      vehicles.push(obj);
-    }
+    obj['Placa'] = placa;
+    const opInfo = getOperationInfo(obj);
+    obj._operationType = opInfo.tipo;
+    obj._cliente       = opInfo.cliente;
+    // Inclui mesmo sem placa válida: necessário para os grupos virtuais JEM/AGENTES,
+    // que são montados por marcador de texto na coluna A, não pela coluna Placa.
+    // O agrupamento normal por placa continua ignorando linhas sem placa válida.
+    vehicles.push(obj);
   });
   return vehicles;
 }
@@ -181,18 +182,18 @@ function parseCsv(text) {
   const vehicles = [];
   for (let i = 1; i < lines.length; i++) {
     const cells = splitCsvLine(lines[i]).map(c => c.replace(/^"|"$/g,'').trim());
-    const placa  = (cells[placaIdx] || '').trim();
-    if (placa.length < 3) continue;
     const obj = { _rowIdx: i };
     headers.forEach((h, idx) => {
       const val = cells[idx] || '';
       if (h) obj[h] = val;                              // por nome do cabeçalho
       obj['_C' + (_COL_LETTERS[idx] || idx)] = val;    // por letra de coluna
     });
+    const placa = (cells[placaIdx] || '').trim();
     obj['Placa'] = placa;
     const opInfo = getOperationInfo(obj);
     obj._operationType = opInfo.tipo;
     obj._cliente       = opInfo.cliente;
+    // Inclui mesmo sem placa válida: necessário para os grupos virtuais JEM/AGENTES.
     vehicles.push(obj);
   }
   return vehicles;
@@ -310,16 +311,24 @@ function gerarEnderecosPadrao() {
   return lista;
 }
 
-/** Cria o catálogo padrão de endereços no Firestore se ainda não existir */
+/**
+ * Cria o catálogo padrão de endereços no Firestore se ainda não existir.
+ * Nunca lança erro para fora — uma falha aqui (ex.: permissão) não pode travar
+ * o restante da inicialização do app (loadCatalogoEnderecos/loadPlacas).
+ */
 async function initEnderecosPadrao() {
-  const snap = await db.collection('enderecos_catalogo').limit(1).get();
-  if (!snap.empty) return;
-  const batch = db.batch();
-  gerarEnderecosPadrao().forEach(end => {
-    const ref = db.collection('enderecos_catalogo').doc();
-    batch.set(ref, { ...end, ativo: true, criadoEm: firebase.firestore.FieldValue.serverTimestamp() });
-  });
-  await batch.commit();
+  try {
+    const snap = await db.collection('enderecos_catalogo').limit(1).get();
+    if (!snap.empty) return;
+    const batch = db.batch();
+    gerarEnderecosPadrao().forEach(end => {
+      const ref = db.collection('enderecos_catalogo').doc();
+      batch.set(ref, { ...end, ativo: true, criadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+    await batch.commit();
+  } catch(e) {
+    console.warn('initEnderecosPadrao:', e.message);
+  }
 }
 
 // ============================================================
