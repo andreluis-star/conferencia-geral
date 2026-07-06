@@ -137,6 +137,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       Insumos / Estoque
     </a>
+    <a class="sb-item" data-section="enderecos" onclick="showSection('enderecos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Endereços
+    </a>
     <div class="sb-section">Acompanhamento</div>
     <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -149,6 +153,10 @@
     <a class="sb-item" data-section="paletes" onclick="showSection('paletes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
       Paletes
+    </a>
+    <a class="sb-item" data-section="rastreio-enderecos" onclick="showSection('rastreio-enderecos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Endereçamento
     </a>
     <div class="sb-section">Sistema</div>
     <a class="sb-item" data-section="config" onclick="showSection('config')">
@@ -362,6 +370,24 @@
     </div>
   </div>
 
+  <!-- ===== ENDEREÇOS (cadastro) ===== -->
+  <div class="section" id="sec-enderecos">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">📍 Catálogo de Endereços</span>
+            <button class="btn btn-sm btn-navy" onclick="showModalEndereco()">+ Novo Endereço</button>
+          </div>
+          <p style="font-size:0.8rem;color:#888;padding:10px 20px 0;">
+            Layout atual do galpão: 01-10 TRF (Transferências) · 11-29 Cargas Diversas · 30-31 Mattel — edite abaixo se o layout mudar.
+          </p>
+          <div id="enderecos-cad-list" style="padding:8px 16px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== OPERAÇÕES ===== -->
   <div class="section" id="sec-operacoes">
     <div class="table-card">
@@ -448,6 +474,44 @@
     </div>
   </div>
 
+
+  <!-- ===== ENDEREÇAMENTO (acompanhamento) ===== -->
+  <div class="section" id="sec-rastreio-enderecos">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="form-section" style="padding:14px 20px;">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span style="font-weight:600;color:var(--navy);">Consultar endereçamentos</span>
+            <input type="text" id="end-r-placa" class="form-control form-control-sm" style="width:150px;" placeholder="Placa"/>
+            <input type="text" id="end-r-codigo" class="form-control form-control-sm" style="width:130px;" placeholder="Código (ex: 03)"/>
+            <button class="btn btn-sm btn-navy" onclick="loadRastreioEnderecos()">Filtrar</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Endereçamentos Ativos</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Placa</th><th>NF / Processo</th><th>Endereço(s)</th><th>Criado por</th><th>Última atualização</th></tr></thead>
+              <tbody id="end-r-ativos-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Histórico de Ações</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Data/Hora</th><th>Placa</th><th>Ação</th><th>De → Para</th><th>Origem</th><th>Autor</th></tr></thead>
+              <tbody id="end-r-log-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== CONFIGURAÇÕES ===== -->
   <div class="section" id="sec-config">
@@ -556,6 +620,23 @@
   </div>
 </div>
 
+<!-- MODAL: Novo Endereço -->
+<div class="modal fade" id="modal-end" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title">Novo Endereço</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Código</label><input type="text" class="form-control" id="end-cad-codigo" placeholder="Ex: 32"/></div>
+        <div class="mb-3"><label class="form-label">Categoria</label><input type="text" class="form-control" id="end-cad-categoria" placeholder="Ex: TRF (Transferências), Cargas Diversas, Mattel…"/></div>
+        <button class="btn btn-navy w-100" onclick="salvarNovoEndereco()">Salvar Endereço</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <div id="global-loading"><div class="spin-big"></div></div>
 
@@ -597,13 +678,15 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',enderecos:'Endereços',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes','rastreio-enderecos':'Endereçamento',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
-  if (id==='operacoes')     loadOperacoes();
-  if (id==='discrepancias') loadDiscrepancias();
-  if (id==='paletes')       loadPaletes();
-  if (id==='config')        loadConfig();
+  if (id==='operacoes')          loadOperacoes();
+  if (id==='discrepancias')      loadDiscrepancias();
+  if (id==='paletes')            loadPaletes();
+  if (id==='enderecos')          loadEnderecosCadastro();
+  if (id==='rastreio-enderecos') loadRastreioEnderecos();
+  if (id==='config')             loadConfig();
 }
 
 // ── CONFIGURAÇÕES ──────────────────────────────────────────────
@@ -877,6 +960,70 @@ async function salvarNovoInsumo() {
   document.getElementById('ins-cat').value='';
   document.getElementById('ins-uni').value='';
   loadInsumos();
+}
+
+// ── ENDEREÇOS (cadastro) ──────────────────────────────────────
+async function loadEnderecosCadastro() {
+  const snap = await db.collection('enderecos_catalogo').orderBy('codigo').get();
+  const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const container = document.getElementById('enderecos-cad-list');
+  if (!lista.length) { container.innerHTML = '<p style="color:#aaa;padding:10px;">Nenhum endereço cadastrado.</p>'; return; }
+
+  let lastCat = '';
+  container.innerHTML = lista.map(end => {
+    const header = end.categoria !== lastCat
+      ? `<div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:10px 0 4px;">${esc(end.categoria)}</div>` : '';
+    lastCat = end.categoria;
+    return `${header}<div class="insumo-row">
+      <div class="flex-grow-1">
+        <div class="insumo-nome">${esc(end.codigo)} ${end.ativo?'':'<span class="badge bg-secondary" style="font-size:0.65rem;">Inativo</span>'}</div>
+        <input type="text" class="form-control form-control-sm" style="max-width:260px;margin-top:4px;"
+          value="${esc(end.categoria)}" onchange="editarCategoriaEndereco('${end.id}', this.value)"/>
+      </div>
+      <button class="btn btn-sm ${end.ativo?'btn-outline-danger':'btn-outline-success'}" onclick="toggleAtivoEndereco('${end.id}', ${!end.ativo})">
+        ${end.ativo?'Desativar':'Ativar'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function showModalEndereco() { new bootstrap.Modal(document.getElementById('modal-end')).show(); }
+
+async function salvarNovoEndereco() {
+  const codigo = document.getElementById('end-cad-codigo').value.trim();
+  const categoria = document.getElementById('end-cad-categoria').value.trim();
+  if (!codigo) { showToast('Informe o código do endereço.', 'error'); return; }
+  loading(true);
+  try {
+    const existente = await db.collection('enderecos_catalogo').where('codigo','==',codigo).limit(1).get();
+    if (!existente.empty) { showToast('Já existe um endereço com esse código.', 'error'); loading(false); return; }
+    await db.collection('enderecos_catalogo').add({
+      codigo, categoria: categoria || 'Geral', ativo: true,
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    bootstrap.Modal.getInstance(document.getElementById('modal-end')).hide();
+    showToast('Endereço cadastrado!');
+    document.getElementById('end-cad-codigo').value = '';
+    document.getElementById('end-cad-categoria').value = '';
+    await loadEnderecosCadastro();
+  } catch(e) {
+    showToast('Erro ao salvar: '+e.message, 'error');
+  } finally { loading(false); }
+}
+
+async function editarCategoriaEndereco(id, novaCategoria) {
+  novaCategoria = (novaCategoria||'').trim();
+  if (!novaCategoria) { showToast('Categoria não pode ficar vazia.', 'warning'); await loadEnderecosCadastro(); return; }
+  await db.collection('enderecos_catalogo').doc(id).update({ categoria: novaCategoria });
+  showToast('Categoria atualizada!');
+  await loadEnderecosCadastro();
+}
+
+async function toggleAtivoEndereco(id, novoAtivo) {
+  await db.collection('enderecos_catalogo').doc(id).update({ ativo: novoAtivo });
+  showToast(novoAtivo ? 'Endereço reativado!' : 'Endereço desativado.');
+  await loadEnderecosCadastro();
 }
 
 async function salvarInventario() {
@@ -1313,6 +1460,77 @@ async function loadPaletes() {
         </div>
       </div>
     </div>`).join('');
+}
+
+// ── ENDEREÇAMENTO (acompanhamento) ────────────────────────────
+async function loadRastreioEnderecos() {
+  const placaFiltro = document.getElementById('end-r-placa').value.trim().toUpperCase();
+  const codigoBruto = document.getElementById('end-r-codigo').value.trim();
+  const temCodigoFiltro = !!codigoBruto;
+  const codigoFiltro = codigoBruto.padStart(2, '0');
+
+  const acaoLabel = {
+    CRIADO:'Criado', MUDANCA:'Mudança', SLOT_ADICIONADO:'Endereço adicionado',
+    SLOT_REMOVIDO:'Endereço removido', FECHADO:'Fechado (saiu)'
+  };
+
+  // ── Ativos ──
+  const ativosTbody = document.getElementById('end-r-ativos-tbody');
+  ativosTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px;">Buscando…</td></tr>';
+  try {
+    const snap = await db.collection('enderecamentos').where('ativo','==',true).get();
+    let docs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if (placaFiltro) docs = docs.filter(d => (d.placa||'').toUpperCase().includes(placaFiltro));
+    if (temCodigoFiltro) docs = docs.filter(d => (d.enderecos||[]).some(s => (s.historico||[]).includes(codigoFiltro)));
+    docs.sort((a,b)=>(a.placa||'').localeCompare(b.placa||''));
+
+    if (!docs.length) {
+      ativosTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px;">Nenhum endereçamento ativo encontrado.</td></tr>';
+    } else {
+      ativosTbody.innerHTML = docs.map(d => {
+        const cadeias = (d.enderecos||[]).map(s =>
+          `<span class="badge bg-light text-dark border" style="font-size:0.72rem;">${(s.historico||[]).join(' → ')}</span>`
+        ).join(' ');
+        return `<tr>
+          <td><b>${esc(d.placa)}</b></td>
+          <td style="font-size:0.82rem;">${esc(d.nf || d.ident || '—')}${d.tituloOp?`<br><span class="text-muted">${esc(d.tituloOp)}</span>`:''}</td>
+          <td>${cadeias||'—'}</td>
+          <td style="font-size:0.82rem;">${esc(d.criadoPor)||'—'}</td>
+          <td style="font-size:0.78rem;">${fmtDate(d.atualizadoEm)}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch(e) {
+    ativosTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
+  }
+
+  // ── Histórico de ações (log de auditoria) ──
+  const logTbody = document.getElementById('end-r-log-tbody');
+  logTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px;">Buscando…</td></tr>';
+  try {
+    const snap = await db.collection('enderecamentos_log').orderBy('timestamp','desc').limit(300).get();
+    let logs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if (placaFiltro) logs = logs.filter(l => (l.placa||'').toUpperCase().includes(placaFiltro));
+    if (temCodigoFiltro) logs = logs.filter(l => l.codigoAnterior===codigoFiltro || l.codigoNovo===codigoFiltro);
+
+    if (!logs.length) {
+      logTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px;">Nenhuma ação encontrada.</td></tr>';
+    } else {
+      logTbody.innerHTML = logs.map(l => {
+        const dePara = l.codigoAnterior ? `${l.codigoAnterior} → ${l.codigoNovo||'—'}` : (l.codigoNovo || '—');
+        return `<tr>
+          <td style="white-space:nowrap;font-size:0.8rem;">${fmtDate(l.timestamp)}</td>
+          <td><b>${esc(l.placa)||'—'}</b></td>
+          <td>${acaoLabel[l.acao]||l.acao}</td>
+          <td>${dePara}</td>
+          <td style="font-size:0.78rem;">${esc(l.origem)||'—'}</td>
+          <td>${esc(l.autor)||'—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch(e) {
+    logTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
+  }
 }
 </script>
 </body>
