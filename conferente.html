@@ -832,13 +832,9 @@ function _colAVirtual(v) {
   return _normVirtual(v['Coleta/Entrega/processo/cliente'] || v['_CA'] || '');
 }
 
-/** true = linha sem nenhum dado relevante (corte do bloco) */
+/** true = linha totalmente em branco (nenhuma coluna da planilha tem conteúdo) — corte do bloco */
 function _linhaVaziaVirtual(v) {
-  const colA = _colAVirtual(v);
-  const nf   = (v['NF']||v['Nº NF']||v['_CM']||'').toString().trim();
-  const dest = (v['Destinatário']||v['Destinatario']||v['_CH']||'').toString().trim();
-  const vol  = (v['Volume']||v['_CE']||'').toString().trim();
-  return !colA && !nf && !dest && !vol;
+  return !Object.keys(v).some(k => k.startsWith('_C') && (v[k]||'').toString().trim());
 }
 
 /** Índices (na lista de linhas) cuja coluna A contenha algum dos termos buscados */
@@ -855,9 +851,15 @@ function _acharMarcadores(rows, termos) {
 /** A partir de um índice de marcador, coleta as linhas seguintes até a primeira linha vazia (corte) */
 function _coletarBloco(rows, idxMarcador) {
   const bloco = [];
+  let rowIdxAnterior = rows[idxMarcador]?._rowIdx;
   for (let i = idxMarcador + 1; i < rows.length; i++) {
-    if (_linhaVaziaVirtual(rows[i])) break;
-    bloco.push(rows[i]);
+    const linha = rows[i];
+    if (_linhaVaziaVirtual(linha)) break;                     // corte: linha totalmente vazia
+    // Corte: "pulo" no índice real da planilha — indica linha(s) em branco que o
+    // Google Sheets às vezes omite por completo da resposta (não aparecem em `rows`).
+    if (rowIdxAnterior !== undefined && linha._rowIdx !== undefined && (linha._rowIdx - rowIdxAnterior) > 1) break;
+    bloco.push(linha);
+    rowIdxAnterior = linha._rowIdx;
   }
   return bloco;
 }
