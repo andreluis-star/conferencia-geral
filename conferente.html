@@ -1577,7 +1577,12 @@ function renderCamposConferencia(vehicles) {
           ${chipServico(servicoVal)}
         </div>
         <div class="op-tipo-wrap">
-          <button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})">📋 TFA</button>
+          ${(()=>{
+            // TFA só é permitido em cargas de ENTRADA — desabilitado em SAÍDA
+            const tipoLinha = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
+            const tfaHabilitado = tipoLinha === 'ENTRADA' || (tipoLinha === 'ENTRADA_SAIDA' && currentTipo === 'ENTRADA');
+            return `<button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})" ${tfaHabilitado ? '' : 'disabled title="TFA disponível apenas para cargas de ENTRADA"'}>📋 TFA</button>`;
+          })()}
           ${(()=>{
             const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
             if (t === 'ENTRADA')       return '<span class="op-tipo-badge entrada">📥 ENTRADA</span>';
