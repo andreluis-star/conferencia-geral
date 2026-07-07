@@ -204,6 +204,43 @@
   .toggle-btn:disabled.ok-active    { opacity:1; }
   .toggle-btn:disabled.naook-active { opacity:1; }
 
+  /* ── TFA — Termo de Falta e Avaria (botão por linha de NF) ── */
+  .tfa-btn { background:#fff3e0; color:#b35900; border:1px solid #ffcc80 !important; border-radius:20px; margin-bottom:3px; white-space:nowrap; }
+  .tfa-btn:active { transform:scale(0.96); }
+  .tfa-btn.tfa-registrado { background:var(--red); color:#fff; border-color:var(--red) !important; }
+  .tfa-btn .tfa-count { display:inline-block; background:rgba(255,255,255,0.4); border-radius:10px; padding:0 5px; margin-left:3px; font-size:0.66rem; }
+
+  /* ── TELA TFA ── */
+  .tfa-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tfa-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .tfa-field label { font-size:0.65rem; font-weight:700; color:#aaa; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.4px; }
+  .tfa-field-ro { background:#f5f7fb; border:1px solid #e0e8f5; border-radius:8px; padding:9px 11px; font-size:0.86rem; color:#222; font-weight:600; min-height:36px; word-break:break-word; }
+  .tfa-field-ro.empty { color:#bbb; font-weight:400; }
+  .btn-voltar-conf { width:100%; background:var(--amber); color:var(--navy); border:none; border-radius:var(--radius); padding:14px; font-size:0.92rem; font-weight:800; cursor:pointer; margin-top:10px; letter-spacing:0.3px; }
+  .btn-voltar-conf:active { opacity:0.85; }
+  .tfa-reg-list { margin-top:2px; }
+  .tfa-reg-item { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fafcff; border:1px solid #e0e8f5; border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:0.8rem; }
+  .tfa-reg-item:last-child { margin-bottom:0; }
+  .tfa-reg-desc { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#444; }
+  .tfa-reg-actions { display:flex; gap:4px; flex-shrink:0; }
+  .tfa-reg-actions button { border:none; background:none; cursor:pointer; font-size:1.05rem; opacity:0.6; padding:2px 4px; }
+  .tfa-reg-actions button:hover { opacity:1; }
+  .tfa-thumb-wrap { position:relative; width:80px; height:80px; }
+  .tfa-thumb-wrap .rm-foto { position:absolute; top:-5px; right:-5px; width:20px; height:20px; border-radius:50%; border:none; background:var(--red); color:#fff; font-size:11px; cursor:pointer; line-height:20px; padding:0; }
+
+  /* ── MODAL FOTOS TFA ── */
+  .tfa-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:3000; align-items:center; justify-content:center; padding:20px; }
+  .tfa-modal-overlay.open { display:flex; }
+  .tfa-modal-box { background:#fff; border-radius:14px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; }
+  .tfa-modal-head { background:var(--navy); color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-radius:14px 14px 0 0; }
+  .tfa-modal-close { background:rgba(255,255,255,0.18); border:none; color:#fff; border-radius:50%; width:28px; height:28px; cursor:pointer; }
+  .tfa-modal-body { padding:16px 18px; display:flex; flex-wrap:wrap; gap:10px; }
+  .tfa-modal-body img { width:110px; height:110px; object-fit:cover; border-radius:8px; cursor:pointer; border:1px solid #ddd; }
+  .tfa-lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:3100; align-items:center; justify-content:center; }
+  .tfa-lightbox.open { display:flex; }
+  .tfa-lightbox img { max-width:90vw; max-height:85vh; border-radius:8px; }
+  .tfa-lightbox-close { position:absolute; top:18px; right:20px; background:rgba(255,255,255,0.15); border:none; color:#fff; border-radius:50%; width:34px; height:34px; font-size:18px; cursor:pointer; }
+
   /* Área de divergência — expande abaixo da linha ao clicar NÃO OK */
   .nf-obs-row { display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #e0e8f5; }
   .nf-obs-row.show { display:block; }
@@ -552,6 +589,91 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
+     TELA TFA: TERMO DE FALTA E AVARIA
+     Aberta a partir do botão 📋 TFA de uma linha de NF.
+     Dados de identificação/documentos/transporte vêm
+     automaticamente da conferência em andamento.
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-tfa">
+  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+    <div class="form-header">
+      <button class="back-btn" onclick="fecharTFA()">◀</button>
+      <div>
+        <div class="form-header-title">📋 Termo de Falta e Avaria</div>
+        <div class="form-header-sub" id="tfa-header-sub">—</div>
+      </div>
+    </div>
+    <div style="padding:14px 14px calc(80px + var(--safe-bottom));">
+
+      <div class="form-card">
+        <h4>Identificação</h4>
+        <div class="tfa-grid-2">
+          <div class="tfa-field"><label>Conferente</label><div class="tfa-field-ro" id="tfa-conferente">—</div></div>
+          <div class="tfa-field"><label>Cliente</label><div class="tfa-field-ro" id="tfa-cliente">—</div></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <h4>Documentos</h4>
+        <div class="tfa-grid-3">
+          <div class="tfa-field"><label>NF</label><div class="tfa-field-ro" id="tfa-nf">—</div></div>
+          <div class="tfa-field"><label>DI</label><div class="tfa-field-ro" id="tfa-di">—</div></div>
+          <div class="tfa-field"><label>DEC (MD)</label><div class="tfa-field-ro" id="tfa-dec">—</div></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <h4>Transporte</h4>
+        <div class="tfa-grid-3">
+          <div class="tfa-field"><label>Motorista</label><div class="tfa-field-ro" id="tfa-motorista">—</div></div>
+          <div class="tfa-field"><label>Veículo / Placa</label><div class="tfa-field-ro" id="tfa-veiculo">—</div></div>
+          <div class="tfa-field"><label>Qtd. Volumes</label><div class="tfa-field-ro" id="tfa-qtdvol">—</div></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <h4>📝 Descrição da Falta / Avaria</h4>
+        <textarea id="tfa-descricao" placeholder="Descreva a falta ou avaria identificada..."></textarea>
+      </div>
+
+      <div class="form-card">
+        <h4>📷 Fotos</h4>
+        <div class="foto-area" id="tfa-foto-area">
+          <label class="foto-upload" for="tfa-foto-input">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar foto
+          </label>
+        </div>
+        <input type="file" id="tfa-foto-input" accept="image/*" capture="environment" multiple onchange="handleTfaFotos(this)"/>
+      </div>
+
+      <div class="form-card" id="tfa-registros-card" style="display:none;">
+        <h4>📂 Ocorrências já registradas nesta NF</h4>
+        <div class="tfa-reg-list" id="tfa-reg-list"></div>
+      </div>
+
+      <button class="btn-submit" onclick="salvarTFA()">💾 Registrar Ocorrência</button>
+      <button class="btn-voltar-conf" onclick="fecharTFA()">🔙 Voltar à Conferência</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de fotos das ocorrências TFA já registradas -->
+<div class="tfa-modal-overlay" id="tfa-modal-fotos">
+  <div class="tfa-modal-box">
+    <div class="tfa-modal-head">
+      <h3 id="tfa-modal-title" style="font-size:0.92rem;font-weight:700;">Fotos</h3>
+      <button class="tfa-modal-close" onclick="fecharModalFotosTFA()">✕</button>
+    </div>
+    <div class="tfa-modal-body" id="tfa-modal-body"></div>
+  </div>
+</div>
+<div class="tfa-lightbox" id="tfa-lightbox" onclick="fecharLightboxTFA()">
+  <button class="tfa-lightbox-close" onclick="fecharLightboxTFA()">✕</button>
+  <img id="tfa-lightbox-img" src="" alt=""/>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
      TELA 3: INSUMOS AVULSO
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-insumos">
@@ -653,6 +775,12 @@ let fotosBase64       = [];
 let insAv_fotosBase64 = [];
 let paletesUltimaSaida = [];    // paletes da última SAÍDA desta placa (para checar retorno)
 let enderecosExistentes = {};   // idx do nf-block → doc de enderecamento já existente (Firestore)
+
+// ── TFA — Termo de Falta e Avaria ──
+let nfCamposCache   = {};       // idx do bloco → { nf, di, oc, md, dest, cidade, vol, servico, tituloOp }
+let tfaContext       = null;    // dados da linha selecionada ao abrir a tela de TFA
+let tfaFotos         = [];      // [{id,src}] fotos da ocorrência TFA em edição
+let tfaRecordsByIdx  = {};      // idx do bloco → [registros TFA já salvos p/ a placa atual]
 
 // ═══════════════════════════════════════════════════════
 //  ENDEREÇAMENTO — faixas do galpão
@@ -1222,6 +1350,9 @@ async function openConferencia(group) {
   // Busca endereços já registrados (pré-preenche ENTRADA reaberta / mostra cadeia na SAÍDA)
   await popularEnderecosPorBloco(group.vehicles);
 
+  // TFA: carrega ocorrências já registradas para esta placa e marca os botões
+  await carregarTFARegistros(group.placa);
+
   // Cliente único
   document.getElementById('chk-cliente-unico').checked = false;
   document.getElementById('cliente-unico-input').style.display = 'none';
@@ -1326,6 +1457,7 @@ async function prefillFromExistingOp(placa, tipo) {
 function renderCamposConferencia(vehicles) {
   const container = document.getElementById('campos-conferencia');
   container.innerHTML = '';
+  nfCamposCache = {};   // idx do bloco → campos extraídos da planilha (usado pela tela de TFA)
 
   // ── Helpers de leitura de coluna ──
 
@@ -1377,6 +1509,9 @@ function renderCamposConferencia(vehicles) {
 
     // Título: conteúdo da coluna A (operação/cliente)
     const tituloOp = col(v, 'A', 'Coleta/Entrega/processo/cliente') || (nfVal ? `NF ${nfVal}` : `Entrega ${idx+1}`);
+
+    // Guarda os campos desta linha para a tela de TFA (Termo de Falta e Avaria)
+    nfCamposCache[idx] = { nf:nfVal, di:diVal, oc:ocVal, md:mdVal, dest:destVal, cidade:cidadeVal, vol:volVal, servico:servicoVal, tituloOp };
 
     const obsRowId = 'nf-obs-' + idx;
 
@@ -1442,6 +1577,7 @@ function renderCamposConferencia(vehicles) {
           ${chipServico(servicoVal)}
         </div>
         <div class="op-tipo-wrap">
+          <button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})">📋 TFA</button>
           ${(()=>{
             const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
             if (t === 'ENTRADA')       return '<span class="op-tipo-badge entrada">📥 ENTRADA</span>';
@@ -1854,6 +1990,339 @@ function handleFotos(input) {
     reader.readAsDataURL(file);
   });
   input.value='';
+}
+
+// ═══════════════════════════════════════════════════════
+//  TFA — TERMO DE FALTA E AVARIA
+//  Botão por linha de NF → tela dedicada, dados de
+//  identificação/documentos/transporte pré-preenchidos
+//  automaticamente a partir da conferência em andamento.
+//  Registra em coleção própria (tfa_ocorrencias), com
+//  fotos comprimidas salvas no mesmo padrão do restante
+//  do sistema, e permite voltar à conferência sem perder
+//  o que já estava preenchido lá.
+// ═══════════════════════════════════════════════════════
+
+function tfaOrDash(val) {
+  const s = (val === undefined || val === null) ? '' : val.toString().trim();
+  return s || '—';
+}
+
+function abrirTFA(idx) {
+  const v       = currentVehicles[idx] || {};
+  const campos  = nfCamposCache[idx] || {};
+
+  const conferenteNome = (currentUser && (currentUser.nome || currentUser.email)) || '';
+  const clienteUnicoInp = document.getElementById('inp-cliente');
+  const cliente = (clienteUnicoInp && clienteUnicoInp.value.trim())
+    || (v['cliente'] || v['Destinatário'] || '').toString().trim()
+    || (currentVehicles[0] && (currentVehicles[0]['cliente'] || currentVehicles[0]['Destinatário'])) || '';
+  const motorista = (currentVehicles[0] && currentVehicles[0]['Motorista']) || '';
+
+  tfaContext = {
+    idx, placa: currentPlaca, tipoExecucao: currentTipo,
+    conferenteNome, cliente,
+    nf: campos.nf || '', di: campos.di || '', dec: campos.md || '',
+    destinatario: campos.dest || '', cidadeDestino: campos.cidade || '', tituloOp: campos.tituloOp || '',
+    motorista, veiculo: currentPlaca, qtdVolumes: campos.vol || ''
+  };
+
+  document.getElementById('tfa-header-sub').textContent =
+    `${currentPlaca}${campos.nf ? ' · NF ' + campos.nf : ''}`;
+  document.getElementById('tfa-conferente').textContent = tfaOrDash(conferenteNome);
+  document.getElementById('tfa-cliente').textContent    = tfaOrDash(cliente);
+  document.getElementById('tfa-nf').textContent          = tfaOrDash(campos.nf);
+  document.getElementById('tfa-di').textContent          = tfaOrDash(campos.di);
+  document.getElementById('tfa-dec').textContent         = tfaOrDash(campos.md);
+  document.getElementById('tfa-motorista').textContent   = tfaOrDash(motorista);
+  document.getElementById('tfa-veiculo').textContent     = tfaOrDash(currentPlaca);
+  document.getElementById('tfa-qtdvol').textContent      = tfaOrDash(campos.vol);
+
+  document.getElementById('tfa-descricao').value = '';
+  tfaFotos = [];
+  document.getElementById('tfa-foto-area').innerHTML = `
+    <label class="foto-upload" for="tfa-foto-input">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar foto
+    </label>`;
+
+  renderTFARegistros(idx);
+  goTo('screen-tfa');
+}
+
+/** Volta à conferência que estava sendo executada, sem perder nada do que já estava preenchido lá. */
+function fecharTFA() {
+  const temPendente = document.getElementById('tfa-descricao').value.trim() || tfaFotos.length;
+  if (temPendente && !confirm('Há dados de TFA ainda não registrados. Voltar à conferência mesmo assim?')) return;
+  goBack();
+}
+
+function handleTfaFotos(input) {
+  Array.from(input.files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      tfaFotos.push({ id: Date.now() + Math.random(), src: e.target.result });
+      renderTfaThumbs();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function removeTfaFoto(id) {
+  tfaFotos = tfaFotos.filter(f => String(f.id) !== String(id));
+  renderTfaThumbs();
+}
+function renderTfaThumbs() {
+  const area = document.getElementById('tfa-foto-area');
+  area.querySelectorAll('.tfa-thumb-wrap').forEach(el => el.remove());
+  const uploadLabel = area.querySelector('.foto-upload');
+  tfaFotos.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.className = 'tfa-thumb-wrap';
+    wrap.innerHTML = `<img src="${f.src}" class="foto-thumb"/><button type="button" class="rm-foto" onclick="removeTfaFoto('${f.id}')">✕</button>`;
+    area.insertBefore(wrap, uploadLabel);
+  });
+}
+
+/** Salva a ocorrência TFA no Firestore, no mesmo sistema/base da conferência. */
+async function salvarTFA() {
+  if (!tfaContext) { showToast('Contexto do TFA não encontrado.', 'error'); return; }
+  const descricao = document.getElementById('tfa-descricao').value.trim();
+  if (!descricao) { showToast('Descreva a falta ou avaria antes de registrar.', 'warning'); return; }
+
+  loading(true);
+  try {
+    const fotosUrls = [];
+    for (const f of tfaFotos) fotosUrls.push(await compressImage(f.src));
+
+    const dateVal = document.getElementById('sel-date') ? document.getElementById('sel-date').value : '';
+    let dataRef = '';
+    if (dateVal) { const [y, m, d] = dateVal.split('-'); dataRef = `${d}/${m}/${y}`; }
+
+    await db.collection('tfa_ocorrencias').add({
+      placa: tfaContext.placa,
+      tipoExecucao: tfaContext.tipoExecucao,
+      blockIdx: tfaContext.idx,
+      conferenteId: (currentUser && currentUser.uid) || '',
+      conferenteNome: tfaContext.conferenteNome,
+      cliente: tfaContext.cliente,
+      nf: tfaContext.nf, di: tfaContext.di, dec: tfaContext.dec,
+      destinatario: tfaContext.destinatario, cidadeDestino: tfaContext.cidadeDestino, tituloOp: tfaContext.tituloOp,
+      motorista: tfaContext.motorista, veiculo: tfaContext.veiculo, qtdVolumes: tfaContext.qtdVolumes,
+      descricao, fotos: fotosUrls,
+      dataRef, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('✔ Ocorrência TFA registrada!');
+    document.getElementById('tfa-descricao').value = '';
+    tfaFotos = []; renderTfaThumbs();
+
+    await carregarTFARegistros(tfaContext.placa);
+    renderTFARegistros(tfaContext.idx);
+  } catch (e) {
+    showToast('Erro ao registrar TFA: ' + e.message, 'error');
+  } finally { loading(false); }
+}
+
+/** Busca no Firestore todos os TFAs já registrados para a placa atual e atualiza os badges dos botões. */
+async function carregarTFARegistros(placa) {
+  tfaRecordsByIdx = {};
+  try {
+    const snap = await db.collection('tfa_ocorrencias').where('placa', '==', placa).get();
+    snap.docs.forEach(doc => {
+      const data = { id: doc.id, ...doc.data() };
+      const idx = data.blockIdx;
+      if (!tfaRecordsByIdx[idx]) tfaRecordsByIdx[idx] = [];
+      tfaRecordsByIdx[idx].push(data);
+    });
+  } catch (e) { console.warn('carregarTFARegistros:', e.message); }
+
+  document.querySelectorAll('.tfa-btn').forEach(btn => {
+    const idx = btn.id.replace('tfa-btn-', '');
+    const n = (tfaRecordsByIdx[idx] || []).length;
+    if (n > 0) {
+      btn.classList.add('tfa-registrado');
+      btn.innerHTML = `📋 TFA <span class="tfa-count">${n}</span>`;
+    } else {
+      btn.classList.remove('tfa-registrado');
+      btn.innerHTML = `📋 TFA`;
+    }
+  });
+}
+
+function findTFARecordById(id) {
+  for (const idx in tfaRecordsByIdx) {
+    const found = tfaRecordsByIdx[idx].find(r => r.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function renderTFARegistros(idx) {
+  const card = document.getElementById('tfa-registros-card');
+  const list = document.getElementById('tfa-reg-list');
+  const registros = tfaRecordsByIdx[idx] || [];
+  if (!registros.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  list.innerHTML = registros.map(r => {
+    const nFotos = (r.fotos || []).length;
+    const dataStr = (r.timestamp && r.timestamp.toDate) ? fmtDate(r.timestamp) : (r.dataRef || '—');
+    const descSafe = (r.descricao || '—').replace(/"/g, '&quot;');
+    return `<div class="tfa-reg-item">
+      <div class="tfa-reg-desc" title="${descSafe}">${dataStr} — ${r.descricao || '—'}</div>
+      <div class="tfa-reg-actions">
+        ${nFotos ? `<button onclick="verFotosTFA('${r.id}')" title="Ver ${nFotos} foto(s)">📷</button>` : ''}
+        <button onclick="gerarPDFTFA('${r.id}')" title="Gerar PDF">📄</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function verFotosTFA(id) {
+  const rec = findTFARecordById(id);
+  if (!rec || !(rec.fotos || []).length) { showToast('Sem fotos neste registro.', 'warning'); return; }
+  document.getElementById('tfa-modal-title').textContent = `Fotos — NF ${rec.nf || '—'}`;
+  document.getElementById('tfa-modal-body').innerHTML = rec.fotos.map((src, i) =>
+    `<img src="${src}" alt="Foto ${i + 1}" onclick="abrirLightboxTFA('${src}')"/>`).join('');
+  document.getElementById('tfa-modal-fotos').classList.add('open');
+}
+function fecharModalFotosTFA() { document.getElementById('tfa-modal-fotos').classList.remove('open'); }
+function abrirLightboxTFA(src) { document.getElementById('tfa-lightbox-img').src = src; document.getElementById('tfa-lightbox').classList.add('open'); }
+function fecharLightboxTFA() { document.getElementById('tfa-lightbox').classList.remove('open'); document.getElementById('tfa-lightbox-img').src = ''; }
+
+/** Gera o PDF do Termo de Falta e Avaria (mesmo layout usado no projeto original de TFA). */
+function gerarPDFTFA(id) {
+  const rec = findTFARecordById(id);
+  if (!rec) { showToast('Registro não encontrado.', 'error'); return; }
+  const fotos = rec.fotos || [];
+  const numTFA = String(rec.id).slice(-6).toUpperCase();
+  const dataStr = (rec.timestamp && rec.timestamp.toDate) ? fmtDate(rec.timestamp) : (rec.dataRef || '—');
+
+  let fotosHtml = '';
+  if (fotos.length > 0) {
+    const items = fotos.map((src, i) => `
+      <div class="pf-foto">
+        <img src="${src}" alt="Foto ${i + 1}"/>
+        <div class="pf-foto-label">Foto ${i + 1}</div>
+      </div>`).join('');
+    fotosHtml = `
+      <div class="pf-section-title">REGISTRO FOTOGRÁFICO (${fotos.length} foto${fotos.length > 1 ? 's' : ''})</div>
+      <div class="pf-fotos-grid">${items}</div>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>TFA-${numTFA} · ${rec.cliente || ''}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #222; background: #fff; }
+  .pf-header { background: #1a3a5c; color: #fff; padding: 14px 20px; border-radius: 6px; display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .pf-header-left { display: flex; align-items: center; gap: 12px; }
+  .pf-header-icon { font-size: 28px; }
+  .pf-header-title { font-size: 16px; font-weight: 700; letter-spacing: 0.3px; }
+  .pf-header-sub   { font-size: 10px; opacity: 0.7; margin-top: 3px; }
+  .pf-header-right { text-align: right; font-size: 11px; opacity: 0.9; line-height: 1.7; }
+  .pf-header-num   { font-size: 15px; font-weight: 700; opacity: 1; }
+  .pf-section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #1a3a5c; border-bottom: 2px solid #1a3a5c; padding-bottom: 4px; margin-bottom: 10px; margin-top: 16px; }
+  .pf-section-title:first-of-type { margin-top: 0; }
+  .pf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .pf-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .pf-field label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #777; display: block; margin-bottom: 3px; letter-spacing: 0.3px; }
+  .pf-field .pf-val { border: 1px solid #cdd5de; border-radius: 4px; padding: 6px 9px; background: #f8fafc; min-height: 30px; font-size: 12px; color: #111; line-height: 1.4; }
+  .pf-desc-box { border: 1px solid #cdd5de; border-radius: 4px; padding: 9px 10px; background: #f8fafc; min-height: 60px; line-height: 1.6; font-size: 12px; white-space: pre-wrap; }
+  .pf-fotos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; page-break-inside: auto; }
+  .pf-foto { text-align: center; break-inside: avoid; }
+  .pf-foto img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 5px; border: 1px solid #cdd5de; display: block; }
+  .pf-foto-label { font-size: 9px; color: #999; margin-top: 3px; }
+  .pf-assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
+  .pf-assin { border-top: 1.5px solid #333; padding-top: 6px; text-align: center; font-size: 10px; color: #444; line-height: 1.6; }
+  .pf-assin strong { display: block; font-size: 11px; color: #111; }
+  .pf-footer { margin-top: 20px; border-top: 1px solid #d1d9e0; padding-top: 10px; display: flex; justify-content: space-between; font-size: 9px; color: #999; }
+  .pf-print-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a3a5c; padding: 12px 24px; display: flex; gap: 12px; align-items: center; justify-content: center; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); z-index: 100; }
+  .pf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: 7px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; }
+  .pf-btn-print { background: #fff; color: #1a3a5c; }
+  .pf-btn-print:hover { background: #e8f0fe; }
+  .pf-btn-close { background: rgba(255,255,255,0.15); color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
+  .pf-btn-close:hover { background: rgba(255,255,255,0.25); }
+  .pf-tip { color: rgba(255,255,255,0.7); font-size: 12px; }
+  body { padding-bottom: 70px; }
+  @media print { body { padding-bottom: 0; } }
+</style>
+</head>
+<body>
+<div class="pf-header">
+  <div class="pf-header-left">
+    <div class="pf-header-icon">📋</div>
+    <div>
+      <div class="pf-header-title">TERMO DE FALTA E AVARIAS — TFA</div>
+      <div class="pf-header-sub">PORTOEX Logística · Registro de Ocorrência</div>
+    </div>
+  </div>
+  <div class="pf-header-right">
+    <div class="pf-header-num">Nº ${numTFA}</div>
+    <div>${dataStr}</div>
+  </div>
+</div>
+
+<div class="pf-section-title">Identificação</div>
+<div class="pf-grid-2">
+  <div class="pf-field"><label>Conferente</label><div class="pf-val">${rec.conferenteNome || '—'}</div></div>
+  <div class="pf-field"><label>Cliente</label><div class="pf-val">${rec.cliente || '—'}</div></div>
+</div>
+
+<div class="pf-section-title">Documentos</div>
+<div class="pf-grid-3">
+  <div class="pf-field"><label>Nota Fiscal (NF)</label><div class="pf-val">${rec.nf || '—'}</div></div>
+  <div class="pf-field"><label>DI</label><div class="pf-val">${rec.di || '—'}</div></div>
+  <div class="pf-field"><label>DEC (MD)</label><div class="pf-val">${rec.dec || '—'}</div></div>
+</div>
+
+<div class="pf-section-title">Transporte</div>
+<div class="pf-grid-3">
+  <div class="pf-field"><label>Motorista</label><div class="pf-val">${rec.motorista || '—'}</div></div>
+  <div class="pf-field"><label>Veículo / Placa</label><div class="pf-val">${rec.veiculo || '—'}</div></div>
+  <div class="pf-field"><label>Qtd. Volumes</label><div class="pf-val">${rec.qtdVolumes || '—'}</div></div>
+</div>
+
+<div class="pf-section-title">Descrição da Avaria</div>
+<div class="pf-desc-box">${(rec.descricao || 'Sem descrição informada.').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+
+${fotosHtml}
+
+<div class="pf-assinaturas">
+  <div class="pf-assin"><strong>${rec.conferenteNome || '_________________________'}</strong>Conferente / Responsável pelo Registro</div>
+  <div class="pf-assin"><strong>${rec.motorista || '_________________________'}</strong>Motorista / Responsável pela Carga</div>
+</div>
+
+<div class="pf-footer">
+  <span>PORTOEX Logística · Gerado em ${new Date().toLocaleString('pt-BR')}</span>
+  <span>TFA Nº ${numTFA}</span>
+</div>
+
+<div class="pf-print-bar no-print">
+  <button class="pf-btn pf-btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <button class="pf-btn pf-btn-close" onclick="window.close()">✕ Fechar</button>
+  <span class="pf-tip">Dica: no diálogo de impressão escolha "Salvar como PDF"</span>
+</div>
+
+<script>
+  window.onload = function(){ setTimeout(()=>window.print(), 700); };
+<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { showToast('Pop-up bloqueado! Permita pop-ups para gerar o PDF do TFA.', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 // ═══════════════════════════════════════════════════════
