@@ -2486,19 +2486,24 @@ async function submeterConferencia() {
     const [y,m,d] = dateVal.split('-');
     const dataRef = `${d}/${m}/${y}`;
 
-    // ── Validação: endereço é obrigatório em toda ENTRADA ──
+    // ── Validação: endereço em toda ENTRADA (permite salvar parcialmente, com confirmação) ──
     if (currentTipo === 'ENTRADA') {
-      let faltando = false;
+      let qtdFaltando = 0;
       document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
         const selects = block.querySelectorAll('.endereco-row select');
         const algumPreenchido = Array.from(selects).some(s => s.value);
         selects.forEach(s => s.classList.toggle('endereco-req-missing', !algumPreenchido));
-        if (!algumPreenchido) faltando = true;
+        if (!algumPreenchido) qtdFaltando++;
       });
-      if (faltando) {
-        loading(false); btn.disabled = false;
-        showToast('Selecione ao menos um endereço para cada item antes de continuar.', 'warning');
-        return;
+      if (qtdFaltando > 0) {
+        loading(false);
+        const prosseguir = confirm(`${qtdFaltando} item(ns) sem endereço selecionado. Deseja salvar mesmo assim? Você poderá completar os endereços faltantes depois na tela de Endereços.`);
+        if (!prosseguir) {
+          btn.disabled = false;
+          showToast('Selecione ao menos um endereço para cada item antes de continuar.', 'warning');
+          return;
+        }
+        loading(true);
       }
     }
 
