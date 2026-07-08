@@ -158,6 +158,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Endereçamento
     </a>
+    <a class="sb-item" data-section="tfa" onclick="showSection('tfa')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+      TFA
+    </a>
     <div class="sb-section">Sistema</div>
     <a class="sb-item" data-section="config" onclick="showSection('config')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -513,6 +517,27 @@
     </div>
   </div>
 
+  <!-- ===== TFA — TERMO DE FALTA E AVARIA ===== -->
+  <div class="section" id="sec-tfa">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">📋 Ocorrências de TFA</span>
+        <div class="d-flex gap-2 flex-wrap">
+          <input type="date" id="tfa-adm-data" class="form-control form-control-sm" style="width:150px;" onchange="loadTFA()"/>
+          <input type="text" id="tfa-adm-busca" class="form-control form-control-sm" style="width:180px;" placeholder="Placa, NF ou conferente" oninput="loadTFA()"/>
+          <button class="btn btn-sm btn-outline-secondary" id="tfa-adm-btn-selall" onclick="toggleSelAllTFA()">Selecionar todos</button>
+          <button class="btn btn-sm btn-navy" id="tfa-adm-btn-print" onclick="imprimirTFASelecionados()" disabled>🖨️ Imprimir selecionados</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th style="width:30px;"><input type="checkbox" id="tfa-adm-chk-all" onchange="toggleSelAllTFA(this.checked)"/></th><th>Data/Hora</th><th>Placa</th><th>NF</th><th>Cliente</th><th>Conferente</th><th>Descrição</th><th>Fotos</th><th>Ação</th></tr></thead>
+          <tbody id="tfa-adm-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== CONFIGURAÇÕES ===== -->
   <div class="section" id="sec-config">
     <div class="row g-3">
@@ -662,6 +687,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('dash-date').value = today;
   document.getElementById('op-data').value   = today;
   document.getElementById('disc-data').value = today;
+  document.getElementById('tfa-adm-data').value = today;
   document.getElementById('inv-data').value  = today;
   const d30 = new Date(); d30.setDate(d30.getDate()-30);
   document.getElementById('pal-data-ini').value = d30.toISOString().split('T')[0];
@@ -678,7 +704,7 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',enderecos:'Endereços',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes','rastreio-enderecos':'Endereçamento',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',enderecos:'Endereços',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='operacoes')          loadOperacoes();
@@ -686,6 +712,7 @@ function showSection(id) {
   if (id==='paletes')            loadPaletes();
   if (id==='enderecos')          loadEnderecosCadastro();
   if (id==='rastreio-enderecos') loadRastreioEnderecos();
+  if (id==='tfa')                loadTFA();
   if (id==='config')             loadConfig();
 }
 
@@ -1354,6 +1381,252 @@ async function resolverDisc(id) {
   await db.collection('discrepancias').doc(id).update({ status:'RESOLVIDA', resolvidaEm:firebase.firestore.FieldValue.serverTimestamp() });
   showToast('Discrepância marcada como resolvida.');
   loadDiscrepancias();
+}
+
+// ── TFA — TERMO DE FALTA E AVARIA ───────────────────────────────
+let tfaAdmRecords     = [];
+let tfaAdmSelecionados = new Set();
+
+async function loadTFA() {
+  let dateVal = document.getElementById('tfa-adm-data').value;
+  const busca = (document.getElementById('tfa-adm-busca').value || '').trim().toLowerCase();
+
+  if (!dateVal) {
+    const hoje = new Date();
+    dateVal = hoje.toISOString().slice(0, 10);
+    document.getElementById('tfa-adm-data').value = dateVal;
+  }
+  const [y, m, d] = dateVal.split('-');
+  const dataRef = `${d}/${m}/${y}`;
+
+  const tbody = document.getElementById('tfa-adm-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Carregando…</td></tr>';
+
+  try {
+    const snap = await db.collection('tfa_ocorrencias').where('dataRef', '==', dataRef).get();
+    let rows = snap.docs.map(dd => ({ id: dd.id, ...dd.data() }))
+      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+    if (busca) {
+      rows = rows.filter(r =>
+        (r.placa || '').toLowerCase().includes(busca) ||
+        (r.veiculo || '').toLowerCase().includes(busca) ||
+        (r.nf || '').toLowerCase().includes(busca) ||
+        (r.conferenteNome || '').toLowerCase().includes(busca) ||
+        (r.cliente || '').toLowerCase().includes(busca)
+      );
+    }
+
+    tfaAdmRecords = rows;
+    tfaAdmSelecionados.clear();
+    atualizarBotaoImprimirTFA();
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Nenhuma ocorrência de TFA nesta data</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const nFotos = (r.fotos || []).length;
+      const descFull = r.descricao || '—';
+      const descSafe = descFull.replace(/"/g, '&quot;');
+      const descResumo = descFull.length > 80 ? descFull.slice(0, 80) + '…' : descFull;
+      return `<tr>
+        <td><input type="checkbox" class="tfa-adm-chk" data-id="${r.id}" onchange="toggleSelTFA('${r.id}', this.checked)"/></td>
+        <td style="white-space:nowrap;">${fmtDate(r.timestamp)}</td>
+        <td><b>${r.veiculo || r.placa || '—'}</b></td>
+        <td>${r.nf || '—'}</td>
+        <td>${r.cliente || '—'}</td>
+        <td>${r.conferenteNome || '—'}</td>
+        <td style="font-size:0.83rem;max-width:260px;" title="${descSafe}">${descResumo}</td>
+        <td>${nFotos ? `📷 ${nFotos}` : '—'}</td>
+        <td><button class="btn btn-sm btn-outline-secondary" onclick="imprimirTFAAdmin('${r.id}')">🖨️ Imprimir</button></td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#c0392b;padding:20px;">Erro ao carregar: ${e.message}</td></tr>`;
+  }
+}
+
+function toggleSelTFA(id, checked) {
+  if (checked) tfaAdmSelecionados.add(id); else tfaAdmSelecionados.delete(id);
+  const chkAll = document.getElementById('tfa-adm-chk-all');
+  if (chkAll) chkAll.checked = tfaAdmRecords.length > 0 && tfaAdmSelecionados.size === tfaAdmRecords.length;
+  atualizarBotaoImprimirTFA();
+}
+
+function toggleSelAllTFA(checked) {
+  const marcarTudo = checked !== undefined
+    ? checked
+    : !(tfaAdmSelecionados.size === tfaAdmRecords.length && tfaAdmRecords.length > 0);
+  document.querySelectorAll('.tfa-adm-chk').forEach(chk => { chk.checked = marcarTudo; });
+  tfaAdmSelecionados = marcarTudo ? new Set(tfaAdmRecords.map(r => r.id)) : new Set();
+  const chkAll = document.getElementById('tfa-adm-chk-all');
+  if (chkAll) chkAll.checked = marcarTudo;
+  atualizarBotaoImprimirTFA();
+}
+
+function atualizarBotaoImprimirTFA() {
+  const btn = document.getElementById('tfa-adm-btn-print');
+  if (btn) btn.disabled = tfaAdmSelecionados.size === 0;
+}
+
+/** Imprime um único registro de TFA (ação "Imprimir" na linha da tabela). */
+function imprimirTFAAdmin(id) {
+  const rec = tfaAdmRecords.find(r => r.id === id);
+  if (!rec) { showToast('Registro não encontrado.', 'error'); return; }
+  abrirJanelaImpressaoTFA([rec]);
+}
+
+/** Imprime em grupo todos os registros marcados nas checkboxes (um registro por página). */
+function imprimirTFASelecionados() {
+  const recs = tfaAdmRecords.filter(r => tfaAdmSelecionados.has(r.id));
+  if (!recs.length) { showToast('Selecione ao menos um registro.', 'warning'); return; }
+  abrirJanelaImpressaoTFA(recs);
+}
+
+/** Monta e abre a janela de impressão do(s) TFA(s) — mesmo layout usado na tela do
+ *  conferente, com suporte a impressão unitária ou em grupo (1 registro por página). */
+function abrirJanelaImpressaoTFA(records) {
+  const paginas = records.map(rec => tfaPrintPageHtml(rec)).join('\n');
+  const tituloJanela = records.length > 1
+    ? `TFA · ${records.length} registros`
+    : `TFA-${String(records[0].id).slice(-6).toUpperCase()} · ${records[0].cliente || ''}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>${tituloJanela}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #222; background: #fff; padding-bottom: 70px; }
+  @media print { body { padding-bottom: 0; } }
+  .pf-page { page-break-after: always; }
+  .pf-page:last-child { page-break-after: auto; }
+  .pf-header { background: #1a3a5c; color: #fff; padding: 14px 20px; border-radius: 6px; display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .pf-header-left { display: flex; align-items: center; gap: 12px; }
+  .pf-header-icon { font-size: 28px; }
+  .pf-header-title { font-size: 16px; font-weight: 700; letter-spacing: 0.3px; }
+  .pf-header-sub   { font-size: 10px; opacity: 0.7; margin-top: 3px; }
+  .pf-header-right { text-align: right; font-size: 11px; opacity: 0.9; line-height: 1.7; }
+  .pf-header-num   { font-size: 15px; font-weight: 700; opacity: 1; }
+  .pf-section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #1a3a5c; border-bottom: 2px solid #1a3a5c; padding-bottom: 4px; margin-bottom: 10px; margin-top: 16px; }
+  .pf-section-title:first-of-type { margin-top: 0; }
+  .pf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .pf-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .pf-field label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #777; display: block; margin-bottom: 3px; letter-spacing: 0.3px; }
+  .pf-field .pf-val { border: 1px solid #cdd5de; border-radius: 4px; padding: 6px 9px; background: #f8fafc; min-height: 30px; font-size: 12px; color: #111; line-height: 1.4; }
+  .pf-desc-box { border: 1px solid #cdd5de; border-radius: 4px; padding: 9px 10px; background: #f8fafc; min-height: 60px; line-height: 1.6; font-size: 12px; white-space: pre-wrap; }
+  .pf-fotos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; page-break-inside: auto; }
+  .pf-foto { text-align: center; break-inside: avoid; }
+  .pf-foto img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 5px; border: 1px solid #cdd5de; display: block; }
+  .pf-foto-label { font-size: 9px; color: #999; margin-top: 3px; }
+  .pf-assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
+  .pf-assin { border-top: 1.5px solid #333; padding-top: 6px; text-align: center; font-size: 10px; color: #444; line-height: 1.6; }
+  .pf-assin strong { display: block; font-size: 11px; color: #111; }
+  .pf-footer { margin-top: 20px; border-top: 1px solid #d1d9e0; padding-top: 10px; display: flex; justify-content: space-between; font-size: 9px; color: #999; }
+  .pf-print-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a3a5c; padding: 12px 24px; display: flex; gap: 12px; align-items: center; justify-content: center; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); z-index: 100; }
+  .pf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: 7px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; }
+  .pf-btn-print { background: #fff; color: #1a3a5c; }
+  .pf-btn-print:hover { background: #e8f0fe; }
+  .pf-btn-close { background: rgba(255,255,255,0.15); color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
+  .pf-btn-close:hover { background: rgba(255,255,255,0.25); }
+  .pf-tip { color: rgba(255,255,255,0.7); font-size: 12px; }
+</style>
+</head>
+<body>
+${paginas}
+<div class="pf-print-bar no-print">
+  <button class="pf-btn pf-btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <button class="pf-btn pf-btn-close" onclick="window.close()">✕ Fechar</button>
+  <span class="pf-tip">Dica: no diálogo de impressão escolha "Salvar como PDF"</span>
+</div>
+<script>
+  window.onload = function(){ setTimeout(()=>window.print(), 700); };
+<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { showToast('Pop-up bloqueado! Permita pop-ups para gerar o PDF.', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+/** Monta o bloco de uma página/registro de TFA (reaproveitado nas impressões unitária e em grupo). */
+function tfaPrintPageHtml(rec) {
+  const fotos = rec.fotos || [];
+  const numTFA = String(rec.id).slice(-6).toUpperCase();
+  const dataStr = (rec.timestamp && rec.timestamp.toDate) ? fmtDate(rec.timestamp) : (rec.dataRef || '—');
+
+  let fotosHtml = '';
+  if (fotos.length > 0) {
+    const items = fotos.map((src, i) => `
+      <div class="pf-foto">
+        <img src="${src}" alt="Foto ${i + 1}"/>
+        <div class="pf-foto-label">Foto ${i + 1}</div>
+      </div>`).join('');
+    fotosHtml = `
+      <div class="pf-section-title">REGISTRO FOTOGRÁFICO (${fotos.length} foto${fotos.length > 1 ? 's' : ''})</div>
+      <div class="pf-fotos-grid">${items}</div>`;
+  }
+
+  return `<div class="pf-page">
+  <div class="pf-header">
+    <div class="pf-header-left">
+      <div class="pf-header-icon">📋</div>
+      <div>
+        <div class="pf-header-title">TERMO DE FALTA E AVARIAS — TFA</div>
+        <div class="pf-header-sub">PORTOEX Logística · Registro de Ocorrência</div>
+      </div>
+    </div>
+    <div class="pf-header-right">
+      <div class="pf-header-num">Nº ${numTFA}</div>
+      <div>${dataStr}</div>
+    </div>
+  </div>
+
+  <div class="pf-section-title">Identificação</div>
+  <div class="pf-grid-2">
+    <div class="pf-field"><label>Conferente</label><div class="pf-val">${rec.conferenteNome || '—'}</div></div>
+    <div class="pf-field"><label>Cliente</label><div class="pf-val">${rec.cliente || '—'}</div></div>
+  </div>
+
+  <div class="pf-section-title">Documentos</div>
+  <div class="pf-grid-3">
+    <div class="pf-field"><label>Nota Fiscal (NF)</label><div class="pf-val">${rec.nf || '—'}</div></div>
+    <div class="pf-field"><label>DI</label><div class="pf-val">${rec.di || '—'}</div></div>
+    <div class="pf-field"><label>DEC (MD)</label><div class="pf-val">${rec.dec || '—'}</div></div>
+  </div>
+
+  <div class="pf-section-title">Transporte</div>
+  <div class="pf-grid-3">
+    <div class="pf-field"><label>Motorista</label><div class="pf-val">${rec.motorista || '—'}</div></div>
+    <div class="pf-field"><label>Veículo / Placa</label><div class="pf-val">${rec.veiculo || '—'}</div></div>
+    <div class="pf-field"><label>Qtd. Volumes</label><div class="pf-val">${rec.qtdVolumes || '—'}</div></div>
+  </div>
+
+  <div class="pf-section-title">Descrição da Avaria</div>
+  <div class="pf-desc-box">${(rec.descricao || 'Sem descrição informada.').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+
+  ${fotosHtml}
+
+  <div class="pf-assinaturas">
+    <div class="pf-assin"><strong>${rec.conferenteNome || '_________________________'}</strong>Conferente / Responsável pelo Registro</div>
+    <div class="pf-assin"><strong>${rec.motorista || '_________________________'}</strong>Motorista / Responsável pela Carga</div>
+  </div>
+
+  <div class="pf-footer">
+    <span>PORTOEX Logística · Gerado em ${new Date().toLocaleString('pt-BR')}</span>
+    <span>TFA Nº ${numTFA}</span>
+  </div>
+</div>`;
 }
 
 // ── PALETES ────────────────────────────────────────────────────
