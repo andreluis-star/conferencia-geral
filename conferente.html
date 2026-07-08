@@ -204,6 +204,10 @@
   .toggle-btn:disabled.ok-active    { opacity:1; }
   .toggle-btn:disabled.naook-active { opacity:1; }
 
+  /* Aviso ao vivo: outro conferente já alterou este OK/NÃO OK */
+  .nf-live-badge { display:none; font-size:0.68rem; font-weight:700; color:#b35900; margin:3px 0 0; text-align:right; animation:nfLiveFade 0.3s ease; }
+  @keyframes nfLiveFade { from{opacity:0;transform:translateY(-3px);} to{opacity:1;transform:translateY(0);} }
+
   /* ── TFA — Termo de Falta e Avaria (botão por linha de NF) ── */
   .tfa-btn { background:#fff3e0; color:#b35900; border:1px solid #ffcc80 !important; border-radius:20px; margin-bottom:3px; white-space:nowrap; }
   .tfa-btn:active { transform:scale(0.96); }
@@ -650,6 +654,11 @@
       <div class="form-card" id="tfa-registros-card" style="display:none;">
         <h4>📂 Ocorrências já registradas nesta NF</h4>
         <div class="tfa-reg-list" id="tfa-reg-list"></div>
+      </div>
+
+      <div class="form-card" id="tfa-historico-dia-card" style="display:none;">
+        <h4>📅 Histórico do dia — todos os conferentes</h4>
+        <div class="tfa-reg-list" id="tfa-historico-dia-list"></div>
       </div>
 
       <button class="btn-submit" onclick="salvarTFA()">💾 Registrar Ocorrência</button>
@@ -1268,6 +1277,7 @@ function campoObsId(rowIdx, nomeCampo) {
 //  TELA 2: FORMULÁRIO — abre com grupo de NFs
 // ═══════════════════════════════════════════════════════
 async function openConferencia(group) {
+  pararLiveStatusListener();    // encerra listener de uma conferência anterior, se houver
   currentVehicles = group.vehicles;
   currentPlaca = group.placa;   // usa a identidade do grupo (cobre também JEM/AGENTES, que não vêm da coluna Placa)
   fotosBase64 = [];
@@ -1372,6 +1382,9 @@ async function openConferencia(group) {
   // Pré-carrega status de NF se já existe conferência para este tipo
   await prefillFromExistingOp(group.placa, currentTipo);
 
+  // Passa a escutar em tempo real alterações de OK/NÃO OK feitas por outros conferentes
+  iniciarLiveStatusListener(group.placa, currentTipo);
+
   goTo('screen-form');
 }
 
@@ -1394,7 +1407,9 @@ async function prefillFromExistingOp(placa, tipo) {
 
     // isReference = dados vêm de op de tipo DIFERENTE (ex.: ENTRADA mostrada na tela de SAÍDA)
     const isReference = op.tipoExecucao !== tipo;
-    // shouldDisableAll = trava tudo quando é referência cruzada ou op já está concluída
+    // shouldDisableAll = trava campos auxiliares (transferência) quando é referência cruzada ou op já concluída.
+    // OBS: o status OK/NÃO OK de cada NF NUNCA é travado — fica sempre disponível para
+    // inserir ou retirar a marcação, mesmo em referência cruzada ou operação já concluída.
     const shouldDisableAll = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
 
     // Prefill TRANSFERÊNCIA (só do mesmo tipo, não referência cruzada)
@@ -1403,15 +1418,13 @@ async function prefillFromExistingOp(placa, tipo) {
       chkTransf.checked = !!op.transferencia;
       if (shouldDisableAll) chkTransf.disabled = true;
     }
-    // isParcialMesmoTipo = op parcial do mesmo tipo → trava só os NFs já respondidos
-    const isParcialMesmoTipo = !isReference && op.status === 'PARCIAL';
 
     // Banner de referência cruzada
     if (isReference) {
       const container = document.getElementById('campos-conferencia');
       const banner = document.createElement('div');
       banner.style.cssText = 'background:#e8f5e9;border:1px solid var(--green);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.8rem;color:#1a5c1a;display:flex;align-items:center;gap:6px;';
-      banner.innerHTML = `<span style="font-size:1rem;">✔</span><span>Conferência de <strong>${op.tipoExecucao}</strong> já realizada — campos exibidos como referência (somente leitura).</span>`;
+      banner.innerHTML = `<span style="font-size:1rem;">✔</span><span>Conferência de <strong>${op.tipoExecucao}</strong> já realizada — campos exibidos como referência. O status OK/NÃO OK de cada NF pode ser revisado se necessário.</span>`;
       container.prepend(banner);
     }
 
@@ -1420,7 +1433,9 @@ async function prefillFromExistingOp(placa, tipo) {
       const domIdx = nf.blockIdx !== undefined ? nf.blockIdx : arrayIdx;
       const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${domIdx}"]`);
       if (!block) return;
-      const btns = block.querySelectorAll('.toggle-btn');
+      // Escopo apenas nos botões OK/NÃO OK (não inclui o botão de TFA, que também tem a classe .toggle-btn)
+      const toggleBar = block.querySelector('.toggle-bar');
+      const btns = toggleBar ? toggleBar.querySelectorAll('.toggle-btn') : [];
       btns.forEach(b => b.classList.remove('ok-active','naook-active'));
 
       if (nf.status === 'OK') {
@@ -1435,16 +1450,7 @@ async function prefillFromExistingOp(placa, tipo) {
           if (inputs[1] && nf.observacao) inputs[1].value = nf.observacao;
         }
       }
-
-      // Trava botões conforme o contexto:
-      // - shouldDisableAll: referência cruzada ou já concluída → trava tudo
-      // - isParcialMesmoTipo: trava apenas NFs já respondidos (PENDENTE ficam livres)
-      const nfRespondida = nf.status === 'OK' || nf.status === 'NAO_OK';
-      if (shouldDisableAll || (isParcialMesmoTipo && nfRespondida)) {
-        btns.forEach(b => { b.disabled = true; });
-        const obsRow = document.getElementById('nf-obs-' + domIdx);
-        obsRow?.querySelectorAll('input').forEach(i => { i.readOnly = true; i.style.background = '#f5f5f5'; });
-      }
+      // OK/NÃO OK e o campo de divergência ficam sempre editáveis — nunca são travados aqui.
     });
 
     if (op.observacoes) document.getElementById('obs-geral').value = op.observacoes;
@@ -1578,10 +1584,13 @@ function renderCamposConferencia(vehicles) {
         </div>
         <div class="op-tipo-wrap">
           ${(()=>{
-            // TFA só é permitido em cargas de ENTRADA — desabilitado em SAÍDA
+            // TFA só é permitido em cargas de ENTRADA (COLETAS/ENTRADAS) —
+            // não é exibido em cargas de SAÍDA (EMBARQUES/ENTREGAS)
             const tipoLinha = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
             const tfaHabilitado = tipoLinha === 'ENTRADA' || (tipoLinha === 'ENTRADA_SAIDA' && currentTipo === 'ENTRADA');
-            return `<button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})" ${tfaHabilitado ? '' : 'disabled title="TFA disponível apenas para cargas de ENTRADA"'}>📋 TFA</button>`;
+            return tfaHabilitado
+              ? `<button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})">📋 TFA</button>`
+              : '';
           })()}
           ${(()=>{
             const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
@@ -1801,6 +1810,9 @@ function setTipo(t) {
   document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
   document.getElementById('insumos-tipo-label').textContent =
     t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
+  // Reaponta o listener de status ao vivo para o doc do tipo agora selecionado
+  // (relevante em grupos ENTRADA_SAIDA, onde o conferente troca de aba na mesma tela)
+  if (currentPlaca) iniciarLiveStatusListener(currentPlaca, t);
 }
 
 function setNfStatus(btn, status, idx) {
@@ -1820,18 +1832,100 @@ function setNfStatus(btn, status, idx) {
     if (status==='OK')     { btn.classList.add('ok-active'); }
     if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
   }
+  // Avisa em tempo real os demais conferentes que possam estar na mesma tela
+  publicarStatusLive(idx, alreadyActive ? 'PENDENTE' : status);
 }
 
 function marcarTodosOK() {
   document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
-    const btns = block.querySelectorAll('.toggle-btn');
+    const toggleBar = block.querySelector('.toggle-bar');
+    if (!toggleBar) return;
+    const btns = toggleBar.querySelectorAll('.toggle-btn');
     const okBtn = btns[0];
-    if (!okBtn || okBtn.disabled) return;
+    if (!okBtn) return;
     btns.forEach(b => b.classList.remove('ok-active','naook-active'));
     okBtn.classList.add('ok-active');
     const obsRow = document.getElementById('nf-obs-' + block.dataset.idx);
     obsRow?.classList.remove('show');
+    publicarStatusLive(block.dataset.idx, 'OK');
   });
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATUS AO VIVO — avisa outros conferentes em tempo real
+//  quando alguém marca/retira OK ou NÃO OK numa NF, mesmo
+//  antes de a conferência ser submetida. Guardado numa
+//  coleção separada (nf_status_live), 1 doc por placa+tipo.
+// ═══════════════════════════════════════════════════════
+function liveStatusDocId(placa, tipo) {
+  return `${formatPlaca(placa)}_${tipo}`;
+}
+
+function publicarStatusLive(idx, status) {
+  if (!currentPlaca) return;
+  const docId = liveStatusDocId(currentPlaca, currentTipo);
+  db.collection('nf_status_live').doc(docId).set({
+    [`nf_${idx}`]: {
+      status,
+      conferenteId:   (currentUser && currentUser.uid) || '',
+      conferenteNome: (currentUser && (currentUser.nome || currentUser.email)) || '',
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    }
+  }, { merge: true }).catch(e => console.warn('publicarStatusLive:', e.message));
+}
+
+let liveStatusUnsub = null;
+
+function pararLiveStatusListener() {
+  if (liveStatusUnsub) { liveStatusUnsub(); liveStatusUnsub = null; }
+}
+
+function iniciarLiveStatusListener(placa, tipo) {
+  pararLiveStatusListener();
+  const docId = liveStatusDocId(placa, tipo);
+  liveStatusUnsub = db.collection('nf_status_live').doc(docId).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const data = snap.data() || {};
+    Object.keys(data).forEach(key => {
+      if (!key.startsWith('nf_')) return;
+      const idx  = key.slice(3);
+      const info = data[key];
+      if (!info) return;
+      // Ignora as próprias alterações — o indicador é só para os OUTROS conferentes
+      if (info.conferenteId && info.conferenteId === (currentUser && currentUser.uid)) return;
+      aplicarStatusRemoto(idx, info);
+    });
+  }, e => console.warn('iniciarLiveStatusListener:', e.message));
+}
+
+/** Reflete na tela a alteração de status feita por OUTRO conferente + mostra aviso. */
+function aplicarStatusRemoto(idx, info) {
+  const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+  if (!block) return;
+  const toggleBar = block.querySelector('.toggle-bar');
+  if (!toggleBar) return;
+  const btns = toggleBar.querySelectorAll('.toggle-btn');
+
+  if (info.status === 'OK' || info.status === 'NAO_OK') {
+    btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+    if (info.status === 'OK')     btns[0]?.classList.add('ok-active');
+    if (info.status === 'NAO_OK') btns[1]?.classList.add('naook-active');
+  }
+
+  let badge = document.getElementById('nf-live-badge-' + idx);
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'nf-live-badge-' + idx;
+    badge.className = 'nf-live-badge';
+    toggleBar.insertAdjacentElement('afterend', badge);
+  }
+  const nome = info.conferenteNome || 'outro conferente';
+  badge.textContent = info.status === 'PENDENTE'
+    ? `🔄 ${nome} desfez a marcação agora`
+    : `🔄 Alterado por ${nome} agora`;
+  badge.style.display = 'block';
+  clearTimeout(badge._hideTimer);
+  badge._hideTimer = setTimeout(() => { badge.style.display = 'none'; }, 8000);
 }
 
 function toggleClienteUnico() {
@@ -2052,7 +2146,48 @@ function abrirTFA(idx) {
     </label>`;
 
   renderTFARegistros(idx);
+  carregarHistoricoTFADoDia();
   goTo('screen-tfa');
+}
+
+/** Lista, na tela de lançamento do TFA, todas as ocorrências já registradas no dia
+ *  selecionado (data ativa em sel-date) por TODOS os conferentes — não só as desta
+ *  placa/NF. Ajuda o conferente a ver o que já foi lançado por outros no mesmo dia. */
+async function carregarHistoricoTFADoDia() {
+  const card = document.getElementById('tfa-historico-dia-card');
+  const list = document.getElementById('tfa-historico-dia-list');
+  if (!card || !list) return;
+
+  const dateVal = document.getElementById('sel-date') ? document.getElementById('sel-date').value : '';
+  let dataRef = '';
+  if (dateVal) { const [y, m, d] = dateVal.split('-'); dataRef = `${d}/${m}/${y}`; }
+  if (!dataRef) { card.style.display = 'none'; list.innerHTML = ''; return; }
+
+  list.innerHTML = '<div style="font-size:0.78rem;color:#aaa;padding:6px 0;">Carregando…</div>';
+  card.style.display = 'block';
+  try {
+    const snap = await db.collection('tfa_ocorrencias').where('dataRef', '==', dataRef).get();
+    const registros = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+    if (!registros.length) {
+      list.innerHTML = '<div style="font-size:0.78rem;color:#aaa;padding:6px 0;">Nenhuma ocorrência registrada hoje.</div>';
+      return;
+    }
+
+    list.innerHTML = registros.map(r => {
+      const dataStr = (r.timestamp && r.timestamp.toDate) ? fmtDate(r.timestamp) : (r.dataRef || '—');
+      const descSafe = (r.descricao || '—').replace(/"/g, '&quot;');
+      return `<div class="tfa-reg-item">
+        <div class="tfa-reg-desc" title="${descSafe}">
+          <strong>${r.veiculo || r.placa || '—'}</strong> · ${r.conferenteNome || '—'} · ${dataStr}${r.nf ? ' · NF ' + r.nf : ''}
+          <br><span style="color:#888;">${r.descricao || '—'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="font-size:0.78rem;color:#c0392b;padding:6px 0;">Erro ao carregar histórico: ${e.message}</div>`;
+  }
 }
 
 /** Volta à conferência que estava sendo executada, sem perder nada do que já estava preenchido lá. */
@@ -2580,6 +2715,11 @@ async function submeterConferencia() {
     // Atualiza estado local imediatamente para a UI reagir antes do reload
     completedOps[`${placa}_${currentTipo}`] = opStatus;
 
+    // Conferência salva: encerra o status ao vivo desta placa+tipo (a próxima sessão
+    // parte limpa, sem avisos "alterado agora" antigos)
+    pararLiveStatusListener();
+    db.collection('nf_status_live').doc(liveStatusDocId(placa, currentTipo)).delete().catch(()=>{});
+
     loading(false);
     if (opStatus === 'CONCLUIDA') {
       showToast('Conferência registrada! ✔');
@@ -2899,6 +3039,7 @@ function goTo(screenId) {
 function goBack() {
   screenHistory.pop();
   const prev=screenHistory[screenHistory.length-1]||'screen-placas';
+  if (prev==='screen-placas') pararLiveStatusListener();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(prev).classList.add('active');
   document.getElementById(prev).scrollTop=0;
