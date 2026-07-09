@@ -941,8 +941,11 @@ async function toggleConferente(uid, ativo) {
 
 // ── INSUMOS ───────────────────────────────────────────────────
 async function loadInsumos() {
-  const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
-  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+  // Sem orderBy no servidor: um insumo sem o campo "categoria" seria
+  // silenciosamente excluído do resultado. Ordena no cliente em vez disso.
+  const snap = await db.collection('insumos').where('ativo','==',true).get();
+  allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((a,b)=>(a.categoria||'').localeCompare(b.categoria||''));
 
   // Lista principal
   const container = document.getElementById('insumos-list');
