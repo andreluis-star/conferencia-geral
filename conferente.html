@@ -703,7 +703,11 @@
         </div>
       </div>
       <div class="form-card">
-        <h4>Insumos</h4>
+        <h4>🪵 Paletes</h4>
+        <div id="ins-av-paletes-list" class="item-cards-grid"></div>
+      </div>
+      <div class="form-card">
+        <h4>📦 Insumos</h4>
         <div id="ins-av-rows-list" class="item-cards-grid"></div>
       </div>
       <div class="form-card">
@@ -910,8 +914,11 @@ function mostrarDebug() {
 // ═══════════════════════════════════════════════════════
 async function loadInsumos() {
   try {
-    const snap = await db.collection('insumos').where('ativo','==',true).orderBy('categoria').get();
-    allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Sem orderBy no servidor: um insumo sem o campo "categoria" seria
+    // silenciosamente excluído do resultado. Ordena no cliente em vez disso.
+    const snap = await db.collection('insumos').where('ativo','==',true).get();
+    allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(a.categoria||'').localeCompare(b.categoria||''));
   } catch(e) { console.warn('loadInsumos:', e.message); }
 }
 
@@ -2751,9 +2758,31 @@ function openInsumos() {
       Tirar foto
     </label>`;
   setInsTipo('SAIDA');
+  renderPaletesAvulso();
   renderInsumosAvulso();
   document.getElementById('ins-obs').value='';
   goTo('screen-insumos');
+}
+
+// ── PALETES (tela avulsa): mesmo formato de card usado na tela de placas ──
+function renderPaletesAvulso() {
+  const container = document.getElementById('ins-av-paletes-list');
+  const tipos = [
+    { tipo:'PBR',         icon:'🪵', nome:'PBR' },
+    { tipo:'DESCARTAVEL', icon:'♻️', nome:'Descartável' },
+    { tipo:'OUTROS',      icon:'📦', nome:'Outros' },
+  ];
+  container.innerHTML = tipos.map(t => `
+    <div class="item-card palete-card" data-tipo="${t.tipo}">
+      <span class="item-card-icon">${t.icon}</span>
+      <div class="item-card-name">${t.nome}</div>
+      <div class="qty-stepper">
+        <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
+        <span class="qty-val">0</span>
+        <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
+      </div>
+      ${t.tipo === 'OUTROS' ? `<input class="outros-custom-inp" type="text" placeholder="Qual tipo?" style="display:none;"/>` : ''}
+    </div>`).join('');
 }
 
 function setInsTipo(t) {
@@ -2805,7 +2834,16 @@ async function submeterInsumosAvulso() {
       const qtd=parseInt(card.querySelector('.qty-val')?.textContent)||0;
       if(qtd>0) insumosSel.push({insumoId:card.dataset.insumoId,insumoNome:card.dataset.insumoNome,quantidade:qtd});
     });
-    if(!insumosSel.length){loading(false);showToast('Adicione pelo menos um insumo com quantidade.','warning');return;}
+    const paletesSel=[];
+    document.querySelectorAll('#ins-av-paletes-list .palete-card').forEach(card=>{
+      const tipo = card.dataset.tipo;
+      const qtd  = parseInt(card.querySelector('.qty-val')?.textContent)||0;
+      if(qtd>0){
+        const tipoCustom = tipo === 'OUTROS' ? (card.querySelector('.outros-custom-inp')?.value || '') : '';
+        paletesSel.push({tipo, tipoCustom, quantidade:qtd});
+      }
+    });
+    if(!insumosSel.length && !paletesSel.length){loading(false);showToast('Adicione pelo menos um insumo ou palete com quantidade.','warning');return;}
     const obs = document.getElementById('ins-obs').value.trim();
     const fotosUrls=[];
     for(const b64 of insAv_fotosBase64){fotosUrls.push(await compressImage(b64));}
@@ -2814,7 +2852,7 @@ async function submeterInsumosAvulso() {
       conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
       dataRef:getTodayTabName(), cliente:'', clienteUnico:false,
-      nfs:[], paletes:[], insumos:insumosSel,
+      nfs:[], paletes:paletesSel, insumos:insumosSel,
       fotos:fotosUrls, observacoes:obs, status:'CONCLUIDA',
       tipoRegistro:'INSUMOS_AVULSO'
     });
