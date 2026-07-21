@@ -97,6 +97,18 @@
   .saldo-ok     { color:var(--navy); }
   .saldo-warn   { color:#e67e22; }
   .saldo-zero   { color:#dc3545; }
+  .nivel-baixo  { color:#dc3545; }
+  .nivel-medio  { color:#e67e22; }
+  .nivel-ideal  { color:#1a7a3c; }
+  .nivel-badge      { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.66rem; font-weight:700; letter-spacing:0.3px; margin-left:6px; vertical-align:middle; }
+  .nivel-badge.baixo{ background:#fff0f0; color:#dc3545; }
+  .nivel-badge.medio{ background:#fff8e0; color:#b35900; }
+  .nivel-badge.ideal{ background:#e6f9ee; color:#1a7a3c; }
+  /* ALERTA DE ESTOQUE BAIXO */
+  #stock-alert-banner { display:none; background:#fff0f0; border:1px solid #f5b8b8; color:#7a1f1f; border-radius:12px; padding:14px 18px; margin-bottom:20px; }
+  #stock-alert-banner.show { display:block; }
+  #stock-alert-banner .sab-title { font-weight:800; font-size:0.92rem; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  #stock-alert-banner .sab-item-tag { display:inline-block; background:#dc3545; color:#fff; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; margin:3px 6px 3px 0; }
   /* PLACA COMPARATIVO */
   .placa-comp { background:#fff; border-radius:10px; padding:14px 18px; margin-bottom:10px; box-shadow:0 1px 6px rgba(0,0,0,0.07); display:flex; align-items:center; gap:14px; }
   .placa-tag  { background:var(--navy); color:#fff; border-radius:8px; padding:4px 12px; font-weight:800; font-size:0.92rem; letter-spacing:1px; }
@@ -187,6 +199,9 @@
 
 <!-- MAIN -->
 <div id="main">
+
+  <!-- ALERTA GLOBAL: ESTOQUE BAIXO -->
+  <div id="stock-alert-banner"></div>
 
   <!-- ===== DASHBOARD ===== -->
   <div class="section active" id="sec-dashboard">
@@ -627,18 +642,32 @@
   </div>
 </div>
 
-<!-- MODAL: Novo Insumo -->
+<!-- MODAL: Novo/Editar Insumo -->
 <div class="modal fade" id="modal-ins" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header" style="background:var(--navy);color:#fff;">
-        <h5 class="modal-title">Novo Insumo</h5>
+        <h5 class="modal-title" id="modal-ins-title">Novo Insumo</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3"><label class="form-label">Nome do Insumo</label><input type="text" class="form-control" id="ins-nome" placeholder="Ex: Cinta Plástica"/></div>
+        <input type="hidden" id="ins-id"/>
+        <div class="mb-3"><label class="form-label">Nome do Insumo</label><input type="text" class="form-control" id="ins-nome" placeholder="Ex: Stretch Transparente"/></div>
         <div class="mb-3"><label class="form-label">Categoria</label><input type="text" class="form-control" id="ins-cat" placeholder="Ex: Embalagem"/></div>
         <div class="mb-3"><label class="form-label">Unidade</label><input type="text" class="form-control" id="ins-uni" placeholder="Ex: rolo, un, cx"/></div>
+        <hr/>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px;">Faixas de controle de estoque — definem quando o item aparece como BAIXO, MÉDIO ou IDEAL.</p>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" style="color:#dc3545;">Até (BAIXO)</label>
+            <input type="number" class="form-control" id="ins-lim-baixo" placeholder="Ex: 30" min="0"/>
+          </div>
+          <div class="col-6">
+            <label class="form-label" style="color:#b35900;">Até (MÉDIO)</label>
+            <input type="number" class="form-control" id="ins-lim-medio" placeholder="Ex: 50" min="0"/>
+          </div>
+        </div>
+        <p style="font-size:0.72rem;color:#aaa;margin:8px 0 16px;">Acima do limite MÉDIO o item é considerado IDEAL (verde).</p>
         <button class="btn btn-navy w-100" onclick="salvarNovoInsumo()">Salvar Insumo</button>
       </div>
     </div>
@@ -949,20 +978,25 @@ async function loadInsumos() {
 
   // Lista principal
   const container = document.getElementById('insumos-list');
-  if (!allInsumos.length) { container.innerHTML='<p style="color:#aaa;padding:10px;">Nenhum insumo cadastrado.</p>'; return; }
+  if (!allInsumos.length) {
+    container.innerHTML='<p style="color:#aaa;padding:10px;">Nenhum insumo cadastrado.</p>';
+    renderStockAlertBanner();
+    return;
+  }
 
   let lastCat='';
   container.innerHTML = allInsumos.map(ins=>{
-    const header = ins.categoria!==lastCat ? `<div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:10px 0 4px;">${ins.categoria}</div>` : '';
+    const header = ins.categoria!==lastCat ? `<div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;padding:10px 0 4px;">${esc(ins.categoria)}</div>` : '';
     lastCat = ins.categoria;
-    const saldoCls = ins.saldo>10?'saldo-ok':ins.saldo>0?'saldo-warn':'saldo-zero';
+    const { nivel, nivelCls, limBaixo, limMedio } = nivelInsumo(ins);
     const dataIni = ins.dataInicio ? ` <span style="font-size:0.72rem;color:#aaa;">desde ${fmtDateOnly(ins.dataInicio)}</span>` : '';
     return `${header}<div class="insumo-row">
       <div class="flex-grow-1">
-        <div class="insumo-nome">${ins.nome}</div>
-        <div class="insumo-cat">${ins.unidade||'un'}${dataIni}</div>
+        <div class="insumo-nome">${esc(ins.nome)} <span class="nivel-badge ${nivelCls}">${nivel}</span></div>
+        <div class="insumo-cat">${esc(ins.unidade||'un')}${dataIni} · faixas: 0–${limBaixo} baixo / ${limBaixo+1}–${limMedio} médio / ${limMedio+1}+ ideal</div>
       </div>
-      <div class="insumo-saldo ${saldoCls}">${ins.saldo}</div>
+      <div class="insumo-saldo nivel-${nivelCls}">${ins.saldo}</div>
+      <button class="btn btn-sm btn-outline-secondary" title="Editar insumo" onclick="editarInsumo('${ins.id}')">✏️</button>
     </div>`;
   }).join('');
 
@@ -972,23 +1006,76 @@ async function loadInsumos() {
   document.getElementById('adj-insumo').innerHTML = opts;
   const histSel = document.getElementById('hist-filtro');
   histSel.innerHTML = '<option value="">Todos os insumos</option>' + opts;
+
+  renderStockAlertBanner();
 }
 
-function showModalInsumo() { new bootstrap.Modal(document.getElementById('modal-ins')).show(); }
+// Classifica um insumo em BAIXO / MÉDIO / IDEAL conforme suas faixas de controle
+function nivelInsumo(ins) {
+  const limBaixo = (ins.limiteBaixo ?? 10);
+  const limMedio = (ins.limiteMedio ?? 20);
+  let nivel = 'IDEAL', nivelCls = 'ideal';
+  if (ins.saldo <= limBaixo)      { nivel = 'BAIXO';  nivelCls = 'baixo'; }
+  else if (ins.saldo <= limMedio) { nivel = 'MÉDIO';  nivelCls = 'medio'; }
+  return { nivel, nivelCls, limBaixo, limMedio };
+}
+
+function renderStockAlertBanner() {
+  const banner = document.getElementById('stock-alert-banner');
+  const baixos = allInsumos.filter(ins => nivelInsumo(ins).nivelCls === 'baixo');
+  if (!baixos.length) { banner.classList.remove('show'); banner.innerHTML = ''; return; }
+  banner.innerHTML = `
+    <div class="sab-title">⚠️ ${baixos.length} insumo(s) em nível BAIXO de estoque — repor o quanto antes</div>
+    <div>${baixos.map(i=>`<span class="sab-item-tag">${esc(i.nome)}: ${i.saldo} ${esc(i.unidade||'un')}</span>`).join('')}</div>
+  `;
+  banner.classList.add('show');
+}
+
+function showModalInsumo() {
+  document.getElementById('modal-ins-title').textContent = 'Novo Insumo';
+  document.getElementById('ins-id').value = '';
+  document.getElementById('ins-nome').value = '';
+  document.getElementById('ins-cat').value = '';
+  document.getElementById('ins-uni').value = '';
+  document.getElementById('ins-lim-baixo').value = 10;
+  document.getElementById('ins-lim-medio').value = 20;
+  new bootstrap.Modal(document.getElementById('modal-ins')).show();
+}
+
+function editarInsumo(id) {
+  const ins = allInsumos.find(i=>i.id===id);
+  if (!ins) return;
+  document.getElementById('modal-ins-title').textContent = 'Editar Insumo';
+  document.getElementById('ins-id').value = ins.id;
+  document.getElementById('ins-nome').value = ins.nome||'';
+  document.getElementById('ins-cat').value = ins.categoria||'';
+  document.getElementById('ins-uni').value = ins.unidade||'';
+  document.getElementById('ins-lim-baixo').value = ins.limiteBaixo ?? 10;
+  document.getElementById('ins-lim-medio').value = ins.limiteMedio ?? 20;
+  new bootstrap.Modal(document.getElementById('modal-ins')).show();
+}
 
 async function salvarNovoInsumo() {
+  const id   = document.getElementById('ins-id').value;
   const nome = document.getElementById('ins-nome').value.trim();
   const cat  = document.getElementById('ins-cat').value.trim();
   const uni  = document.getElementById('ins-uni').value.trim();
+  const limBaixo = parseInt(document.getElementById('ins-lim-baixo').value, 10);
+  const limMedio = parseInt(document.getElementById('ins-lim-medio').value, 10);
   if (!nome) { showToast('Informe o nome do insumo.','error'); return; }
+  if (isNaN(limBaixo) || isNaN(limMedio) || limBaixo<0 || limMedio<=limBaixo) {
+    showToast('Informe faixas válidas: o limite MÉDIO deve ser maior que o limite BAIXO.','error');
+    return;
+  }
   loading(true);
-  await db.collection('insumos').add({ nome, categoria:cat||'Geral', unidade:uni||'un', saldo:0, saldoInicial:0, dataInicio:null, ativo:true, criadoEm:firebase.firestore.FieldValue.serverTimestamp() });
+  if (id) {
+    await db.collection('insumos').doc(id).update({ nome, categoria:cat||'Geral', unidade:uni||'un', limiteBaixo:limBaixo, limiteMedio:limMedio });
+  } else {
+    await db.collection('insumos').add({ nome, categoria:cat||'Geral', unidade:uni||'un', saldo:0, saldoInicial:0, dataInicio:null, limiteBaixo:limBaixo, limiteMedio:limMedio, ativo:true, criadoEm:firebase.firestore.FieldValue.serverTimestamp() });
+  }
   loading(false);
   bootstrap.Modal.getInstance(document.getElementById('modal-ins')).hide();
-  showToast('Insumo cadastrado!');
-  document.getElementById('ins-nome').value='';
-  document.getElementById('ins-cat').value='';
-  document.getElementById('ins-uni').value='';
+  showToast(id ? 'Insumo atualizado!' : 'Insumo cadastrado!');
   loadInsumos();
 }
 
