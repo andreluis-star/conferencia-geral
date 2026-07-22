@@ -115,6 +115,17 @@
   .comp-arrow { color:#ccc; font-size:1.2rem; }
   .comp-ok    { color:#28a745; font-weight:700; }
   .comp-diff  { color:#dc3545; font-weight:700; }
+  /* APONTAMENTO POR VEÍCULO (Motoristas) — cartão em bloco, não confundir com .placa-comp (lista simples de Paletes) */
+  .apt-card   { background:#fff; border-radius:10px; padding:16px 18px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,0.07); }
+  .item-linha { font-size:0.82rem; padding:2px 0; }
+  .item-falta { color:#c0392b; font-weight:700; }
+  .item-sobra { color:#b35900; font-weight:700; }
+  .motorista-tag  { font-size:0.82rem; color:#555; }
+  .motorista-warn { font-size:0.8rem; color:#c0392b; font-weight:600; }
+  .badge-info { background:#e8f4ff; color:#0056b3; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+  .btn-whats  { background:#25D366; color:#fff; border:none; font-weight:700; }
+  .btn-whats:hover { background:#1ea952; color:#fff; }
+  .btn-whats:disabled { background:#b9e8cc; color:#fff; opacity:0.7; }
   /* MOBILE SIDEBAR TOGGLE */
   #sb-toggle { display:none; background:none; border:none; cursor:pointer; padding:4px; }
   @media(max-width:768px) {
@@ -153,6 +164,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
       Endereços
     </a>
+    <a class="sb-item" data-section="motoristas" onclick="showSection('motoristas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/></svg>
+      Motoristas
+    </a>
     <div class="sb-section">Acompanhamento</div>
     <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -165,6 +180,14 @@
     <a class="sb-item" data-section="paletes" onclick="showSection('paletes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
       Paletes
+    </a>
+    <a class="sb-item" data-section="apontamento" onclick="showSection('apontamento')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7a4 4 0 0 1 0-8h1m6 8h2a4 4 0 0 0 0-8h-1m-6 4h6"/></svg>
+      Apontamento por Veículo
+    </a>
+    <a class="sb-item" data-section="notificacoes" onclick="showSection('notificacoes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Notificações WhatsApp
     </a>
     <a class="sb-item" data-section="rastreio-enderecos" onclick="showSection('rastreio-enderecos')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -493,6 +516,108 @@
     </div>
   </div>
 
+  <!-- ===== APONTAMENTO POR VEÍCULO (causador + WhatsApp) ===== -->
+  <div class="section" id="sec-apontamento">
+    <div class="form-section" style="padding:14px 20px;">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <span style="font-weight:600;color:var(--navy);">Período</span>
+        <input type="date" id="ap-data-ini" class="form-control form-control-sm" style="width:150px;"/>
+        <span style="color:#888;">até</span>
+        <input type="date" id="ap-data-fim" class="form-control form-control-sm" style="width:150px;"/>
+        <input type="text" id="ap-placa" class="form-control form-control-sm" style="width:150px;" placeholder="Filtrar placa"/>
+        <select class="form-select form-select-sm" id="ap-status" style="width:180px;">
+          <option value="">Todos os status</option>
+          <option value="OK">Somente OK</option>
+          <option value="DIFERENCA">Somente com diferença</option>
+          <option value="PENDENTE">Sem retorno ainda</option>
+        </select>
+        <button class="btn btn-sm btn-navy" onclick="loadApontamento()">Filtrar</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="testarConexaoPlanilha()">🔌 Testar planilha</button>
+      </div>
+      <p style="font-size:0.78rem;color:#aaa;margin:10px 0 0;">
+        Compara cada saída (o que foi retirado, por tipo) com a próxima chegada daquela placa. O nome do motorista é buscado <b>ao vivo, direto na
+        planilha</b> (aba do dia da saída), usando a mesma planilha configurada em Configurações → Planilha Ativa. Quando o veículo não
+        traz de volta corretamente, o motorista daquela viagem é apontado como causador e pode ser notificado via WhatsApp.
+      </p>
+      <div id="sheet-status" style="font-size:0.76rem;color:#888;margin-top:6px;"></div>
+    </div>
+    <div id="apontamento-list"></div>
+  </div>
+
+  <!-- ===== MOTORISTAS ===== -->
+  <div class="section" id="sec-motoristas">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-section">
+          <h5 id="mot-form-title">Novo Motorista</h5>
+          <p style="font-size:0.76rem;color:#888;margin-top:-8px;margin-bottom:14px;">
+            O nome do motorista de cada viagem já vem automaticamente da planilha (via operação registrada pelo conferente).
+            Aqui você só precisa garantir o <b>telefone</b> de cada motorista — o nome deve ser digitado <b>exatamente igual</b> ao que aparece na planilha/operação.
+          </p>
+          <input type="hidden" id="mot-id"/>
+          <div class="mb-3">
+            <label class="form-label">Nome do Motorista</label>
+            <input type="text" class="form-control" id="mot-nome" placeholder="Ex: João da Silva (igual à planilha)"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Telefone (WhatsApp)</label>
+            <input type="text" class="form-control" id="mot-telefone" placeholder="(11) 91234-5678"/>
+            <div style="font-size:0.74rem;color:#aaa;margin-top:4px;">Informe com DDD. O sistema completa o código do país (Brasil) automaticamente ao gerar o link do WhatsApp.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Placa mais frequente (opcional)</label>
+            <input type="text" class="form-control text-uppercase" id="mot-placa" placeholder="Ex: ABC1D23" maxlength="8" onblur="sugerirNomePorPlaca()"/>
+            <div style="font-size:0.74rem;color:#aaa;margin-top:4px;">Só usada como referência/atalho — o nome é o que liga o motorista à viagem.</div>
+          </div>
+          <div id="mot-sugestao" style="display:none;font-size:0.8rem;background:#fff8e0;border:1px solid #f0e0b0;border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-navy flex-fill" onclick="salvarMotorista()">Salvar</button>
+            <button class="btn btn-outline-secondary" onclick="limparFormMotorista()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="table-card" style="margin-bottom:20px;">
+          <div class="tc-head">
+            <span class="tc-title">Nomes vistos nas Operações (últimos 60 dias)</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadNomesRecentesOperacoes()">🔄 Atualizar</button>
+          </div>
+          <p style="font-size:0.78rem;color:#888;padding:10px 16px 0;margin-bottom:0;">
+            Nomes de motoristas que apareceram nas operações registradas pelos conferentes. Percorra a lista e vincule o telefone de quem ainda não tem — é só clicar em "Vincular telefone".
+          </p>
+          <div id="mot-nomes-detectados" style="padding:8px 16px;"></div>
+        </div>
+        <div class="table-card">
+          <div class="tc-head">
+            <span class="tc-title">Motoristas Cadastrados</span>
+            <input type="text" id="mot-busca" class="form-control form-control-sm" style="width:200px;" placeholder="Buscar nome ou placa" oninput="loadMotoristas()"/>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Motorista</th><th>Placa</th><th>Telefone</th><th>Status</th><th>Ação</th></tr></thead>
+              <tbody id="mot-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NOTIFICAÇÕES WHATSAPP ===== -->
+  <div class="section" id="sec-notificacoes">
+    <div class="table-card">
+      <div class="tc-head">
+        <span class="tc-title">Histórico de Notificações WhatsApp</span>
+        <input type="date" id="not-data" class="form-control form-control-sm" style="width:160px;" onchange="loadNotificacoes()"/>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Motorista</th><th>Telefone</th><th>Status</th><th>Enviado por</th></tr></thead>
+          <tbody id="not-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== ENDEREÇAMENTO (acompanhamento) ===== -->
   <div class="section" id="sec-rastreio-enderecos">
@@ -691,6 +816,66 @@
   </div>
 </div>
 
+<!-- MODAL: Mensagem para o Motorista -->
+<div class="modal fade" id="modal-whats" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Mensagem para o Motorista — <span id="whats-placa-title"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-1">
+          <div class="col-7">
+            <label class="form-label" style="font-size:0.78rem;">Nome do motorista</label>
+            <input type="text" class="form-control form-control-sm" id="whats-nome" placeholder="Digite o nome"/>
+          </div>
+          <div class="col-5">
+            <label class="form-label" style="font-size:0.78rem;">Telefone</label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" id="whats-telefone" placeholder="(11) 91234-5678"/>
+              <button class="btn btn-outline-secondary" type="button" onclick="copiarTelefoneModal()" title="Copiar telefone">📋</button>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:#aaa;margin-bottom:10px;">
+          Preencha ou corrija nome e telefone aqui à vontade — isso não depende do cadastro de motoristas.
+          <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:0 8px;font-size:0.72rem;" onclick="salvarMotoristaDoModal()">💾 Salvar como motorista desta placa</button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-2 mb-1 flex-wrap gap-1">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Mensagem (edite à vontade)</label>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="regenerarMensagemModal()">🔄 Atualizar com nome/telefone</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleEditorTemplate()">⚙️ Modelo de texto</button>
+          </div>
+        </div>
+        <textarea class="form-control" id="whats-mensagem" rows="9"></textarea>
+
+        <div id="editor-template-box" style="display:none;margin-top:12px;background:#f8faff;border-radius:8px;padding:12px;">
+          <label class="form-label" style="font-size:0.78rem;">Modelo padrão de mensagem (usado para gerar o texto acima)</label>
+          <textarea class="form-control form-control-sm" id="whats-template" rows="8"></textarea>
+          <div style="font-size:0.72rem;color:#888;margin:6px 0;">
+            Placeholders disponíveis: <code>{{motorista}}</code> <code>{{placa}}</code> <code>{{telefone}}</code>
+            <code>{{data_saida}}</code> <code>{{itens_saida}}</code> <code>{{data_retorno}}</code>
+            <code>{{itens_faltando}}</code> <code>{{itens_sobra}}</code>
+            <code>{{clientes_saida}}</code> <code>{{clientes_entrada}}</code>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-navy" onclick="salvarTemplateMensagem()">Salvar modelo</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="restaurarTemplatePadrao()">Restaurar padrão</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer flex-wrap">
+        <button class="btn btn-outline-secondary" onclick="copiarMensagemModal()">📋 Copiar mensagem</button>
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button class="btn btn-whats" id="whats-confirmar-btn" onclick="confirmarEnvioWhats()">📲 Abrir WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <div id="global-loading"><div class="spin-big"></div></div>
 
@@ -721,8 +906,18 @@ auth.onAuthStateChanged(async user => {
   const d30 = new Date(); d30.setDate(d30.getDate()-30);
   document.getElementById('pal-data-ini').value = d30.toISOString().split('T')[0];
   document.getElementById('pal-data-fim').value = today;
+  document.getElementById('ap-data-ini').value = d30.toISOString().split('T')[0];
+  document.getElementById('ap-data-fim').value = today;
+  document.getElementById('not-data').value = today;
+
+  try {
+    const tplSnap = await db.collection('config').doc('mensagemMotorista').get();
+    if (tplSnap.exists && tplSnap.data().template) mensagemTemplate = tplSnap.data().template;
+  } catch(e) { console.warn('Não foi possível carregar o modelo de mensagem salvo, usando o padrão.', e); }
+
   await loadInsumos();
   await loadConferentes();
+  await loadMotoristas();
   await loadDashboard();
 });
 
@@ -733,12 +928,15 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',enderecos:'Endereços',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',enderecos:'Endereços',motoristas:'Motoristas',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='operacoes')          loadOperacoes();
   if (id==='discrepancias')      loadDiscrepancias();
   if (id==='paletes')            loadPaletes();
+  if (id==='apontamento')        loadApontamento();
+  if (id==='motoristas')         loadMotoristas().then(loadNomesRecentesOperacoes);
+  if (id==='notificacoes')       loadNotificacoes();
   if (id==='enderecos')          loadEnderecosCadastro();
   if (id==='rastreio-enderecos') loadRastreioEnderecos();
   if (id==='tfa')                loadTFA();
@@ -1893,6 +2091,922 @@ async function loadRastreioEnderecos() {
     }
   } catch(e) {
     logTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ── MOTORISTAS / APONTAMENTO POR VEÍCULO / NOTIFICAÇÕES WHATSAPP ────────
+// ══════════════════════════════════════════════════════════════════════
+// Reaproveita helpers já existentes acima/em firebase-config.js: db, auth,
+// esc(), fmtDate(), showToast(), loading(), formatPlaca(), getSheetId().
+// O envio de WhatsApp é MANUAL: o botão abre o WhatsApp (Web/App) já com a
+// mensagem pronta (link wa.me), para o admin revisar e apertar enviar.
+// Não há envio automático nem backend/API envolvidos.
+
+let allMotoristas = [];       // cache de motoristas ativos e inativos
+let motoristaPorNome = {};    // nome normalizado -> motorista ativo (chave principal — casa com operacoes.motorista)
+let motoristaPorPlaca = {};   // placa (normalizada) -> motorista ativo (só usado como reserva)
+let pendingContext = null;    // { idx, i } do card de apontamento sendo mensageado no modal
+
+// Modelo padrão de mensagem — pode ser sobrescrito em "⚙️ Modelo de texto" dentro do
+// modal e fica salvo em config/mensagemMotorista para todos os admins usarem o mesmo texto.
+const DEFAULT_TEMPLATE_MENSAGEM =
+`Olá {{motorista}}, tudo bem?
+
+Referente ao veículo placa {{placa}}:
+
+Saída em {{data_saida}} — visitou: {{clientes_saida}} — retirado(s):
+{{itens_saida}}
+
+Retorno em {{data_retorno}} — visitou: {{clientes_entrada}} — conferido(s) com divergência:
+{{itens_faltando}}{{itens_sobra}}
+
+Por favor, prestar contas / regularizar o quanto antes. Qualquer dúvida, procure a conferência.`;
+let mensagemTemplate = DEFAULT_TEMPLATE_MENSAGEM;
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+// Alias para formatPlaca() (firebase-config.js) — mantém os nomes originais
+// usados no restante desta seção.
+function normalizaPlaca(p) { return formatPlaca(p); }
+
+// Normaliza nome para comparação (maiúsculas, sem acento, espaços colapsados) — usado
+// para casar o "motorista" que vem em cada operação (da planilha) com o cadastro de
+// telefones, tolerando pequenas diferenças de acentuação/espaçamento na digitação.
+function normalizaNome(s) {
+  return (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+}
+
+// Normaliza telefone BR para E.164 (+55DDXXXXXXXXX), aceitando o usuário digitar com
+// ou sem DDI/pontuação. Ajuste aqui se a maioria dos motoristas não for do Brasil.
+function normalizaTelefoneBR(raw) {
+  let digits = (raw||'').replace(/\D/g,'');
+  if (!digits) return '';
+  if (digits.startsWith('55') && digits.length >= 12) return '+'+digits;
+  if (digits.length === 10 || digits.length === 11) return '+55'+digits;
+  return '+'+digits;
+}
+
+// Só dígitos, sem "+", que é o formato que o link wa.me espera.
+function telefoneParaWaMe(e164) { return (e164||'').replace(/\D/g,''); }
+
+function tsMillis(ts) {
+  if (!ts) return 0;
+  return ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime();
+}
+
+// Corre uma promise contra um limite de tempo: se não resolver a tempo, devolve
+// `valorPadrao` em vez de deixar a tela travada em "Carregando…" para sempre
+// (fetch()/Firestore não têm timeout embutido — se a rede engasgar, sem isso a
+// página fica pendurada indefinidamente).
+function comTimeout(promise, ms, valorPadrao) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(valorPadrao), ms))
+  ]);
+}
+
+// ── BUSCA AO VIVO NA PLANILHA (fonte primária do motorista) ──────────────
+// Mesma planilha configurada em Configurações → Planilha Ativa (config/app.sheetId,
+// lido via getSheetId() de firebase-config.js). Lemos direto da aba do dia (dataRef,
+// formato DD/MM/YYYY) as colunas Placa e Motorista, e montamos um mapa placa→motorista.
+
+/** Extrai as placas válidas de uma célula (suporta "ABC1234/DEF5678" ou "ABC1234 DEF5678"). */
+function extractPlatesFromCell(raw) {
+  return (raw||'').toString().split(/[\s\/]+/)
+    .map(p => normalizaPlaca(p))
+    .filter(p => /^[A-Z]{3}(\d{4}|\d[A-Z]\d{2})$/.test(p));
+}
+
+// O endpoint gviz do Google Sheets normalmente BLOQUEIA fetch()/XHR por CORS quando
+// chamado direto do navegador. A técnica que funciona do lado do cliente é JSONP:
+// inserir uma tag <script> apontando pro endpoint com `responseHandler`, já que tags
+// <script> não são bloqueadas por CORS.
+function fetchSheetTabJSONP(sheetId, tabName, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const callbackName = '_sheetCb_' + Math.random().toString(36).slice(2);
+    let settled = false;
+    const script = document.createElement('script');
+
+    const limpar = () => {
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      clearTimeout(timer);
+    };
+
+    window[callbackName] = (json) => {
+      if (settled) return;
+      settled = true;
+      limpar();
+      resolve(json);
+    };
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      limpar();
+      reject(new Error(`Timeout ao buscar a aba "${tabName}" da planilha.`));
+    }, timeoutMs);
+
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      limpar();
+      reject(new Error(`Não foi possível carregar a planilha (rede bloqueada, ID inválido, ou aba "${tabName}" não existe).`));
+    };
+
+    // headers=0 é essencial aqui: com a detecção automática de cabeçalho do Google, o
+    // gviz tenta "adivinhar" os rótulos das colunas e, nesta planilha (que tem linhas de
+    // aviso/observação soltas antes da linha real de cabeçalho), ele embaralha tudo numa
+    // string só. Com headers=0 a gente recebe as linhas cruas e acha a coluna
+    // "Motorista"/"Placa" à mão.
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${callbackName}&headers=0&sheet=${encodeURIComponent(tabName)}`;
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Busca uma aba (por nome, ex.: "22/07/2026") direto no Google Sheets público via
+ * gviz/JSONP e monta { PLACA_NORMALIZADA: 'Nome do Motorista' }.
+ *
+ * Acha a linha de cabeçalho procurando, nas primeiras linhas, a que contém as células
+ * exatas "Motorista" e "Placa" (nem sempre é a linha 1 — pode ter avisos acima) e usa
+ * o ÍNDICE dessas colunas a partir daí, em vez de confiar nos rótulos que o Google tenta
+ * adivinhar sozinho.
+ */
+async function fetchPlacaMotoristaMapFromSheet(sheetId, tabName) {
+  const json = await fetchSheetTabJSONP(sheetId, tabName, 10000);
+  if (json.status === 'error') {
+    const msg = (json.errors && json.errors[0] && (json.errors[0].detailed_message || json.errors[0].message)) || 'erro desconhecido';
+    throw new Error(`Google Sheets: ${msg}`);
+  }
+  const rows = (json.table.rows||[]).map(r => (r.c||[]).map(c => (c && c.v != null) ? c.v : ''));
+
+  let headerRowIdx = -1, idxMotorista = -1, idxPlaca = -1;
+  for (let i = 0; i < Math.min(rows.length, 8); i++) {
+    let mi = -1, pi = -1;
+    rows[i].forEach((v,j) => {
+      const t = (v||'').toString().trim();
+      if (t === 'Motorista') mi = j;
+      if (t === 'Placa') pi = j;
+    });
+    if (mi >= 0 && pi >= 0) { headerRowIdx = i; idxMotorista = mi; idxPlaca = pi; break; }
+  }
+  if (headerRowIdx < 0) {
+    throw new Error(`Não encontrei as colunas "Motorista"/"Placa" na aba "${tabName}" (o layout da planilha pode ter mudado).`);
+  }
+
+  const map = {};
+  let ultimoMotorista = '';
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const linhaVazia = !row.some(v => (v!=null && v.toString().trim() !== ''));
+    if (linhaVazia) { ultimoMotorista = ''; continue; } // corte de grupo/bloco
+
+    const motoristaCel = (row[idxMotorista]||'').toString().trim();
+    if (motoristaCel) ultimoMotorista = motoristaCel;
+
+    const placaCel = row[idxPlaca];
+    if (placaCel && ultimoMotorista) {
+      extractPlatesFromCell(placaCel).forEach(p => { map[p] = ultimoMotorista; });
+    }
+  }
+  return map;
+}
+
+// Cache por aba (sheetId::tabName) dentro da mesma sessão de página — evita buscar a
+// mesma aba várias vezes ao montar a lista de apontamento.
+let _sheetTabCache = {};
+async function getPlacaMotoristaMapCached(sheetId, tabName) {
+  const key = sheetId+'::'+tabName;
+  if (!_sheetTabCache[key]) {
+    _sheetTabCache[key] = fetchPlacaMotoristaMapFromSheet(sheetId, tabName)
+      .catch(e => { console.warn(`Falha ao buscar aba "${tabName}" da planilha:`, e); return {}; });
+  }
+  return _sheetTabCache[key];
+}
+
+async function testarConexaoPlanilha() {
+  const el = document.getElementById('sheet-status');
+  el.textContent = '⏳ Testando conexão com a planilha…';
+  try {
+    const sheetId = await getSheetId();
+    const hoje = new Date().toLocaleDateString('pt-BR'); // DD/MM/YYYY
+    delete _sheetTabCache[sheetId+'::'+hoje]; // força buscar de novo, ignorando cache
+    const mapa = await getPlacaMotoristaMapCached(sheetId, hoje);
+    const qtd = Object.keys(mapa).length;
+    if (qtd > 0) {
+      el.innerHTML = `✅ Conectado — aba "${hoje}" encontrada, ${qtd} placa(s) com motorista identificado. Planilha: <code>${sheetId}</code>`;
+    } else {
+      el.innerHTML = `⚠ Aba "${hoje}" não encontrada ou sem placas/motoristas nela. Planilha: <code>${sheetId}</code>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<span style="color:#dc3545;">❌ Erro ao conectar: ${esc(e.message)}</span>`;
+  }
+}
+
+// ── SUGESTÃO DE NOME DO MOTORISTA A PARTIR DO TFA ─────────────────────
+// A coleção "operacoes" (entradas/saídas) NÃO tem campo de motorista — só placa.
+// Porém a coleção "tfa_ocorrencias" (Termo de Falta e Avaria), que também é
+// lançada por placa/veículo, já pede o nome do motorista em cada ocorrência.
+// Usamos o registro de TFA mais recente daquela placa como sugestão de nome ao
+// cadastrar o motorista — é texto livre digitado pelo conferente, então trate
+// como sugestão, não como fonte definitiva (e não existe telefone nesses
+// registros, isso continua manual).
+let _tfaCacheRecentes = null;
+async function buscarMotoristaSugeridoPorPlaca(placaNorm) {
+  if (!placaNorm) return null;
+  try {
+    if (!_tfaCacheRecentes) {
+      const snap = await db.collection('tfa_ocorrencias').orderBy('timestamp','desc').limit(500).get();
+      _tfaCacheRecentes = snap.docs.map(d=>d.data());
+    }
+    const achado = _tfaCacheRecentes.find(d => normalizaPlaca(d.veiculo || d.placa || '') === placaNorm && d.motorista);
+    if (achado) return { nome: achado.motorista, dataOcorrencia: achado.timestamp };
+  } catch(e) {
+    console.warn('Busca de motorista sugerido no TFA falhou:', e);
+  }
+  return null;
+}
+
+// ── MOTORISTAS ────────────────────────────────────────────────
+async function loadMotoristas() {
+  const tbody = document.getElementById('mot-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px;">Carregando…</td></tr>';
+  try {
+    const snap = await db.collection('motoristas').orderBy('nome').get();
+    allMotoristas = snap.docs.map(d=>({id:d.id,...d.data()}));
+    motoristaPorNome = {};
+    motoristaPorPlaca = {};
+    allMotoristas.filter(m=>m.ativo!==false).forEach(m=>{
+      if (m.nome) motoristaPorNome[normalizaNome(m.nome)] = m;
+      if (m.placa) motoristaPorPlaca[normalizaPlaca(m.placa)] = m;
+    });
+
+    const busca = (document.getElementById('mot-busca').value||'').toLowerCase();
+    let lista = allMotoristas;
+    if (busca) lista = lista.filter(m => (m.nome||'').toLowerCase().includes(busca) || (m.placa||'').toLowerCase().includes(busca));
+
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px;">Nenhum motorista cadastrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = lista.map(m=>`
+      <tr>
+        <td><b>${esc(m.nome)}</b></td>
+        <td>${esc(m.placa)||'—'}</td>
+        <td>${esc(m.telefone)}</td>
+        <td>${m.ativo!==false ? '<span class="badge-ok">Ativo</span>' : '<span class="badge-pendente">Inativo</span>'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-secondary" onclick="editarMotorista('${m.id}')">✏️</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="alternarAtivoMotorista('${m.id}', ${m.ativo===false})">${m.ativo===false?'Reativar':'Inativar'}</button>
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+// Lista os nomes de motorista distintos vistos nas operações dos últimos 60 dias
+// (campo `motorista`, salvo pelo conferente ao registrar entrada/saída) — para o
+// admin percorrer e ir vinculando o telefone de quem ainda não está cadastrado.
+async function loadNomesRecentesOperacoes() {
+  const container = document.getElementById('mot-nomes-detectados');
+  if (!container) return;
+  container.innerHTML = '<p style="color:#aaa;padding:8px 0;margin:0;">Carregando…</p>';
+  try {
+    const d60 = new Date(); d60.setDate(d60.getDate()-60);
+    const start = firebase.firestore.Timestamp.fromDate(d60);
+    const snap = await db.collection('operacoes').where('timestamp','>=',start).orderBy('timestamp','desc').limit(1000).get();
+
+    const nomes = new Set();
+    snap.docs.forEach(d => {
+      const nome = (d.data().motorista||'').trim();
+      if (nome) nomes.add(nome);
+    });
+    const lista = [...nomes].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+    if (!lista.length) {
+      container.innerHTML = '<p style="color:#aaa;padding:8px 0;margin:0;">Nenhum nome de motorista encontrado nas operações recentes.</p>';
+      return;
+    }
+
+    container.innerHTML = lista.map(nome => {
+      const registrado = motoristaPorNome[normalizaNome(nome)];
+      if (registrado && registrado.telefone) {
+        return `<div class="insumo-row"><div class="insumo-nome">${esc(nome)}</div><span class="badge-ok">✔ ${esc(registrado.telefone)}</span></div>`;
+      }
+      return `<div class="insumo-row"><div class="insumo-nome">${esc(nome)}</div><button class="btn btn-sm btn-navy" onclick="irVincularNome('${esc(nome).replace(/'/g,"\\'")}')">📱 Vincular telefone</button></div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="color:#dc3545;padding:8px 0;margin:0;">Erro: ${esc(e.message)}</p>`;
+  }
+}
+
+// Prepara o formulário de cadastro já com o nome preenchido, pronto para o admin
+// só digitar o telefone e salvar.
+function irVincularNome(nome) {
+  limparFormMotorista();
+  document.getElementById('mot-nome').value = nome;
+  window.scrollTo({top:0, behavior:'smooth'});
+  document.getElementById('mot-telefone').focus();
+}
+
+function limparFormMotorista() {
+  document.getElementById('mot-id').value = '';
+  document.getElementById('mot-nome').value = '';
+  document.getElementById('mot-telefone').value = '';
+  document.getElementById('mot-placa').value = '';
+  document.getElementById('mot-form-title').textContent = 'Novo Motorista';
+  document.getElementById('mot-sugestao').style.display = 'none';
+}
+
+function editarMotorista(id) {
+  const m = allMotoristas.find(x=>x.id===id);
+  if (!m) return;
+  document.getElementById('mot-id').value = m.id;
+  document.getElementById('mot-nome').value = m.nome||'';
+  document.getElementById('mot-telefone').value = m.telefone||'';
+  document.getElementById('mot-placa').value = m.placa||'';
+  document.getElementById('mot-form-title').textContent = 'Editar Motorista';
+  document.getElementById('mot-sugestao').style.display = 'none';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// Ao sair do campo Placa (e o Nome ainda estiver vazio), procura no histórico de
+// TFA (mesma origem de onde vem a placa) se já existe um nome de motorista
+// registrado para essa placa, e sugere o preenchimento.
+async function sugerirNomePorPlaca() {
+  const placa = normalizaPlaca(document.getElementById('mot-placa').value);
+  const nomeAtual = document.getElementById('mot-nome').value.trim();
+  const caixa = document.getElementById('mot-sugestao');
+  if (!placa || nomeAtual) { caixa.style.display = 'none'; return; }
+
+  caixa.style.display = 'block';
+  caixa.textContent = '🔎 Procurando nome do motorista no histórico de TFA para essa placa…';
+  const sugestao = await buscarMotoristaSugeridoPorPlaca(placa);
+  if (sugestao) {
+    caixa.innerHTML = `💡 Encontrado no TFA (${fmtDate(sugestao.dataOcorrencia)}): <b>${esc(sugestao.nome)}</b>
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="aplicarSugestaoNome('${esc(sugestao.nome).replace(/'/g,"\\'")}')">Usar este nome</button>`;
+  } else {
+    caixa.innerHTML = 'Nenhum registro de TFA encontrado para essa placa — digite o nome manualmente.';
+  }
+}
+
+function aplicarSugestaoNome(nome) {
+  document.getElementById('mot-nome').value = nome;
+  document.getElementById('mot-sugestao').style.display = 'none';
+}
+
+// Cria ou atualiza um motorista. A chave de identidade é o NOME (é o que vem em
+// cada operação, direto da planilha) — se já existe um motorista ativo com esse
+// nome (ignorando acento/maiúsculas) e nenhum "id" foi passado, atualiza esse
+// registro em vez de criar duplicado. A placa é só informativa (última conhecida).
+// Usada tanto pelo formulário de cadastro quanto pelo botão "Salvar motorista"
+// dentro do modal de mensagem.
+async function upsertMotorista(nome, telefoneRaw, placaOpcional, id) {
+  const telefone = normalizaTelefoneBR(telefoneRaw);
+  const placaNorm = placaOpcional ? normalizaPlaca(placaOpcional) : '';
+
+  let idAlvo = id;
+  if (!idAlvo) {
+    const existente = motoristaPorNome[normalizaNome(nome)];
+    if (existente) idAlvo = existente.id;
+  }
+
+  const payload = { nome, telefone, telefoneOriginal: telefoneRaw, ativo:true, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() };
+  if (placaNorm) payload.placa = placaNorm; // só sobrescreve a placa se uma foi informada
+
+  if (idAlvo) {
+    await db.collection('motoristas').doc(idAlvo).update(payload);
+    return idAlvo;
+  }
+  payload.placa = placaNorm || '';
+  payload.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+  const ref = await db.collection('motoristas').add(payload);
+  return ref.id;
+}
+
+async function salvarMotorista() {
+  const id = document.getElementById('mot-id').value || null;
+  const nome = document.getElementById('mot-nome').value.trim();
+  const telefoneRaw = document.getElementById('mot-telefone').value.trim();
+  const placa = document.getElementById('mot-placa').value.trim();
+
+  if (!nome || !telefoneRaw) {
+    showToast('Preencha nome e telefone.', 'warning');
+    return;
+  }
+
+  loading(true);
+  try {
+    await upsertMotorista(nome, telefoneRaw, placa, id);
+    showToast('Motorista salvo com sucesso.', 'success');
+    limparFormMotorista();
+    await loadMotoristas();
+    await loadApontamento();
+  } catch(e) {
+    showToast('Erro ao salvar: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+async function alternarAtivoMotorista(id, tornarAtivo) {
+  loading(true);
+  try {
+    await db.collection('motoristas').doc(id).update({ ativo: tornarAtivo, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+    showToast(tornarAtivo ? 'Motorista reativado.' : 'Motorista inativado.', 'success');
+    await loadMotoristas();
+    await loadApontamento();
+  } catch(e) {
+    showToast('Erro: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+// ── APONTAMENTO POR VEÍCULO ──────────────────────────────────────
+
+/** Reduz um nome/razão social ao primeiro "token" (primeiro nome/palavra), para caber
+ * numa exibição compacta e no texto da mensagem ao motorista. */
+function primeiroNome(s) {
+  return (s||'').toString().trim().split(/[\s\-–(]/)[0].replace(/[^A-Za-zÀ-ú0-9]/g,'').trim();
+}
+
+/** Lista (sem repetição) dos clientes atendidos numa operação (saída ou entrada),
+ * já abreviados ao primeiro nome — para o motorista se situar sobre onde esteve.
+ * Fontes, em ordem: (1) op.cliente quando "atende só um cliente" foi marcado;
+ * (2) cada NF da operação: título da coluna A (via parseOpCell, de firebase-config.js)
+ * ou, na falta dele, o destinatário (coluna H). */
+function clientesDeOperacao(op) {
+  if (!op) return [];
+  const nomes = new Set();
+  if (op.clienteUnico && op.cliente) {
+    const n = primeiroNome(op.cliente);
+    if (n) nomes.add(n);
+  } else {
+    (op.nfs||[]).forEach(nf => {
+      let candidato = '';
+      if (nf.tituloOp) candidato = parseOpCell(nf.tituloOp).cliente;
+      if (!candidato && nf.destinatario) candidato = nf.destinatario;
+      const n = primeiroNome(candidato);
+      if (n) nomes.add(n);
+    });
+  }
+  return [...nomes];
+}
+
+function itensPorTipo(paletes) {
+  const map = {};
+  (paletes||[]).forEach(p=>{
+    const tipo = (p.tipo==='OUTROS' && p.tipoCustom) ? p.tipoCustom : (p.tipo||'Item não especificado');
+    map[tipo] = (map[tipo]||0) + (p.quantidade||0);
+  });
+  return map;
+}
+
+function compararItens(mapSaida, mapEntrada) {
+  const tipos = new Set([...Object.keys(mapSaida), ...Object.keys(mapEntrada)]);
+  return [...tipos].map(t=>({ tipo:t, saida:mapSaida[t]||0, entrada:mapEntrada[t]||0, diff:(mapEntrada[t]||0)-(mapSaida[t]||0) }));
+}
+
+// Pareia cada SAÍDA com a próxima ENTRADA da mesma placa, em ordem cronológica,
+// sem reaproveitar a mesma entrada para mais de uma saída (evita falso "OK" em
+// veículos com múltiplas viagens no período).
+function parearSaidasEntradas(ops) {
+  const byPlaca = {};
+  ops.forEach(op=>{
+    const p = normalizaPlaca(op.placa) || '—';
+    (byPlaca[p] = byPlaca[p] || []).push(op);
+  });
+
+  const pares = [];
+  Object.entries(byPlaca).forEach(([placa, lista])=>{
+    const saidas = lista.filter(o=>o.tipoExecucao==='SAIDA').sort((a,b)=>tsMillis(a.timestamp)-tsMillis(b.timestamp));
+    const entradas = lista.filter(o=>o.tipoExecucao==='ENTRADA').sort((a,b)=>tsMillis(a.timestamp)-tsMillis(b.timestamp));
+    let ei = 0;
+    saidas.forEach(saida=>{
+      const saidaTs = tsMillis(saida.timestamp);
+      while (ei < entradas.length && tsMillis(entradas[ei].timestamp) <= saidaTs) ei++;
+      const entrada = ei < entradas.length ? entradas[ei] : null;
+      if (entrada) ei++;
+      pares.push({ placaOriginal: saida.placa || placa, placaNorm: placa, saida, entrada });
+    });
+  });
+  return pares;
+}
+
+async function loadApontamento() {
+  const ini = document.getElementById('ap-data-ini').value;
+  const fim = document.getElementById('ap-data-fim').value;
+  const placaFiltro = normalizaPlaca(document.getElementById('ap-placa').value);
+  const statusFiltro = document.getElementById('ap-status').value;
+  if (!ini || !fim) return;
+
+  const container = document.getElementById('apontamento-list');
+  container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">Carregando…</p>';
+
+  try {
+    const start = firebase.firestore.Timestamp.fromDate(new Date(ini+'T00:00:00'));
+    const end   = firebase.firestore.Timestamp.fromDate(new Date(fim+'T23:59:59'));
+    const resultadoOps = await comTimeout(
+      Promise.all([
+        db.collection('operacoes').where('timestamp','>=',start).where('timestamp','<=',end).orderBy('timestamp','asc').get(),
+        db.collection('notificacoes_whatsapp').where('criadoEm','>=',start).get().catch(()=>({docs:[]}))
+      ]),
+      20000,
+      'TIMEOUT'
+    );
+    if (resultadoOps === 'TIMEOUT') throw new Error('O Firestore não respondeu a tempo. Verifique sua conexão e tente novamente.');
+    const [opsSnap, notifSnap] = resultadoOps;
+    const ops = opsSnap.docs.map(d=>({id:d.id,...d.data()}));
+    const notifPorSaida = {};
+    notifSnap.docs.forEach(d=>{ const n=d.data(); if (n.saidaOpId) notifPorSaida[n.saidaOpId] = n; });
+
+    let pares = parearSaidasEntradas(ops).filter(p=>(p.saida.paletes||[]).length);
+    if (placaFiltro) pares = pares.filter(p=>p.placaNorm.includes(placaFiltro));
+
+    // Busca ao vivo na planilha: para cada dia (aba) presente nas saídas do período,
+    // busca o mapa placa→motorista daquela aba. É a fonte PRIMÁRIA do nome — só cai
+    // para o campo salvo na operação (ou cadastro/TFA) se a planilha não responder.
+    const sheetStatusEl = document.getElementById('sheet-status');
+    let mapasPorDia = {};
+    try {
+      const sheetId = await getSheetId();
+      const dataRefs = [...new Set(pares.map(p => p.saida.dataRef).filter(Boolean))];
+      // Timeout de segurança: mesmo que algo trave (ex.: muitas abas de uma vez), a tela
+      // segue em no máx. ~15s usando o que já tiver sido encontrado até lá, em vez de
+      // ficar presa em "Carregando…" para sempre.
+      const resultado = await comTimeout(
+        Promise.all(dataRefs.map(async dr => { mapasPorDia[dr] = await getPlacaMotoristaMapCached(sheetId, dr); })),
+        15000,
+        'TIMEOUT'
+      );
+      const totalEncontrados = Object.values(mapasPorDia).reduce((s,m)=>s+Object.keys(m).length, 0);
+      if (resultado === 'TIMEOUT') {
+        sheetStatusEl.innerHTML = `<span style="color:#c0392b;">⚠ A planilha demorou demais para responder — seguindo com o que foi encontrado (${totalEncontrados} vínculo(s)) e usando o nome salvo na operação como reserva para o resto.</span>`;
+      } else {
+        sheetStatusEl.textContent = dataRefs.length
+          ? `📡 Planilha consultada: ${dataRefs.length} aba(s) do período, ${totalEncontrados} vínculo(s) placa→motorista encontrados.`
+          : '';
+      }
+    } catch(e) {
+      console.warn('Busca ao vivo na planilha falhou, usando dados salvos como reserva.', e);
+      sheetStatusEl.innerHTML = `<span style="color:#c0392b;">⚠ Não foi possível consultar a planilha agora — usando o nome salvo na operação como reserva.</span>`;
+    }
+
+    const itens = pares.map(p=>{
+      const mapSaida = itensPorTipo(p.saida.paletes);
+      const mapEntrada = p.entrada ? itensPorTipo(p.entrada.paletes) : {};
+      const linhas = compararItens(mapSaida, mapEntrada);
+      const totalSaida = Object.values(mapSaida).reduce((a,b)=>a+b,0);
+      const totalEntrada = p.entrada ? Object.values(mapEntrada).reduce((a,b)=>a+b,0) : null;
+      const pendente = !p.entrada;
+      const ok = !pendente && totalEntrada >= totalSaida;
+
+      // Nome do motorista, em ordem de prioridade:
+      // 1) busca ao vivo na planilha (aba do dia da saída) — a mais confiável, pega a
+      //    programação atual mesmo se a operação tiver sido salva sem o campo motorista;
+      // 2) campo `motorista` gravado na própria operação (snapshot de quando foi salva);
+      // 3) cadastro de motoristas / sugestão do TFA (tratados mais abaixo).
+      const nomePlanilha = (mapasPorDia[p.saida.dataRef] && mapasPorDia[p.saida.dataRef][p.placaNorm]) || '';
+      const nomeCampoOperacao = (p.saida.motorista || '').trim();
+      const nomeOperacao = nomePlanilha || nomeCampoOperacao;
+      const origemNome = nomePlanilha ? 'planilha' : (nomeCampoOperacao ? 'operacao' : '');
+
+      let motoristaCadastro = nomeOperacao ? motoristaPorNome[normalizaNome(nomeOperacao)] : null;
+      if (!motoristaCadastro) motoristaCadastro = motoristaPorPlaca[p.placaNorm] || null;
+      const nomeFinal = nomeOperacao || (motoristaCadastro && motoristaCadastro.nome) || '';
+      const telefoneFinal = (motoristaCadastro && motoristaCadastro.telefone) || '';
+
+      const notif = notifPorSaida[p.saida.id];
+      let status = pendente ? 'PENDENTE' : (ok ? 'OK' : 'DIFERENCA');
+
+      // Clientes atendidos em cada perna da viagem, abreviados ao primeiro nome — ajuda
+      // o motorista a se situar sobre onde esteve quando for prestar contas.
+      const clientesSaida = clientesDeOperacao(p.saida);
+      const clientesEntrada = p.entrada ? clientesDeOperacao(p.entrada) : [];
+
+      return { ...p, mapSaida, mapEntrada, linhas, totalSaida, totalEntrada, pendente, ok, status,
+        nomeOperacao, origemNome, motorista: motoristaCadastro, nomeFinal, telefoneFinal, notif,
+        clientesSaida, clientesEntrada };
+    });
+
+    let itensFiltrados = itens;
+    if (statusFiltro) itensFiltrados = itensFiltrados.filter(i=>i.status===statusFiltro);
+
+    if (!itensFiltrados.length) {
+      container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período/filtro selecionado.</p>';
+      return;
+    }
+
+    // Guarda em memória para o modal de mensagem conseguir reconstruir os dados.
+    window._apontamentoItens = itensFiltrados;
+    window._sugestoesMotorista = {}; // idx -> { nome, dataOcorrencia } vindo do TFA
+
+    container.innerHTML = itensFiltrados.map((i,idx)=>{
+      const statusBadge = i.pendente
+        ? '<span class="badge-pendente">Sem retorno ainda</span>'
+        : (i.ok ? '<span class="badge-ok">✔ OK</span>' : '<span class="badge-naook">⚠ Diferença</span>');
+
+      const linhasHtml = i.linhas.map(l=>{
+        if (l.diff < 0) return `<div class="item-linha item-falta">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — faltam ${Math.abs(l.diff)}</div>`;
+        if (l.diff > 0) return `<div class="item-linha item-sobra">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — ${l.diff} a mais</div>`;
+        return `<div class="item-linha">• ${esc(l.tipo)}: ${l.saida} un. (bateu certinho)</div>`;
+      }).join('');
+
+      // Três situações possíveis: (1) nome + telefone prontos para notificar;
+      // (2) nome veio da operação/planilha mas falta cadastrar o telefone dele;
+      // (3) a operação não tem nome de motorista — sobra só a sugestão do TFA.
+      const origemTag = i.origemNome === 'planilha' ? ' <span style="color:#aaa;font-weight:400;">(ao vivo, planilha)</span>'
+        : i.origemNome === 'operacao' ? ' <span style="color:#aaa;font-weight:400;">(salvo na operação)</span>' : '';
+
+      let motoristaHtml;
+      if (i.nomeFinal && i.telefoneFinal) {
+        motoristaHtml = `<span class="motorista-tag">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b> (${esc(i.telefoneFinal)})${origemTag}</span>`;
+      } else if (i.nomeFinal) {
+        motoristaHtml = `<span class="motorista-warn">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b>${origemTag} — ⚠ telefone não cadastrado</span>`;
+      } else {
+        motoristaHtml = `<span class="motorista-warn">⚠ Não foi possível identificar o motorista (nem na planilha, nem na operação) para a placa ${esc(i.placaOriginal)}</span>
+           <div id="sugestao-${idx}" style="font-size:0.76rem;color:#888;margin-top:2px;"></div>`;
+      }
+
+      // O botão de mensagem aparece sempre que há diferença, mesmo sem motorista
+      // cadastrado — nome e telefone podem ser digitados/corrigidos na hora, dentro
+      // do próprio modal (não depende do cadastro ter "vinculado" corretamente).
+      let acaoHtml = '';
+      if (!i.pendente && !i.ok) {
+        acaoHtml = `<button class="btn btn-sm btn-whats" style="margin-left:8px;" onclick="prepararEnvioWhats(${idx})">📲 Preparar Mensagem</button>`;
+        if (i.notif) {
+          acaoHtml += `<span class="badge-info" style="margin-left:6px;">Preparada em ${fmtDate(i.notif.criadoEm)}</span>`;
+        }
+      }
+
+      const clientesSaidaStr = i.clientesSaida.length ? i.clientesSaida.map(esc).join(', ') : '—';
+      const clientesEntradaStr = i.clientesEntrada.length ? i.clientesEntrada.map(esc).join(', ') : '—';
+
+      return `
+      <div class="apt-card">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-3">
+            <div class="placa-tag">${esc(i.placaOriginal)}</div>
+            <div>
+              <div style="font-size:0.78rem;color:#888;">Saída ${fmtDate(i.saida.timestamp)} • Conf.: ${esc(i.saida.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesSaidaStr}</b></div>
+              <div>${motoristaHtml}</div>
+            </div>
+          </div>
+          <div>${statusBadge}${acaoHtml}</div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #eef0f6;">
+          <div style="font-size:0.78rem;color:#888;margin-bottom:4px;">
+            ${i.pendente ? 'Aguardando retorno…' : `Retorno ${fmtDate(i.entrada.timestamp)} • Conf.: ${esc(i.entrada.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesEntradaStr}</b>`}
+          </div>
+          ${linhasHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    // Só entra aqui se a operação não trouxe nome de motorista (planilha sem a coluna
+    // preenchida naquele dia) — busca em segundo plano (sem travar a tela) se já existe
+    // um nome no histórico de TFA, como último recurso.
+    itensFiltrados.forEach((i, idx)=>{
+      if (i.nomeFinal) return;
+      const el = document.getElementById(`sugestao-${idx}`);
+      if (!el) return;
+      buscarMotoristaSugeridoPorPlaca(i.placaNorm).then(sugestao=>{
+        if (!sugestao) return;
+        window._sugestoesMotorista[idx] = sugestao;
+        el.innerHTML = `💡 Nome encontrado no TFA: <b>${esc(sugestao.nome)}</b> — clique em "Preparar Mensagem" para usá-lo, ou
+          <button class="btn btn-sm btn-outline-secondary" style="margin-left:2px;padding:1px 8px;" onclick="irCadastrarMotoristaComSugestao('${esc(i.placaOriginal).replace(/'/g,"\\'")}','${esc(sugestao.nome).replace(/'/g,"\\'")}')">cadastre já</button>`;
+      });
+    });
+  } catch(e) {
+    container.innerHTML = `<p style="color:#dc3545;text-align:center;padding:20px;">Erro ao carregar: ${esc(e.message)}</p>`;
+  }
+}
+
+function irCadastrarMotoristaComSugestao(placa, nome) {
+  showSection('motoristas');
+  limparFormMotorista();
+  document.getElementById('mot-placa').value = placa;
+  document.getElementById('mot-nome').value = nome;
+  document.getElementById('mot-telefone').focus();
+}
+
+// ── MENSAGEM PARA O MOTORISTA (nome/telefone/texto editáveis) ────────────
+function preencherTemplate(tpl, vars) {
+  return (tpl||'').replace(/\{\{\s*(\w+)\s*\}\}/g, (_, chave) => (vars[chave] != null ? vars[chave] : ''));
+}
+
+function montarVarsMensagem(i, nome, telefone) {
+  const faltando = i.linhas.filter(l=>l.diff < 0);
+  const sobrando = i.linhas.filter(l=>l.diff > 0);
+  const itensSaida = Object.entries(i.mapSaida).map(([t,q])=>`• ${t}: ${q} un.`).join('\n') || '—';
+  const itensFaltando = faltando.map(l=>`• ${l.tipo}: faltam ${Math.abs(l.diff)} un.`).join('\n') || '(sem itens faltando)';
+  const itensSobra = sobrando.length ? '\n\nItens a mais (verificar):\n'+sobrando.map(l=>`• ${l.tipo}: ${l.diff} un. a mais`).join('\n') : '';
+  return {
+    motorista: nome || '(nome não informado)',
+    telefone: telefone || '',
+    placa: i.placaOriginal,
+    data_saida: fmtDate(i.saida.timestamp),
+    itens_saida: itensSaida,
+    data_retorno: i.entrada ? fmtDate(i.entrada.timestamp) : '—',
+    itens_faltando: itensFaltando,
+    itens_sobra: itensSobra,
+    clientes_saida: (i.clientesSaida && i.clientesSaida.length) ? i.clientesSaida.join(', ') : '—',
+    clientes_entrada: (i.clientesEntrada && i.clientesEntrada.length) ? i.clientesEntrada.join(', ') : '—'
+  };
+}
+
+// Abre o modal já com nome/telefone pré-preenchidos (do cadastro de motoristas ou,
+// na falta dele, da sugestão vinda do TFA) — mas 100% editáveis: se o vínculo
+// automático falhar ou estiver errado, basta digitar por cima.
+function prepararEnvioWhats(idx) {
+  const i = window._apontamentoItens[idx];
+  if (!i) return;
+  const sugestao = window._sugestoesMotorista[idx];
+  const nomeInicial = i.nomeFinal || (sugestao && sugestao.nome) || '';
+  const telInicial = i.telefoneFinal || '';
+
+  pendingContext = { idx, i };
+
+  document.getElementById('whats-placa-title').textContent = i.placaOriginal;
+  document.getElementById('whats-nome').value = nomeInicial;
+  document.getElementById('whats-telefone').value = telInicial;
+  document.getElementById('editor-template-box').style.display = 'none';
+  document.getElementById('whats-template').value = mensagemTemplate;
+
+  const vars = montarVarsMensagem(i, nomeInicial, telInicial);
+  document.getElementById('whats-mensagem').value = preencherTemplate(mensagemTemplate, vars);
+
+  new bootstrap.Modal(document.getElementById('modal-whats')).show();
+}
+
+// Recalcula a mensagem usando o nome/telefone atuais dos campos e o modelo
+// atual (mesmo que ainda não tenha sido salvo) — para o admin ver o resultado
+// antes de copiar/enviar.
+function regenerarMensagemModal() {
+  if (!pendingContext) return;
+  const nome = document.getElementById('whats-nome').value.trim();
+  const telefone = document.getElementById('whats-telefone').value.trim();
+  const tpl = document.getElementById('whats-template').value || mensagemTemplate;
+  const vars = montarVarsMensagem(pendingContext.i, nome, telefone);
+  document.getElementById('whats-mensagem').value = preencherTemplate(tpl, vars);
+}
+
+function toggleEditorTemplate() {
+  const box = document.getElementById('editor-template-box');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function salvarTemplateMensagem() {
+  const novoTemplate = document.getElementById('whats-template').value;
+  if (!novoTemplate.trim()) { showToast('O modelo não pode ficar vazio.', 'warning'); return; }
+  loading(true);
+  try {
+    await db.collection('config').doc('mensagemMotorista').set({
+      template: novoTemplate,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      atualizadoPor: (window.currentAdminData && (window.currentAdminData.nome || window.currentAdminData.email)) || '—'
+    });
+    mensagemTemplate = novoTemplate;
+    showToast('Modelo de mensagem salvo — vale para todos os admins.', 'success');
+    regenerarMensagemModal();
+  } catch(e) {
+    showToast('Erro ao salvar modelo: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+function restaurarTemplatePadrao() {
+  document.getElementById('whats-template').value = DEFAULT_TEMPLATE_MENSAGEM;
+  regenerarMensagemModal();
+}
+
+async function copiarTelefoneModal() {
+  const tel = document.getElementById('whats-telefone').value.trim();
+  if (!tel) { showToast('Informe o telefone antes de copiar.', 'warning'); return; }
+  try {
+    await navigator.clipboard.writeText(tel);
+    showToast('Telefone copiado.', 'success');
+  } catch(e) {
+    showToast('Não foi possível copiar automaticamente — selecione e copie manualmente.', 'warning');
+  }
+}
+
+async function copiarMensagemModal() {
+  const msg = document.getElementById('whats-mensagem').value;
+  if (!msg.trim()) { showToast('Nada para copiar.', 'warning'); return; }
+  try {
+    await navigator.clipboard.writeText(msg);
+    showToast('Mensagem copiada — é só colar no WhatsApp.', 'success');
+  } catch(e) {
+    showToast('Não foi possível copiar automaticamente — selecione e copie manualmente.', 'warning');
+  }
+}
+
+// Salva o nome/telefone digitados no modal como o motorista oficial dessa placa,
+// mesmo que tenham sido corrigidos na hora. É o jeito mais direto de garantir que,
+// da próxima vez, o vínculo já apareça certo automaticamente.
+async function salvarMotoristaDoModal() {
+  if (!pendingContext) return;
+  const nome = document.getElementById('whats-nome').value.trim();
+  const telefoneRaw = document.getElementById('whats-telefone').value.trim();
+  if (!nome || !telefoneRaw) { showToast('Preencha nome e telefone antes de salvar.', 'warning'); return; }
+  loading(true);
+  try {
+    const i = pendingContext.i;
+    // Casa por nome primeiro (é a chave real); só usa o id do cadastro por placa se
+    // o nome digitado bater com o mesmo motorista já vinculado à placa.
+    const existentePorNome = motoristaPorNome[normalizaNome(nome)];
+    const idExistente = existentePorNome ? existentePorNome.id : (i.motorista ? i.motorista.id : null);
+    await upsertMotorista(nome, telefoneRaw, i.placaOriginal, idExistente);
+    showToast('Motorista salvo — nome ligado ao telefone para as próximas viagens.', 'success');
+    await loadMotoristas();
+  } catch(e) {
+    showToast('Erro ao salvar motorista: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
+
+// Abre o WhatsApp (Web ou app, conforme o dispositivo) já com a mensagem
+// preenchida, para o admin conferir e apertar enviar manualmente. Não há
+// envio automático nem backend/API — é só um link wa.me (o atalho "indireto").
+async function confirmarEnvioWhats() {
+  if (!pendingContext) return;
+  const nome = document.getElementById('whats-nome').value.trim();
+  const telefoneRaw = document.getElementById('whats-telefone').value.trim();
+  const mensagemFinal = document.getElementById('whats-mensagem').value;
+  if (!telefoneRaw) { showToast('Informe o telefone do motorista.', 'warning'); return; }
+
+  const btn = document.getElementById('whats-confirmar-btn');
+  btn.disabled = true;
+  loading(true);
+  try {
+    const telefoneE164 = normalizaTelefoneBR(telefoneRaw);
+    const numero = telefoneParaWaMe(telefoneE164);
+    if (!numero) throw new Error('Telefone inválido.');
+
+    const i = pendingContext.i;
+    await db.collection('notificacoes_whatsapp').add({
+      placa: i.placaOriginal,
+      motoristaId: (i.motorista && i.motorista.id) || null,
+      motoristaNome: nome || '(não informado)',
+      telefone: telefoneE164,
+      saidaOpId: i.saida.id,
+      entradaOpId: i.entrada ? i.entrada.id : null,
+      mensagem: mensagemFinal,
+      status: 'ABERTO_WHATSAPP',
+      criadoPor: (auth.currentUser && auth.currentUser.uid) || null,
+      criadoPorNome: (window.currentAdminData && (window.currentAdminData.nome || window.currentAdminData.email)) || '—',
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagemFinal)}`, '_blank');
+
+    showToast('WhatsApp aberto com a mensagem pronta.', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modal-whats')).hide();
+    await loadApontamento();
+  } catch(e) {
+    showToast('Erro: '+e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    loading(false);
+  }
+}
+
+// ── HISTÓRICO DE NOTIFICAÇÕES ────────────────────────────────────
+async function loadNotificacoes() {
+  const date = document.getElementById('not-data').value;
+  const tbody = document.getElementById('not-tbody');
+  if (!date) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px;">Carregando…</td></tr>';
+  try {
+    const start = firebase.firestore.Timestamp.fromDate(new Date(date+'T00:00:00'));
+    const end   = firebase.firestore.Timestamp.fromDate(new Date(date+'T23:59:59'));
+    const snap = await db.collection('notificacoes_whatsapp')
+      .where('criadoEm','>=',start).where('criadoEm','<=',end)
+      .orderBy('criadoEm','desc').get();
+    const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px;">Nenhuma notificação nesta data.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${fmtDate(r.criadoEm)}</td>
+        <td><b>${esc(r.placa)}</b></td>
+        <td>${esc(r.motoristaNome)}</td>
+        <td>${esc(r.telefone)}</td>
+        <td>${r.status==='ABERTO_WHATSAPP' ? '<span class="badge-ok">WhatsApp aberto</span>' : `<span class="badge-pendente">${esc(r.status)||'—'}</span>`}</td>
+        <td>${esc(r.criadoPorNome)||'—'}</td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
   }
 }
 </script>
