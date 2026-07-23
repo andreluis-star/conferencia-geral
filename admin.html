@@ -497,6 +497,7 @@
             <span style="color:#888;">até</span>
             <input type="date" id="pal-data-fim" class="form-control form-control-sm" style="width:150px;"/>
             <button class="btn btn-sm btn-navy" onclick="loadPaletes()">Filtrar</button>
+            <input type="text" id="pal-busca" class="form-control form-control-sm" style="width:260px;" placeholder="Buscar por NF, cliente, placa ou conferente..." oninput="filterPaletesList()"/>
           </div>
         </div>
       </div>
@@ -510,6 +511,7 @@
       <div class="col-12">
         <div class="table-card">
           <div class="tc-head"><span class="tc-title">Saída de Paletes × 1ª Chegada Posterior</span></div>
+          <div id="paletes-list-count" style="padding:8px 20px 0;font-size:0.78rem;color:#888;"></div>
           <div id="paletes-list" style="padding:12px 20px;"></div>
         </div>
       </div>
@@ -1961,6 +1963,8 @@ function renderResumoPaletesPeriodo(ops) {
     </div>`;
 }
 
+let paletesItemsCache = [];
+
 async function loadPaletes() {
   const ini = document.getElementById('pal-data-ini').value;
   const fim = document.getElementById('pal-data-fim').value;
@@ -1984,7 +1988,6 @@ async function loadPaletes() {
     byPlaca[p].push(op);
   });
 
-  const container = document.getElementById('paletes-list');
   const items = [];
 
   Object.entries(byPlaca).forEach(([placa, lista])=>{
@@ -2000,17 +2003,61 @@ async function loadPaletes() {
       const totalEntrada = proxEntrada ? (proxEntrada.paletes||[]).reduce((s,p)=>s+p.quantidade,0) : null;
       const ok = totalEntrada !== null && totalEntrada >= totalSaida;
       const diff = totalEntrada !== null ? totalEntrada - totalSaida : null;
-      items.push({ placa, saidaTs:fmtDate(saida.timestamp), totalSaida, totalEntrada, ok, diff, conferente:saida.conferenteNome });
+      const nfsSaida = (saida.nfs||[]).map(n=>n.nf).filter(Boolean).join(', ');
+      const nfsEntrada = proxEntrada ? (proxEntrada.nfs||[]).map(n=>n.nf).filter(Boolean).join(', ') : '';
+      items.push({
+        placa, saidaTs:fmtDate(saida.timestamp), totalSaida, totalEntrada, ok, diff,
+        conferente: saida.conferenteNome,
+        conferenteEntrada: proxEntrada ? proxEntrada.conferenteNome : '',
+        cliente: saida.cliente || (proxEntrada ? proxEntrada.cliente : '') || '',
+        nf: [nfsSaida, nfsEntrada].filter(Boolean).join(', ')
+      });
     });
   });
 
-  if (!items.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período.</p>'; return; }
+  paletesItemsCache = items;
+  filterPaletesList();
+}
+
+function filterPaletesList() {
+  const busca = (document.getElementById('pal-busca').value||'').trim().toLowerCase();
+  let items = paletesItemsCache;
+  if (busca) {
+    items = items.filter(i =>
+      (i.placa||'').toLowerCase().includes(busca) ||
+      (i.cliente||'').toLowerCase().includes(busca) ||
+      (i.nf||'').toLowerCase().includes(busca) ||
+      (i.conferente||'').toLowerCase().includes(busca) ||
+      (i.conferenteEntrada||'').toLowerCase().includes(busca)
+    );
+  }
+  renderPaletesListItems(items);
+}
+
+function renderPaletesListItems(items) {
+  const container = document.getElementById('paletes-list');
+  const countEl = document.getElementById('paletes-list-count');
+
+  if (!paletesItemsCache.length) {
+    countEl.textContent = '';
+    container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período.</p>';
+    return;
+  }
+  if (!items.length) {
+    countEl.textContent = `0 de ${paletesItemsCache.length} registro(s)`;
+    container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">Nenhum resultado para essa busca.</p>';
+    return;
+  }
+
+  countEl.textContent = items.length === paletesItemsCache.length
+    ? `${items.length} registro(s)`
+    : `${items.length} de ${paletesItemsCache.length} registro(s)`;
 
   container.innerHTML = items.map(i=>`
     <div class="placa-comp">
       <div class="placa-tag">${i.placa}</div>
       <div style="flex:1">
-        <div style="font-size:0.78rem;color:#888;">${i.saidaTs} • ${i.conferente||'—'}</div>
+        <div style="font-size:0.78rem;color:#888;">${i.saidaTs} • ${i.conferente||'—'}${i.cliente?` • ${i.cliente}`:''}${i.nf?` • NF ${i.nf}`:''}</div>
         <div style="font-size:0.88rem;margin-top:2px;">
           Saiu: <b>${i.totalSaida} palete(s)</b>
           <span class="comp-arrow">→</span>
