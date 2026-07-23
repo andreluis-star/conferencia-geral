@@ -703,6 +703,11 @@
         </div>
       </div>
       <div class="form-card">
+        <h4>🚚 Placa (opcional)</h4>
+        <input type="text" class="form-input" id="ins-placa" placeholder="Ex: ABC1D23 — deixe em branco se não for de um veículo específico" maxlength="8" oninput="this.value=this.value.toUpperCase()"/>
+        <div style="font-size:0.74rem;color:#aaa;margin-top:4px;">Se informar a placa, esta movimentação fica vinculada a esse veículo. Sem placa, ela ainda é registrada e aparece em Discrepâncias para revisão.</div>
+      </div>
+      <div class="form-card">
         <h4>🪵 Paletes</h4>
         <div id="ins-av-paletes-list" class="item-cards-grid"></div>
       </div>
@@ -1305,7 +1310,9 @@ async function openConferencia(group) {
   document.getElementById('form-placa-title').textContent = group.placa;
 
   // Sempre reativa o botão ao abrir novo formulário
-  document.getElementById('btn-submit').disabled = false;
+  const btnSubmitReset = document.getElementById('btn-submit');
+  btnSubmitReset.disabled = false;
+  btnSubmitReset.textContent = '✔ CONFIRMAR CONFERÊNCIA';
 
   // Reset campo TRANSFERÊNCIA
   const chkTransf = document.getElementById('chk-transferencia');
@@ -1418,6 +1425,15 @@ async function prefillFromExistingOp(placa, tipo) {
     // OBS: o status OK/NÃO OK de cada NF NUNCA é travado — fica sempre disponível para
     // inserir ou retirar a marcação, mesmo em referência cruzada ou operação já concluída.
     const shouldDisableAll = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
+
+    // Operação já concluída (mesmo tipo, não é referência cruzada): não há o que reenviar.
+    // Trava o botão para evitar que o conferente fique tocando nele sem efeito — cada toque
+    // disparava um novo aviso "Esta operação já foi conferida.", empilhando vários toasts na tela.
+    if (!isReference && completedOps[`${placa}_${tipo}`] === 'CONCLUIDA') {
+      const btnSubmit = document.getElementById('btn-submit');
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = '✔ Operação já conferida';
+    }
 
     // Prefill TRANSFERÊNCIA (só do mesmo tipo, não referência cruzada)
     if (!isReference) {
@@ -2760,6 +2776,7 @@ function openInsumos() {
   setInsTipo('SAIDA');
   renderPaletesAvulso();
   renderInsumosAvulso();
+  document.getElementById('ins-placa').value='';
   document.getElementById('ins-obs').value='';
   goTo('screen-insumos');
 }
@@ -2844,11 +2861,13 @@ async function submeterInsumosAvulso() {
       }
     });
     if(!insumosSel.length && !paletesSel.length){loading(false);showToast('Adicione pelo menos um insumo ou palete com quantidade.','warning');return;}
+    const placaInformada = formatPlaca(document.getElementById('ins-placa').value);
+    const placa = placaInformada || '—';
     const obs = document.getElementById('ins-obs').value.trim();
     const fotosUrls=[];
     for(const b64 of insAv_fotosBase64){fotosUrls.push(await compressImage(b64));}
     const opRef=await db.collection('operacoes').add({
-      placa:'—', tipoOperacao:insTipo, tipoExecucao:insTipo,
+      placa, tipoOperacao:insTipo, tipoExecucao:insTipo,
       conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
       dataRef:getTodayTabName(), cliente:'', clienteUnico:false,
@@ -2864,12 +2883,32 @@ async function submeterInsumosAvulso() {
       await db.collection('movimentacoes').add({
         insumoId:ins.insumoId,insumoNome:ins.insumoNome,
         tipo:insTipo,quantidade:ins.quantidade,
-        operacaoId:opRef.id,placa:'—',
+        operacaoId:opRef.id,placa,
         conferenteId:currentUser.uid,conferenteNome:currentUser.nome||currentUser.email,
         timestamp:firebase.firestore.FieldValue.serverTimestamp(),
         observacao:obs||`Insumos avulsos - ${insTipo}`
       });
     }
+
+    // ── Toda movimentação avulsa (sem NF/checklist de veículo por trás) entra
+    // também em Discrepâncias, para o admin ter visibilidade/revisão — mesmo
+    // quando uma placa foi informada, já que ainda é fora do fluxo normal de
+    // conferência por veículo. ──
+    const itensDescricao = [
+      ...insumosSel.map(i=>`${i.insumoNome} x${i.quantidade}`),
+      ...paletesSel.map(p=>`${p.tipo==='OUTROS'?(p.tipoCustom||'Outros'):p.tipo} x${p.quantidade}`)
+    ];
+    await db.collection('discrepancias').add({
+      tipo: 'AVULSO',
+      operacaoId:opRef.id, placa,
+      tipoMovimento:insTipo,
+      itens:itensDescricao,
+      observacao:obs||'',
+      conferenteId:currentUser.uid, conferenteNome:currentUser.nome||currentUser.email,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+      status:'PENDENTE'
+    });
+
     loading(false);
     showToast('Movimentação registrada! ✔');
     await loadInsumos();
