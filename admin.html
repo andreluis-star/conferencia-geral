@@ -526,8 +526,7 @@
         <input type="date" id="ap-data-ini" class="form-control form-control-sm" style="width:150px;"/>
         <span style="color:#888;">até</span>
         <input type="date" id="ap-data-fim" class="form-control form-control-sm" style="width:150px;"/>
-        <input type="text" id="ap-placa" class="form-control form-control-sm" style="width:150px;" placeholder="Filtrar placa"/>
-        <select class="form-select form-select-sm" id="ap-status" style="width:180px;">
+        <select class="form-select form-select-sm" id="ap-status" style="width:180px;" onchange="filterApontamentoList()">
           <option value="">Todos os status</option>
           <option value="OK">Somente OK</option>
           <option value="DIFERENCA">Somente com diferença</option>
@@ -535,6 +534,7 @@
         </select>
         <button class="btn btn-sm btn-navy" onclick="loadApontamento()">Filtrar</button>
         <button class="btn btn-sm btn-outline-secondary" onclick="testarConexaoPlanilha()">🔌 Testar planilha</button>
+        <input type="text" id="ap-busca" class="form-control form-control-sm" style="width:280px;" placeholder="Buscar por placa, motorista, cliente, NF ou conferente..." oninput="filterApontamentoList()"/>
       </div>
       <p style="font-size:0.78rem;color:#aaa;margin:10px 0 0;">
         Compara cada saída (o que foi retirado, por tipo) com a próxima chegada daquela placa. O nome do motorista é buscado <b>ao vivo, direto na
@@ -543,6 +543,7 @@
       </p>
       <div id="sheet-status" style="font-size:0.76rem;color:#888;margin-top:6px;"></div>
     </div>
+    <div id="apontamento-list-count" style="padding:8px 20px 0;font-size:0.78rem;color:#888;"></div>
     <div id="apontamento-list"></div>
   </div>
 
@@ -2426,16 +2427,34 @@ async function loadNomesRecentesOperacoes() {
     const d60 = new Date(); d60.setDate(d60.getDate()-60);
     const start = firebase.firestore.Timestamp.fromDate(d60);
     const snap = await db.collection('operacoes').where('timestamp','>=',start).orderBy('timestamp','desc').limit(1000).get();
+    const ops = snap.docs.map(d=>d.data());
+
+    // A coleção "operacoes" quase nunca grava o campo `motorista` (só placa) — a
+    // fonte real do nome é a planilha (aba do dia, colunas Motorista/Placa), a
+    // mesma usada em "Apontamento por Veículo". Busca o mapa placa→motorista de
+    // cada dia (aba) que aparece nas operações recentes e usa isso como fonte
+    // primária; o campo salvo na operação (quando existir) entra como reforço.
+    let mapasPorDia = {};
+    try {
+      const sheetId = await getSheetId();
+      const dataRefs = [...new Set(ops.map(o=>o.dataRef).filter(Boolean))];
+      await Promise.all(dataRefs.map(async dr => { mapasPorDia[dr] = await getPlacaMotoristaMapCached(sheetId, dr); }));
+    } catch(e) {
+      console.warn('Não foi possível consultar a planilha para os nomes recentes:', e);
+    }
 
     const nomes = new Set();
-    snap.docs.forEach(d => {
-      const nome = (d.data().motorista||'').trim();
-      if (nome) nomes.add(nome);
+    ops.forEach(op => {
+      const nomeCampo = (op.motorista||'').trim();
+      if (nomeCampo) nomes.add(nomeCampo);
+      const placaNorm = normalizaPlaca(op.placa||'');
+      const nomePlanilha = op.dataRef && mapasPorDia[op.dataRef] && mapasPorDia[op.dataRef][placaNorm];
+      if (nomePlanilha) nomes.add(nomePlanilha);
     });
     const lista = [...nomes].sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
     if (!lista.length) {
-      container.innerHTML = '<p style="color:#aaa;padding:8px 0;margin:0;">Nenhum nome de motorista encontrado nas operações recentes.</p>';
+      container.innerHTML = '<p style="color:#aaa;padding:8px 0;margin:0;">Nenhum nome de motorista encontrado nas operações recentes (nem na planilha, nem salvo na operação).</p>';
       return;
     }
 
@@ -2645,11 +2664,11 @@ function parearSaidasEntradas(ops) {
   return pares;
 }
 
+let apontamentoItensCache = [];
+
 async function loadApontamento() {
   const ini = document.getElementById('ap-data-ini').value;
   const fim = document.getElementById('ap-data-fim').value;
-  const placaFiltro = normalizaPlaca(document.getElementById('ap-placa').value);
-  const statusFiltro = document.getElementById('ap-status').value;
   if (!ini || !fim) return;
 
   const container = document.getElementById('apontamento-list');
@@ -2673,7 +2692,6 @@ async function loadApontamento() {
     notifSnap.docs.forEach(d=>{ const n=d.data(); if (n.saidaOpId) notifPorSaida[n.saidaOpId] = n; });
 
     let pares = parearSaidasEntradas(ops).filter(p=>(p.saida.paletes||[]).length);
-    if (placaFiltro) pares = pares.filter(p=>p.placaNorm.includes(placaFiltro));
 
     // Busca ao vivo na planilha: para cada dia (aba) presente nas saídas do período,
     // busca o mapa placa→motorista daquela aba. É a fonte PRIMÁRIA do nome — só cai
@@ -2741,97 +2759,139 @@ async function loadApontamento() {
         clientesSaida, clientesEntrada };
     });
 
-    let itensFiltrados = itens;
-    if (statusFiltro) itensFiltrados = itensFiltrados.filter(i=>i.status===statusFiltro);
-
-    if (!itensFiltrados.length) {
-      container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período/filtro selecionado.</p>';
-      return;
-    }
-
-    // Guarda em memória para o modal de mensagem conseguir reconstruir os dados.
-    window._apontamentoItens = itensFiltrados;
-    window._sugestoesMotorista = {}; // idx -> { nome, dataOcorrencia } vindo do TFA
-
-    container.innerHTML = itensFiltrados.map((i,idx)=>{
-      const statusBadge = i.pendente
-        ? '<span class="badge-pendente">Sem retorno ainda</span>'
-        : (i.ok ? '<span class="badge-ok">✔ OK</span>' : '<span class="badge-naook">⚠ Diferença</span>');
-
-      const linhasHtml = i.linhas.map(l=>{
-        if (l.diff < 0) return `<div class="item-linha item-falta">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — faltam ${Math.abs(l.diff)}</div>`;
-        if (l.diff > 0) return `<div class="item-linha item-sobra">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — ${l.diff} a mais</div>`;
-        return `<div class="item-linha">• ${esc(l.tipo)}: ${l.saida} un. (bateu certinho)</div>`;
-      }).join('');
-
-      // Três situações possíveis: (1) nome + telefone prontos para notificar;
-      // (2) nome veio da operação/planilha mas falta cadastrar o telefone dele;
-      // (3) a operação não tem nome de motorista — sobra só a sugestão do TFA.
-      const origemTag = i.origemNome === 'planilha' ? ' <span style="color:#aaa;font-weight:400;">(ao vivo, planilha)</span>'
-        : i.origemNome === 'operacao' ? ' <span style="color:#aaa;font-weight:400;">(salvo na operação)</span>' : '';
-
-      let motoristaHtml;
-      if (i.nomeFinal && i.telefoneFinal) {
-        motoristaHtml = `<span class="motorista-tag">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b> (${esc(i.telefoneFinal)})${origemTag}</span>`;
-      } else if (i.nomeFinal) {
-        motoristaHtml = `<span class="motorista-warn">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b>${origemTag} — ⚠ telefone não cadastrado</span>`;
-      } else {
-        motoristaHtml = `<span class="motorista-warn">⚠ Não foi possível identificar o motorista (nem na planilha, nem na operação) para a placa ${esc(i.placaOriginal)}</span>
-           <div id="sugestao-${idx}" style="font-size:0.76rem;color:#888;margin-top:2px;"></div>`;
-      }
-
-      // O botão de mensagem aparece sempre que há diferença, mesmo sem motorista
-      // cadastrado — nome e telefone podem ser digitados/corrigidos na hora, dentro
-      // do próprio modal (não depende do cadastro ter "vinculado" corretamente).
-      let acaoHtml = '';
-      if (!i.pendente && !i.ok) {
-        acaoHtml = `<button class="btn btn-sm btn-whats" style="margin-left:8px;" onclick="prepararEnvioWhats(${idx})">📲 Preparar Mensagem</button>`;
-        if (i.notif) {
-          acaoHtml += `<span class="badge-info" style="margin-left:6px;">Preparada em ${fmtDate(i.notif.criadoEm)}</span>`;
-        }
-      }
-
-      const clientesSaidaStr = i.clientesSaida.length ? i.clientesSaida.map(esc).join(', ') : '—';
-      const clientesEntradaStr = i.clientesEntrada.length ? i.clientesEntrada.map(esc).join(', ') : '—';
-
-      return `
-      <div class="apt-card">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="d-flex align-items-center gap-3">
-            <div class="placa-tag">${esc(i.placaOriginal)}</div>
-            <div>
-              <div style="font-size:0.78rem;color:#888;">Saída ${fmtDate(i.saida.timestamp)} • Conf.: ${esc(i.saida.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesSaidaStr}</b></div>
-              <div>${motoristaHtml}</div>
-            </div>
-          </div>
-          <div>${statusBadge}${acaoHtml}</div>
-        </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #eef0f6;">
-          <div style="font-size:0.78rem;color:#888;margin-bottom:4px;">
-            ${i.pendente ? 'Aguardando retorno…' : `Retorno ${fmtDate(i.entrada.timestamp)} • Conf.: ${esc(i.entrada.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesEntradaStr}</b>`}
-          </div>
-          ${linhasHtml}
-        </div>
-      </div>`;
-    }).join('');
-
-    // Só entra aqui se a operação não trouxe nome de motorista (planilha sem a coluna
-    // preenchida naquele dia) — busca em segundo plano (sem travar a tela) se já existe
-    // um nome no histórico de TFA, como último recurso.
-    itensFiltrados.forEach((i, idx)=>{
-      if (i.nomeFinal) return;
-      const el = document.getElementById(`sugestao-${idx}`);
-      if (!el) return;
-      buscarMotoristaSugeridoPorPlaca(i.placaNorm).then(sugestao=>{
-        if (!sugestao) return;
-        window._sugestoesMotorista[idx] = sugestao;
-        el.innerHTML = `💡 Nome encontrado no TFA: <b>${esc(sugestao.nome)}</b> — clique em "Preparar Mensagem" para usá-lo, ou
-          <button class="btn btn-sm btn-outline-secondary" style="margin-left:2px;padding:1px 8px;" onclick="irCadastrarMotoristaComSugestao('${esc(i.placaOriginal).replace(/'/g,"\\'")}','${esc(sugestao.nome).replace(/'/g,"\\'")}')">cadastre já</button>`;
-      });
-    });
+    apontamentoItensCache = itens;
+    filterApontamentoList();
   } catch(e) {
     container.innerHTML = `<p style="color:#dc3545;text-align:center;padding:20px;">Erro ao carregar: ${esc(e.message)}</p>`;
   }
+}
+
+// Filtra o cache já carregado (sem nova consulta ao Firestore) por status e por
+// uma busca livre (placa, motorista, cliente, NF ou conferente) — mesma ideia do
+// filtro criado na aba Paletes.
+function filterApontamentoList() {
+  const statusFiltro = document.getElementById('ap-status').value;
+  const busca = (document.getElementById('ap-busca').value||'').trim().toLowerCase();
+
+  let itens = apontamentoItensCache;
+  if (statusFiltro) itens = itens.filter(i=>i.status===statusFiltro);
+
+  if (busca) {
+    itens = itens.filter(i => {
+      const nf = [...(i.saida.nfs||[]), ...((i.entrada&&i.entrada.nfs)||[])].map(n=>n.nf).filter(Boolean).join(' ').toLowerCase();
+      return (i.placaOriginal||'').toLowerCase().includes(busca)
+        || (i.nomeFinal||'').toLowerCase().includes(busca)
+        || (i.saida.conferenteNome||'').toLowerCase().includes(busca)
+        || ((i.entrada && i.entrada.conferenteNome)||'').toLowerCase().includes(busca)
+        || i.clientesSaida.some(c=>c.toLowerCase().includes(busca))
+        || i.clientesEntrada.some(c=>c.toLowerCase().includes(busca))
+        || nf.includes(busca);
+    });
+  }
+
+  renderApontamentoList(itens);
+}
+
+function renderApontamentoList(itensFiltrados) {
+  const container = document.getElementById('apontamento-list');
+  const countEl = document.getElementById('apontamento-list-count');
+
+  if (!apontamentoItensCache.length) {
+    if (countEl) countEl.textContent = '';
+    container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">Nenhum dado no período/filtro selecionado.</p>';
+    return;
+  }
+  if (!itensFiltrados.length) {
+    if (countEl) countEl.textContent = `0 de ${apontamentoItensCache.length} registro(s)`;
+    container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">Nenhum resultado para esse filtro/busca.</p>';
+    return;
+  }
+  if (countEl) {
+    countEl.textContent = itensFiltrados.length === apontamentoItensCache.length
+      ? `${itensFiltrados.length} registro(s)`
+      : `${itensFiltrados.length} de ${apontamentoItensCache.length} registro(s)`;
+  }
+
+  // Guarda em memória para o modal de mensagem conseguir reconstruir os dados.
+  window._apontamentoItens = itensFiltrados;
+  window._sugestoesMotorista = {}; // idx -> { nome, dataOcorrencia } vindo do TFA
+
+  container.innerHTML = itensFiltrados.map((i,idx)=>{
+    const statusBadge = i.pendente
+      ? '<span class="badge-pendente">Sem retorno ainda</span>'
+      : (i.ok ? '<span class="badge-ok">✔ OK</span>' : '<span class="badge-naook">⚠ Diferença</span>');
+
+    const linhasHtml = i.linhas.map(l=>{
+      if (l.diff < 0) return `<div class="item-linha item-falta">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — faltam ${Math.abs(l.diff)}</div>`;
+      if (l.diff > 0) return `<div class="item-linha item-sobra">• ${esc(l.tipo)}: saiu ${l.saida}, voltou ${l.entrada} — ${l.diff} a mais</div>`;
+      return `<div class="item-linha">• ${esc(l.tipo)}: ${l.saida} un. (bateu certinho)</div>`;
+    }).join('');
+
+    // Três situações possíveis: (1) nome + telefone prontos para notificar;
+    // (2) nome veio da operação/planilha mas falta cadastrar o telefone dele;
+    // (3) a operação não tem nome de motorista — sobra só a sugestão do TFA.
+    const origemTag = i.origemNome === 'planilha' ? ' <span style="color:#aaa;font-weight:400;">(ao vivo, planilha)</span>'
+      : i.origemNome === 'operacao' ? ' <span style="color:#aaa;font-weight:400;">(salvo na operação)</span>' : '';
+
+    let motoristaHtml;
+    if (i.nomeFinal && i.telefoneFinal) {
+      motoristaHtml = `<span class="motorista-tag">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b> (${esc(i.telefoneFinal)})${origemTag}</span>`;
+    } else if (i.nomeFinal) {
+      motoristaHtml = `<span class="motorista-warn">🧑‍✈️ Motorista: <b>${esc(i.nomeFinal)}</b>${origemTag} — ⚠ telefone não cadastrado</span>`;
+    } else {
+      motoristaHtml = `<span class="motorista-warn">⚠ Não foi possível identificar o motorista (nem na planilha, nem na operação) para a placa ${esc(i.placaOriginal)}</span>
+         <div id="sugestao-${idx}" style="font-size:0.76rem;color:#888;margin-top:2px;"></div>`;
+    }
+
+    // O botão de mensagem aparece sempre que há diferença, mesmo sem motorista
+    // cadastrado — nome e telefone podem ser digitados/corrigidos na hora, dentro
+    // do próprio modal (não depende do cadastro ter "vinculado" corretamente).
+    let acaoHtml = '';
+    if (!i.pendente && !i.ok) {
+      acaoHtml = `<button class="btn btn-sm btn-whats" style="margin-left:8px;" onclick="prepararEnvioWhats(${idx})">📲 Preparar Mensagem</button>`;
+      if (i.notif) {
+        acaoHtml += `<span class="badge-info" style="margin-left:6px;">Preparada em ${fmtDate(i.notif.criadoEm)}</span>`;
+      }
+    }
+
+    const clientesSaidaStr = i.clientesSaida.length ? i.clientesSaida.map(esc).join(', ') : '—';
+    const clientesEntradaStr = i.clientesEntrada.length ? i.clientesEntrada.map(esc).join(', ') : '—';
+
+    return `
+    <div class="apt-card">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+          <div class="placa-tag">${esc(i.placaOriginal)}</div>
+          <div>
+            <div style="font-size:0.78rem;color:#888;">Saída ${fmtDate(i.saida.timestamp)} • Conf.: ${esc(i.saida.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesSaidaStr}</b></div>
+            <div>${motoristaHtml}</div>
+          </div>
+        </div>
+        <div>${statusBadge}${acaoHtml}</div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #eef0f6;">
+        <div style="font-size:0.78rem;color:#888;margin-bottom:4px;">
+          ${i.pendente ? 'Aguardando retorno…' : `Retorno ${fmtDate(i.entrada.timestamp)} • Conf.: ${esc(i.entrada.conferenteNome)||'—'} • 🏢 Visitou: <b>${clientesEntradaStr}</b>`}
+        </div>
+        ${linhasHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Só entra aqui se a operação não trouxe nome de motorista (planilha sem a coluna
+  // preenchida naquele dia) — busca em segundo plano (sem travar a tela) se já existe
+  // um nome no histórico de TFA, como último recurso.
+  itensFiltrados.forEach((i, idx)=>{
+    if (i.nomeFinal) return;
+    const el = document.getElementById(`sugestao-${idx}`);
+    if (!el) return;
+    buscarMotoristaSugeridoPorPlaca(i.placaNorm).then(sugestao=>{
+      if (!sugestao) return;
+      window._sugestoesMotorista[idx] = sugestao;
+      el.innerHTML = `💡 Nome encontrado no TFA: <b>${esc(sugestao.nome)}</b> — clique em "Preparar Mensagem" para usá-lo, ou
+        <button class="btn btn-sm btn-outline-secondary" style="margin-left:2px;padding:1px 8px;" onclick="irCadastrarMotoristaComSugestao('${esc(i.placaOriginal).replace(/'/g,"\\'")}','${esc(sugestao.nome).replace(/'/g,"\\'")}')">cadastre já</button>`;
+    });
+  });
 }
 
 function irCadastrarMotoristaComSugestao(placa, nome) {
