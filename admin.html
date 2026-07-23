@@ -469,6 +469,7 @@
             <option value="">Todos os tipos</option>
             <option value="NF">NF (Não OK)</option>
             <option value="PALETE">Palete</option>
+            <option value="AVULSO">Insumo Avulso</option>
           </select>
           <select class="form-select form-select-sm" id="disc-status" style="width:150px;" onchange="loadDiscrepancias()">
             <option value="">Todos os status</option>
@@ -1635,15 +1636,23 @@ async function loadDiscrepancias() {
   }
 
   tbody.innerHTML = rows.map(r => {
-    const isPalete = r.tipo === 'PALETE';
-    const tipoBadge = isPalete
+    const tipoR = r.tipo || 'NF';
+    const tipoBadge = tipoR === 'PALETE'
       ? '<span class="badge bg-warning text-dark" style="font-size:0.72rem;">Palete</span>'
+      : tipoR === 'AVULSO'
+      ? '<span class="badge bg-info text-dark"    style="font-size:0.72rem;">Insumo Avulso</span>'
       : '<span class="badge bg-secondary"        style="font-size:0.72rem;">NF</span>';
 
     let detalhe;
-    if (isPalete) {
+    if (tipoR === 'PALETE') {
       const diff = r.diferenca || 0;
       detalhe = `<b>${r.tipoKey||'—'}</b> · Esperado: ${r.qtdEsperada||0} · Retornou: ${r.qtdRetornada||0} · <span style="color:${diff<0?'#c0392b':'#1a5c1a'};font-weight:700;">${diff>0?'+':''}${diff}</span>`;
+    } else if (tipoR === 'AVULSO') {
+      const parts = [];
+      parts.push(r.tipoMovimento === 'SAIDA' ? '📤 Saída' : '📥 Entrada');
+      if (r.itens && r.itens.length) parts.push(r.itens.join(', '));
+      if (r.observacao) parts.push(r.observacao);
+      detalhe = parts.join(' · ') || '—';
     } else {
       const parts = [];
       if (r.nf)          parts.push(`NF ${r.nf}`);
