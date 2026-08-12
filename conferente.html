@@ -429,7 +429,7 @@
       <button class="btn-refresh" onclick="loadPlacas()">↻</button>
     </div>
     <div class="form-card" id="resumo-paletes-dia">
-      <h4>🪵 Movimentação de Paletes — Hoje</h4>
+      <h4>🪵 Movimentação de Paletes, Cintas e Catracas — Hoje</h4>
       <div id="resumo-paletes-content"></div>
       <p style="font-size:0.68rem;color:#aaa;margin-top:6px;">* Veículos marcados como TRANSFERÊNCIA têm controle paralelo e não entram neste resumo.</p>
     </div>
@@ -1136,31 +1136,48 @@ async function loadPlacas() {
 //  Veículos marcados como TRANSFERÊNCIA têm controle paralelo
 //  próprio e não entram neste resumo.
 // ═══════════════════════════════════════════════════════
+// Normaliza texto p/ comparação (minúsculo, sem acento)
+function _normTxt(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
 function renderResumoPaletesDia(ops) {
   const totais = {
     PBR:         { entrada: 0, saida: 0 },
     DESCARTAVEL: { entrada: 0, saida: 0 },
     OUTROS:      { entrada: 0, saida: 0 },
   };
+  // Cintas e catracas vêm dos INSUMOS lançados nas operações (por nome)
+  const insumTot = {
+    CINTA:   { entrada: 0, saida: 0 },
+    CATRACA: { entrada: 0, saida: 0 },
+  };
 
   ops.forEach(op => {
     if (op.transferencia) return;               // controle paralelo — não soma aqui
-    if (!op.paletes || !op.paletes.length) return;
     const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
-    op.paletes.forEach(p => {
+    (op.paletes || []).forEach(p => {
       const key = p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'DESCARTAVEL' : 'OUTROS';
       totais[key][dir] += (parseInt(p.quantidade) || 0);
+    });
+    (op.insumos || []).forEach(ins => {
+      const nome = _normTxt(ins.insumoNome);
+      const qtd  = parseInt(ins.quantidade) || 0;
+      if (nome.includes('cinta'))   insumTot.CINTA[dir]   += qtd;
+      if (nome.includes('catraca')) insumTot.CATRACA[dir] += qtd;
     });
   });
 
   const linhas = [
-    { key:'PBR',         icon:'🪵', nome:'PBR' },
-    { key:'DESCARTAVEL', icon:'♻️', nome:'Descartável' },
-    { key:'OUTROS',      icon:'📦', nome:'Outros' },
+    { t:totais.PBR,          icon:'🪵', nome:'PBR' },
+    { t:totais.DESCARTAVEL,  icon:'♻️', nome:'Descartável' },
+    { t:totais.OUTROS,       icon:'📦', nome:'Outros' },
+    { sep:true },
+    { t:insumTot.CINTA,      icon:'🔗', nome:'Cintas' },
+    { t:insumTot.CATRACA,    icon:'⚙️', nome:'Catracas' },
   ];
 
   document.getElementById('resumo-paletes-content').innerHTML = linhas.map(l => {
-    const t = totais[l.key];
+    if (l.sep) return `<div style="height:1px;background:#e6e9f0;margin:6px 0;"></div>`;
+    const t = l.t;
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;">
       <span style="font-size:0.85rem;font-weight:700;color:var(--navy);">${l.icon} ${l.nome}</span>
       <span style="font-size:0.8rem;white-space:nowrap;">
