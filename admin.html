@@ -44,6 +44,12 @@
     display:flex; align-items:center; justify-content:space-between; padding:0 24px;
   }
   #page-title { font-size:1.1rem; font-weight:700; color:var(--navy); }
+  #btn-reciclar-adm { background:none; border:1px solid #cfd6e4; color:#334; border-radius:8px; padding:5px 9px; font-size:0.95rem; line-height:1; cursor:pointer; }
+  #btn-reciclar-adm:active { transform:rotate(180deg); transition:transform 0.3s; }
+  #app-version-tag { font-size:0.62rem; color:#b9c0cf; }
+  #update-banner { display:none; position:fixed; left:0; right:0; bottom:0; z-index:10000; background:#128c3e; color:#fff; padding:12px 16px; box-shadow:0 -4px 16px rgba(0,0,0,0.25); align-items:center; justify-content:space-between; gap:12px; font-size:0.9rem; }
+  #update-banner.show { display:flex; }
+  #update-banner button { background:#fff; color:#0d6b2e; border:none; border-radius:8px; padding:8px 16px; font-weight:800; cursor:pointer; white-space:nowrap; }
   /* MAIN */
   #main { margin-left:var(--sidebar-w); margin-top:var(--header-h); padding:24px; }
   .section { display:none; }
@@ -239,7 +245,17 @@
     </button>
     <span id="page-title">Dashboard</span>
   </div>
-  <div id="topbar-date" style="font-size:0.82rem;color:#888;"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="app-version-tag"></span>
+    <span id="topbar-date" style="font-size:0.82rem;color:#888;"></span>
+    <button id="btn-reciclar-adm" onclick="forcarAtualizacao()" title="Atualizar o painel (limpar cache e recarregar)">♻️</button>
+  </div>
+</div>
+
+<!-- FAIXA DE ATUALIZAÇÃO DISPONÍVEL -->
+<div id="update-banner">
+  <span>🔄 Nova atualização disponível.</span>
+  <button onclick="aplicarUpdate()">Atualizar agora</button>
 </div>
 
 <!-- MAIN -->
@@ -3722,6 +3738,65 @@ async function loadNotificacoes() {
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc3545;padding:16px;">Erro: ${esc(e.message)}</td></tr>`;
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
+// ═══════════════════════════════════════════════════════
+const APP_VERSION = '2026.08.25-2';
+
+(function registrarServiceWorkerAdmin() {
+  const tag = document.getElementById('app-version-tag');
+  if (tag) tag.textContent = 'v' + APP_VERSION;
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      setInterval(() => reg.update().catch(()=>{}), 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(()=>{}); });
+      if (reg.waiting && navigator.serviceWorker.controller) mostrarBannerUpdate();
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) mostrarBannerUpdate();
+        });
+      });
+    }).catch(e => console.warn('SW registro:', e));
+
+    let recarregando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recarregando) return; recarregando = true; window.location.reload();
+    });
+  });
+})();
+
+function mostrarBannerUpdate() {
+  document.getElementById('update-banner')?.classList.add('show');
+}
+
+function aplicarUpdate() {
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+    else window.location.reload();
+  }).catch(() => window.location.reload());
+}
+
+async function forcarAtualizacao() {
+  if (!confirm('Atualizar o painel agora? Ele vai limpar os dados temporários e recarregar.')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { console.warn('forcarAtualizacao:', e); }
+  const u = new URL(window.location.href);
+  u.searchParams.set('_att', Date.now());
+  window.location.replace(u.toString());
 }
 </script>
 </body>
