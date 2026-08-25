@@ -8,7 +8,7 @@
 //  Isso garante que o app detecte "nova atualização" e limpe
 //  os caches antigos.
 // ============================================================
-const SW_VERSION  = '2026.08.25-2';
+const SW_VERSION  = '2026.08.25-3';
 const CACHE_NAME  = 'conferencia-' + SW_VERSION;
 
 // Recursos "pesados" que quase não mudam — seguro manter em cache
