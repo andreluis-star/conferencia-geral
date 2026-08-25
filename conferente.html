@@ -252,6 +252,19 @@
   .nf-obs-row input:last-child { margin-bottom:0; }
   .nf-obs-row input:focus { border-color:var(--blue); }
   .nf-obs-label { font-size:0.72rem; font-weight:700; color:#c0392b; margin-bottom:6px; }
+  .btn-apontar-erro { margin-top:8px; width:100%; background:#25d366; color:#fff; border:none; border-radius:8px; padding:9px 10px; font-size:0.84rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .btn-apontar-erro:active { transform:scale(0.98); }
+  /* Overlay de seleção de contato para apontamento de erro */
+  .cerr-overlay { position:fixed; inset:0; background:rgba(10,20,35,0.55); z-index:9999; display:flex; align-items:center; justify-content:center; padding:18px; }
+  .cerr-modal { background:#fff; border-radius:14px; width:100%; max-width:420px; max-height:80vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
+  .cerr-modal h4 { margin:0; padding:16px 18px; border-bottom:1px solid #eef0f6; font-size:1rem; color:var(--navy); }
+  .cerr-modal .cerr-sub { padding:10px 18px 4px; font-size:0.78rem; color:#888; }
+  .cerr-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px; border-bottom:1px solid #f4f6fa; cursor:pointer; }
+  .cerr-item:hover { background:#f0fff4; }
+  .cerr-item .nome { font-weight:700; color:var(--navy); font-size:0.92rem; }
+  .cerr-item .tel  { font-size:0.78rem; color:#888; }
+  .cerr-item .zap  { background:#25d366; color:#fff; border-radius:20px; padding:4px 10px; font-size:0.8rem; font-weight:700; }
+  .cerr-fechar { display:block; width:calc(100% - 36px); margin:12px 18px 16px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#555; cursor:pointer; font-size:0.86rem; }
 
   /* ── TIPO BAR (ENTRADA / SAÍDA) ── */
   .tipo-bar { display:flex; border-radius:var(--radius); overflow:hidden; border:2px solid var(--navy); margin-bottom:14px; }
@@ -789,6 +802,7 @@ let currentPlaca      = '';     // identidade do grupo (placa real OU "JEM"/"AGE
 let currentTipo       = 'ENTRADA';
 let insTipo           = 'ENTRADA';
 let allInsumos        = [];
+let allContatosErro   = [];     // contatos p/ WhatsApp de divergência (NÃO OK)
 let fotosBase64       = [];
 let insAv_fotosBase64 = [];
 let paletesUltimaSaida = [];    // paletes da última SAÍDA desta placa (para checar retorno)
@@ -899,6 +913,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('sel-date').value = today;
 
   await loadInsumos();
+  await loadContatosErro();
   await initEnderecosPadrao();
   await loadCatalogoEnderecos();
   await loadPlacas();
@@ -925,6 +940,15 @@ async function loadInsumos() {
     allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}))
       .sort((a,b)=>(a.categoria||'').localeCompare(b.categoria||''));
   } catch(e) { console.warn('loadInsumos:', e.message); }
+}
+
+// Contatos que recebem o WhatsApp de divergência (cadastrados no admin → Apontamento de Erro)
+async function loadContatosErro() {
+  try {
+    const snap = await db.collection('contatos_erro').where('ativo','==',true).get();
+    allContatosErro = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  } catch(e) { console.warn('loadContatosErro:', e.message); allContatosErro = []; }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1649,6 +1673,7 @@ function renderCamposConferencia(vehicles) {
         <div class="nf-obs-label">⚠ Informe a divergência encontrada:</div>
         <input type="number" placeholder="Qtd averiguada" min="0"/>
         <input type="text" placeholder="Observação sobre a divergência"/>
+        <button type="button" class="btn-apontar-erro" onclick="apontarErroWhats(${idx})">📲 Apontar erro no WhatsApp</button>
       </div>
       ${enderecoHtml}`;
 
@@ -1875,6 +1900,86 @@ function setNfStatus(btn, status, idx) {
   // Avisa em tempo real os demais conferentes que possam estar na mesma tela
   publicarStatusLive(idx, alreadyActive ? 'PENDENTE' : status);
 }
+
+// ── APONTAMENTO DE ERRO → WhatsApp (só dígitos, sem "+", formato wa.me) ──
+function _telWaMe(e164){ return (e164||'').replace(/\D/g,''); }
+
+function _montaMsgErro(idx) {
+  const c = nfCamposCache[idx] || {};
+  const obsRow = document.getElementById('nf-obs-' + idx);
+  const qtd = obsRow?.querySelector('input[type=number]')?.value?.trim() || '';
+  const obs = obsRow?.querySelector('input[type=text]')?.value?.trim() || '';
+  const tipoTxt = (currentTipo==='ENTRADA'?'📥 ENTRADA':currentTipo==='SAIDA'?'📤 SAÍDA':currentTipo)||'';
+  const agora = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const linhas = ['🚨 *APONTAMENTO DE ERRO — Conferência*', ''];
+  if (currentPlaca) linhas.push(`*Placa:* ${currentPlaca}${tipoTxt?` (${tipoTxt})`:''}`);
+  if (c.tituloOp)   linhas.push(`*Operação:* ${c.tituloOp}`);
+  if (c.nf)         linhas.push(`*NF:* ${c.nf}`);
+  if (c.dest)       linhas.push(`*Destinatário:* ${c.dest}`);
+  if (c.cidade)     linhas.push(`*Cidade:* ${c.cidade}`);
+  if (qtd!=='')     linhas.push(`*Qtd averiguada:* ${qtd}`);
+  linhas.push(`*Divergência:* ${obs || '(não descrita)'}`);
+  linhas.push('');
+  linhas.push(`*Conferente:* ${currentUser?.nome || currentUser?.email || '—'}`);
+  linhas.push(`*Data/hora:* ${agora}`);
+  return { texto: linhas.join('\n'), temObs: !!obs };
+}
+
+function apontarErroWhats(idx) {
+  if (!allContatosErro.length) {
+    showToast('Nenhum contato cadastrado. Peça ao admin para cadastrar em "Apontamento de Erro".', 'warning');
+    return;
+  }
+  const { texto, temObs } = _montaMsgErro(idx);
+  if (!temObs && !confirm('Você não descreveu a divergência. Deseja enviar mesmo assim?')) return;
+
+  const abrir = (contato) => {
+    const num = _telWaMe(contato.telefone);
+    if (num.length < 12) { showToast('Telefone do contato inválido: '+contato.nome, 'error'); return; }
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(texto)}`, '_blank');
+    fecharOverlayErro();
+  };
+
+  // Um único contato → abre direto; vários → mostra a lista para escolher
+  if (allContatosErro.length === 1) { abrir(allContatosErro[0]); return; }
+
+  const ov = document.createElement('div');
+  ov.className = 'cerr-overlay';
+  ov.id = 'cerr-overlay';
+  ov.onclick = (e)=>{ if (e.target===ov) fecharOverlayErro(); };
+  ov.innerHTML = `
+    <div class="cerr-modal">
+      <h4>📲 Enviar apontamento para…</h4>
+      <div class="cerr-sub">Escolha quem deve receber a ocorrência no WhatsApp.</div>
+      ${allContatosErro.map((c,i)=>`
+        <div class="cerr-item" onclick="_apontarEscolher(${i})">
+          <div><div class="nome">${escConf(c.nome)}</div><div class="tel">${escConf(c.telefone)}</div></div>
+          <span class="zap">Enviar</span>
+        </div>`).join('')}
+      <button class="cerr-fechar" onclick="fecharOverlayErro()">Cancelar</button>
+    </div>`;
+  document.body.appendChild(ov);
+  // guarda o contexto para o clique
+  window._apontarCtx = { texto };
+}
+
+function _apontarEscolher(i) {
+  const contato = allContatosErro[i];
+  const texto = window._apontarCtx?.texto || '';
+  const num = _telWaMe(contato.telefone);
+  if (num.length < 12) { showToast('Telefone do contato inválido: '+contato.nome, 'error'); return; }
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(texto)}`, '_blank');
+  fecharOverlayErro();
+}
+
+function fecharOverlayErro() {
+  const ov = document.getElementById('cerr-overlay');
+  if (ov) ov.remove();
+  window._apontarCtx = null;
+}
+
+// Escapa aspas/< para uso seguro dentro de atributos/HTML gerado
+function escConf(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 function marcarTodosOK() {
   document.querySelectorAll('#campos-conferencia .nf-block').forEach(block => {
