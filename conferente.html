@@ -1050,6 +1050,10 @@ function _acharMarcadores(rows, termos) {
   return idxs;
 }
 
+// Marcadores de SEÇÃO que encerram um bloco de agente — a partir daqui já é outra
+// parte da planilha (terceiros, operações da filial, lembretes, etc.).
+const _CORTE_SECAO = ['DEMANDAS TERCEIROS', 'OPERACOES FILIAL', 'LEMBRETES', 'CARGAS NA BASE'];
+
 /** A partir de um índice de marcador, coleta as linhas seguintes até a primeira linha vazia (corte) */
 function _coletarBloco(rows, idxMarcador) {
   const bloco = [];
@@ -1060,8 +1064,14 @@ function _coletarBloco(rows, idxMarcador) {
     // Corte: "pulo" no índice real da planilha — indica linha(s) em branco que o
     // Google Sheets às vezes omite por completo da resposta (não aparecem em `rows`).
     if (rowIdxAnterior !== undefined && linha._rowIdx !== undefined && (linha._rowIdx - rowIdxAnterior) > 1) break;
-    bloco.push(linha);
+    // Corte: chegou numa nova seção (ex.: "DEMANDAS TERCEIROS") — o bloco do agente acabou.
+    const colA = _colAVirtual(linha);
+    if (_CORTE_SECAO.some(t => colA.includes(t))) break;
     rowIdxAnterior = linha._rowIdx;
+    // Linha com PLACA PRÓPRIA é veículo real (inclui terceiros) — não pertence ao
+    // grupo de agente: fica de fora do bloco para virar card próprio no agrupamento normal.
+    if (extractPlates(linha['Placa'] || linha['_CC'] || '').length) continue;
+    bloco.push(linha);
   }
   return bloco;
 }
@@ -3336,7 +3346,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.08.25-3';
+const APP_VERSION = '2026.08.25-4';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
