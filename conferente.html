@@ -32,6 +32,13 @@
   #header-user  { font-size:0.75rem; color:rgba(255,255,255,0.6); margin-top:2px; }
   .btn-logout-sm { background:none; border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer; }
   #btn-install-header { display:none; background:var(--amber); color:var(--navy); border:none; border-radius:8px; padding:5px 10px; font-size:0.78rem; font-weight:800; cursor:pointer; margin-right:6px; }
+  #btn-reciclar { background:none; border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; padding:5px 9px; font-size:0.95rem; line-height:1; cursor:pointer; margin-right:6px; }
+  #btn-reciclar:active { transform:rotate(180deg); transition:transform 0.3s; }
+  /* Faixa de atualização disponível */
+  #update-banner { display:none; position:fixed; left:0; right:0; bottom:0; z-index:10000; background:#128c3e; color:#fff; padding:12px 16px; box-shadow:0 -4px 16px rgba(0,0,0,0.25); align-items:center; justify-content:space-between; gap:12px; font-size:0.9rem; }
+  #update-banner.show { display:flex; }
+  #update-banner button { background:#fff; color:#0d6b2e; border:none; border-radius:8px; padding:8px 16px; font-weight:800; cursor:pointer; white-space:nowrap; }
+  #app-version-tag { font-size:0.6rem; color:rgba(255,255,255,0.4); }
   #install-manual-tip { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; padding:24px; }
   .install-tip-box { background:#fff; border-radius:16px; padding:24px; max-width:340px; text-align:center; }
   .install-tip-box h3 { color:var(--navy); font-size:1rem; margin-bottom:12px; }
@@ -406,14 +413,22 @@
 </head>
 <body>
 
+<!-- FAIXA DE ATUALIZAÇÃO DISPONÍVEL -->
+<div id="update-banner">
+  <span>🔄 Nova atualização disponível.</span>
+  <button onclick="aplicarUpdate()">Atualizar agora</button>
+</div>
+
 <!-- HEADER -->
 <div id="header">
   <div>
     <div id="header-title">🚛 Conferência Geral</div>
     <div id="header-user"></div>
     <div id="header-date"></div>
+    <div id="app-version-tag"></div>
   </div>
   <div style="display:flex;align-items:center;gap:6px;">
+    <button id="btn-reciclar" onclick="forcarAtualizacao()" title="Atualizar o app (limpar cache e recarregar)">♻️</button>
     <button id="btn-install-header" onclick="triggerInstall()">📲 Instalar</button>
     <button class="btn-logout-sm" onclick="logout()">Sair</button>
   </div>
@@ -3297,13 +3312,81 @@ function goBack() {
     deferredPrompt = null;
   });
 
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .catch(e => console.warn('SW registro:', e));
-    });
-  }
+  registrarServiceWorker();
 })();
+
+// ═══════════════════════════════════════════════════════
+//  ATUALIZAÇÃO DO APP (PWA) — resolve o "não atualiza" no
+//  celular. O SW é network-first, então o conteúdo já vem
+//  atualizado online; aqui detectamos quando há versão nova
+//  e oferecemos o botão de atualizar / reciclar.
+// ═══════════════════════════════════════════════════════
+const APP_VERSION = '2026.08.25-2';
+
+function registrarServiceWorker() {
+  const tag = document.getElementById('app-version-tag');
+  if (tag) tag.textContent = 'v' + APP_VERSION;
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // Verifica se há atualização de tempos em tempos e ao voltar para o app
+      setInterval(() => reg.update().catch(()=>{}), 60 * 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) reg.update().catch(()=>{});
+      });
+      // Já existe um worker esperando? Mostra o banner
+      if (reg.waiting && navigator.serviceWorker.controller) mostrarBannerUpdate();
+      // Detecta um novo worker instalando
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) mostrarBannerUpdate();
+        });
+      });
+    }).catch(e => console.warn('SW registro:', e));
+
+    // Quando o novo worker assume, recarrega uma única vez
+    let recarregando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recarregando) return;
+      recarregando = true;
+      window.location.reload();
+    });
+  });
+}
+
+function mostrarBannerUpdate() {
+  document.getElementById('update-banner')?.classList.add('show');
+}
+
+// Botão "Atualizar agora" — pede ao worker em espera para assumir
+function aplicarUpdate() {
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+    else window.location.reload();
+  }).catch(() => window.location.reload());
+}
+
+// Ícone ♻️ — força a atualização: remove SW, limpa todo o cache e recarrega
+async function forcarAtualizacao() {
+  if (!confirm('Atualizar o aplicativo agora? Ele vai limpar os dados temporários e recarregar.')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { console.warn('forcarAtualizacao:', e); }
+  // Recarrega buscando da rede (evita o HTML em cache do navegador)
+  const u = new URL(window.location.href);
+  u.searchParams.set('_att', Date.now());
+  window.location.replace(u.toString());
+}
 </script>
 </body>
 </html>
