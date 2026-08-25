@@ -207,6 +207,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Notificações WhatsApp
     </a>
+    <a class="sb-item" data-section="apontamento-erro" onclick="showSection('apontamento-erro')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Apontamento de Erro
+    </a>
     <a class="sb-item" data-section="rastreio-enderecos" onclick="showSection('rastreio-enderecos')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Endereçamento
@@ -764,6 +768,45 @@
     </div>
   </div>
 
+  <!-- ===== APONTAMENTO DE ERRO (contatos p/ WhatsApp de divergência) ===== -->
+  <div class="section" id="sec-apontamento-erro">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-section">
+          <h5 id="cerr-form-title">Novo Contato</h5>
+          <p style="font-size:0.78rem;color:#888;margin-top:-8px;margin-bottom:14px;">
+            Cadastre as pessoas que devem receber, via WhatsApp, o aviso quando o conferente marcar uma NF como <b>NÃO OK</b>.
+          </p>
+          <input type="hidden" id="cerr-id"/>
+          <div class="mb-3">
+            <label class="form-label">Nome / Função</label>
+            <input type="text" class="form-control" id="cerr-nome" placeholder="Ex: Supervisor de Pátio"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Telefone (WhatsApp)</label>
+            <input type="text" class="form-control" id="cerr-telefone" placeholder="(47) 91234-5678"/>
+            <div style="font-size:0.74rem;color:#aaa;margin-top:4px;">Informe com DDD. O código do país (Brasil, +55) é adicionado automaticamente.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-amber flex-fill" onclick="salvarContatoErro()">Salvar Contato</button>
+            <button class="btn btn-outline-secondary" id="cerr-cancelar" style="display:none;" onclick="cancelarEdicaoContatoErro()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="table-card">
+          <div class="tc-head"><span class="tc-title">Contatos Cadastrados</span><span id="cerr-count" style="font-size:0.78rem;color:#888;"></span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Nome / Função</th><th>Telefone</th><th>Status</th><th style="text-align:right;">Ações</th></tr></thead>
+              <tbody id="cerr-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== ENDEREÇAMENTO (acompanhamento) ===== -->
   <div class="section" id="sec-rastreio-enderecos">
     <div class="row g-3">
@@ -1073,7 +1116,7 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='consumos')           loadConsumos();
@@ -1083,6 +1126,7 @@ function showSection(id) {
   if (id==='apontamento')        loadApontamento();
   if (id==='motoristas')         loadMotoristas().then(loadNomesRecentesOperacoes);
   if (id==='notificacoes')       loadNotificacoes();
+  if (id==='apontamento-erro')   loadContatosErro();
   if (id==='enderecos')          loadEnderecosCadastro();
   if (id==='rastreio-enderecos') loadRastreioEnderecos();
   if (id==='tfa')                loadTFA();
@@ -1253,6 +1297,96 @@ function buildBar(canvasId, labels, data, color) {
   if (ref) ref.destroy();
   const chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, backgroundColor:color, borderRadius:6 }] }, options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{stepSize:1}}, x:{ticks:{font:{size:11}}} } } });
   if (canvasId==='chart-conf') chartConf=chart; else chartVeic=chart;
+}
+
+// ── APONTAMENTO DE ERRO (contatos p/ WhatsApp de divergência) ──
+let contatosErroCache = [];
+
+async function loadContatosErro() {
+  const tb = document.getElementById('cerr-tbody');
+  tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px;">Carregando…</td></tr>';
+  try {
+    const snap = await db.collection('contatos_erro').get();
+    contatosErroCache = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    document.getElementById('cerr-count').textContent = `${contatosErroCache.length} contato(s)`;
+    if (!contatosErroCache.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px;">Nenhum contato cadastrado.</td></tr>';
+      return;
+    }
+    tb.innerHTML = contatosErroCache.map(c=>{
+      const ativo = c.ativo !== false;
+      return `<tr>
+        <td><b>${esc(c.nome)}</b></td>
+        <td>${esc(c.telefone)}</td>
+        <td>${ativo?'<span class="badge-ok">Ativo</span>':'<span class="badge-pendente">Inativo</span>'}</td>
+        <td style="text-align:right;white-space:nowrap;">
+          <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="editarContatoErro('${c.id}')">✏️</button>
+          <button class="btn btn-sm btn-outline-secondary" title="${ativo?'Desativar':'Ativar'}" onclick="toggleContatoErro('${c.id}',${ativo})">${ativo?'🚫':'✅'}</button>
+          <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="removerContatoErro('${c.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    console.error('loadContatosErro:', e);
+    tb.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#c0392b;padding:16px;">Erro ao carregar: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+async function salvarContatoErro() {
+  const id   = document.getElementById('cerr-id').value;
+  const nome = document.getElementById('cerr-nome').value.trim();
+  const tel  = document.getElementById('cerr-telefone').value.trim();
+  if (!nome) { showToast('Informe o nome/função.', 'error'); return; }
+  const e164 = normalizaTelefoneBR(tel);
+  if (!e164 || telefoneParaWaMe(e164).length < 12) { showToast('Telefone inválido. Informe com DDD.', 'error'); return; }
+  loading(true);
+  try {
+    if (id) {
+      await db.collection('contatos_erro').doc(id).update({ nome, telefone:e164 });
+      showToast('Contato atualizado.');
+    } else {
+      await db.collection('contatos_erro').add({ nome, telefone:e164, ativo:true, criadoEm:firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Contato cadastrado.');
+    }
+    cancelarEdicaoContatoErro();
+    loadContatosErro();
+  } catch(e) { showToast('Erro ao salvar: '+e.message, 'error'); }
+  finally { loading(false); }
+}
+
+function editarContatoErro(id) {
+  const c = contatosErroCache.find(x=>x.id===id);
+  if (!c) return;
+  document.getElementById('cerr-id').value = c.id;
+  document.getElementById('cerr-nome').value = c.nome||'';
+  document.getElementById('cerr-telefone').value = c.telefone||'';
+  document.getElementById('cerr-form-title').textContent = 'Editar Contato';
+  document.getElementById('cerr-cancelar').style.display = '';
+  document.getElementById('cerr-nome').focus();
+}
+
+function cancelarEdicaoContatoErro() {
+  document.getElementById('cerr-id').value = '';
+  document.getElementById('cerr-nome').value = '';
+  document.getElementById('cerr-telefone').value = '';
+  document.getElementById('cerr-form-title').textContent = 'Novo Contato';
+  document.getElementById('cerr-cancelar').style.display = 'none';
+}
+
+async function toggleContatoErro(id, ativoAtual) {
+  loading(true);
+  try { await db.collection('contatos_erro').doc(id).update({ ativo: !ativoAtual }); loadContatosErro(); }
+  catch(e){ showToast('Erro: '+e.message,'error'); }
+  finally { loading(false); }
+}
+
+async function removerContatoErro(id) {
+  if (!confirm('Excluir este contato de apontamento de erro?')) return;
+  loading(true);
+  try { await db.collection('contatos_erro').doc(id).delete(); showToast('Contato excluído.'); loadContatosErro(); }
+  catch(e){ showToast('Erro: '+e.message,'error'); }
+  finally { loading(false); }
 }
 
 // ── CONSUMOS (gestão de movimentações de insumos) ─────────────
