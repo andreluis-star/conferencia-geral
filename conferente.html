@@ -1002,6 +1002,21 @@ function groupHasNfData(vehicles) {
   });
 }
 
+/** true = grupo tem pelo menos uma linha com MOTORISTA (coluna B) preenchido */
+function groupHasMotorista(vehicles) {
+  return vehicles.some(v => (v['Motorista']||v['_CB']||'').toString().trim());
+}
+
+/**
+ * true = grupo deve ser exibido para conferência.
+ * Regra: tem dados de NF OU tem motorista na coluna B.
+ * (Isso inclui veículos de terceiro — ex.: linhas de "DEMANDAS TERCEIROS"
+ *  com placa + motorista mas sem NF preenchida, como a placa SDR8H31.)
+ */
+function groupIsRelevant(vehicles) {
+  return groupHasNfData(vehicles) || groupHasMotorista(vehicles);
+}
+
 // ═══════════════════════════════════════════════════════
 //  GRUPOS VIRTUAIS — "JEM" e "AGENTES"
 //  Essas duas "placas" não vêm da coluna Placa: são montadas a
@@ -1142,7 +1157,7 @@ async function loadPlacas() {
       else tipo = tipos[0] || 'ENTRADA';
       return { placa, tipo, vehicles };
     })
-    .filter(g => groupHasNfData(g.vehicles));        // descarta grupos sem dados de NF
+    .filter(g => groupIsRelevant(g.vehicles));       // mantém grupos com NF OU com motorista (inclui terceiros)
 
   // Adiciona JEM / AGENTES junto com as placas normais
   groupedByPlate.push(...gruposVirtuais);
@@ -3321,7 +3336,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.08.25-2';
+const APP_VERSION = '2026.08.25-3';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
