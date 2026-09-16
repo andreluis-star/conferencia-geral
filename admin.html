@@ -612,6 +612,14 @@
             <option value="SIM">Somente Transferência</option>
             <option value="NAO">Excluir Transferência</option>
           </select>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">⬇ Exportar</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" onclick="exportOperacoes('txt');return false;">📄 TXT</a></li>
+              <li><a class="dropdown-item" href="#" onclick="exportOperacoes('xls');return false;">📊 Excel (XLS)</a></li>
+              <li><a class="dropdown-item" href="#" onclick="exportOperacoes('pdf');return false;">🖨 PDF</a></li>
+            </ul>
+          </div>
         </div>
       </div>
       <div style="overflow-x:auto;">
@@ -664,6 +672,14 @@
             <input type="date" id="pal-data-fim" class="form-control form-control-sm" style="width:150px;"/>
             <button class="btn btn-sm btn-navy" onclick="loadPaletes()">Filtrar</button>
             <input type="text" id="pal-busca" class="form-control form-control-sm" style="width:260px;" placeholder="Buscar por NF, cliente, placa ou conferente..." oninput="filterPaletesList()"/>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">⬇ Exportar</button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" onclick="exportPaletes('txt');return false;">📄 TXT</a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportPaletes('xls');return false;">📊 Excel (XLS)</a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportPaletes('pdf');return false;">🖨 PDF</a></li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -1937,7 +1953,91 @@ async function loadHistorico() {
   }).join('');
 }
 
+// ── EXPORTAÇÃO (TXT / XLS / PDF) — genérico ───────────────────
+// Recebe: titulo, array de cabeçalhos e array de linhas (cada linha = array de células).
+function _expNomeArquivo(base){
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  return `${base}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+function _expBaixar(blob, nome){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportarTXT(titulo, head, rows, baseNome){
+  if (!rows.length) { showToast('Nada para exportar no filtro atual.', 'warning'); return; }
+  const larguras = head.map((h,c)=> Math.max(String(h).length, ...rows.map(r=>String(r[c]==null?'':r[c]).length)));
+  const linha = cels => cels.map((v,c)=> String(v==null?'':v).padEnd(larguras[c])).join('  |  ');
+  const sep = larguras.map(w=>'-'.repeat(w)).join('--+--');
+  const txt = [titulo, '='.repeat(titulo.length), '', linha(head), sep, ...rows.map(linha), '', `Total: ${rows.length} registro(s)`].join('\r\n');
+  _expBaixar(new Blob(['\ufeff'+txt], {type:'text/plain;charset=utf-8;'}), _expNomeArquivo(baseNome)+'.txt');
+  showToast(`TXT exportado (${rows.length} linhas).`);
+}
+function exportarXLS(titulo, head, rows, baseNome){
+  if (!rows.length) { showToast('Nada para exportar no filtro atual.', 'warning'); return; }
+  const escH = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const th = head.map(h=>`<th style="background:#0d2137;color:#fff;border:1px solid #ccc;padding:4px 8px;text-align:left;">${escH(h)}</th>`).join('');
+  const trs = rows.map(r=>`<tr>${r.map(c=>`<td style="border:1px solid #ccc;padding:3px 8px;mso-number-format:'\\@';">${escH(c)}</td>`).join('')}</tr>`).join('');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${escH(titulo).slice(0,30)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><h3>${escH(titulo)}</h3><table>${'<thead><tr>'+th+'</tr></thead>'}<tbody>${trs}</tbody></table></body></html>`;
+  _expBaixar(new Blob(['\ufeff'+html], {type:'application/vnd.ms-excel;charset=utf-8;'}), _expNomeArquivo(baseNome)+'.xls');
+  showToast(`XLS exportado (${rows.length} linhas).`);
+}
+function exportarPDF(titulo, head, rows){
+  if (!rows.length) { showToast('Nada para exportar no filtro atual.', 'warning'); return; }
+  const escH = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const th = head.map(h=>`<th>${escH(h)}</th>`).join('');
+  const trs = rows.map(r=>`<tr>${r.map(c=>`<td>${escH(c)}</td>`).join('')}</tr>`).join('');
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Permita pop-ups para gerar o PDF.', 'warning'); return; }
+  w.document.write(`<html><head><meta charset="UTF-8"><title>${escH(titulo)}</title><style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#222;}
+    h2{color:#0d2137;margin:0 0 4px;} .meta{color:#888;font-size:12px;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:11px;}
+    th{background:#0d2137;color:#fff;text-align:left;padding:6px 8px;border:1px solid #0d2137;}
+    td{padding:4px 8px;border:1px solid #ddd;}
+    tr:nth-child(even) td{background:#f6f8fb;}
+    @media print{.noprint{display:none;} @page{margin:14mm;}}
+  </style></head><body>
+    <h2>${escH(titulo)}</h2>
+    <div class="meta">Gerado em ${new Date().toLocaleString('pt-BR')} • ${rows.length} registro(s)</div>
+    <table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>
+    <button class="noprint" onclick="window.print()" style="margin-top:18px;padding:8px 16px;background:#0d2137;color:#fff;border:none;border-radius:6px;cursor:pointer;">Imprimir / Salvar PDF</button>
+    <script>setTimeout(function(){window.print();},400);<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
 // ── OPERAÇÕES ─────────────────────────────────────────────────
+let operacoesCache = [];
+
+function _opExportDados(){
+  const ini = document.getElementById('op-data-ini').value || '';
+  const fim = document.getElementById('op-data-fim').value || ini;
+  const titulo = `Log de Operações — ${ini}${fim&&fim!==ini?' a '+fim:''}`;
+  const head = ['Data/Hora','Placa','Tipo','Transferência','Cliente','Conferente','Status','Paletes'];
+  const rows = operacoesCache.map(r=>[
+    fmtDate(r.timestamp),
+    r.placa||'',
+    r.tipoExecucao==='ENTRADA'?'ENTRADA':(r.tipoExecucao==='SAIDA'?'SAÍDA':(r.tipoExecucao||'')),
+    r.transferencia?'SC×SP':'',
+    r.cliente||'',
+    r.conferenteNome||'',
+    r.status==='CONCLUIDA'?'Concluída':'Em Andamento',
+    (r.paletes||[]).reduce((s,p)=>s+(parseInt(p.quantidade)||0),0)
+  ]);
+  return { titulo, head, rows, base:`operacoes_${ini||'periodo'}` };
+}
+function exportOperacoes(fmt){
+  if (!operacoesCache.length) { showToast('Nada para exportar. Filtre um período primeiro.', 'warning'); return; }
+  const {titulo, head, rows, base} = _opExportDados();
+  if (fmt==='txt') exportarTXT(titulo, head, rows, base);
+  else if (fmt==='xls') exportarXLS(titulo, head, rows, base);
+  else if (fmt==='pdf') exportarPDF(titulo, head, rows);
+}
+
 async function loadOperacoes() {
   const ini = document.getElementById('op-data-ini').value;
   let   fim = document.getElementById('op-data-fim').value;
@@ -1956,6 +2056,7 @@ async function loadOperacoes() {
   if (tipo) rows = rows.filter(r=>r.tipoExecucao===tipo);
   if (transf==='SIM') rows = rows.filter(r=>!!r.transferencia);
   if (transf==='NAO') rows = rows.filter(r=>!r.transferencia);
+  operacoesCache = rows;
   const tbody = document.getElementById('op-tbody');
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
   tbody.innerHTML = rows.map(r=>`<tr>
@@ -2615,7 +2716,43 @@ function filterPaletesList() {
       (i.conferenteEntrada||'').toLowerCase().includes(busca)
     );
   }
+  paletesFiltradosCache = items;
   renderPaletesListItems(items);
+}
+
+let paletesFiltradosCache = [];
+
+function _palExportDados(){
+  const ini = document.getElementById('pal-data-ini').value || '';
+  const fim = document.getElementById('pal-data-fim').value || '';
+  const titulo = `Paletes por Veículo — ${ini}${fim?' a '+fim:''}`;
+  const head = ['Data Ref.','Placa','Cliente','NF','Conferente','Saiu','Voltou','Diferença','Situação','Transferência'];
+  const rows = (paletesFiltradosCache||[]).map(i=>{
+    let situacao;
+    if (i.semSaida) situacao = 'Chegada sem saída';
+    else if (i.totalEntrada===null) situacao = 'Sem retorno';
+    else situacao = i.ok ? 'OK' : 'Diferença';
+    return [
+      i.refData||'',
+      i.placa||'',
+      i.cliente||'',
+      i.nf||'',
+      i.conferente||'',
+      i.totalSaida!=null?i.totalSaida:'',
+      i.totalEntrada!=null?i.totalEntrada:'',
+      i.diff!=null?(i.diff>0?'+'+i.diff:i.diff):'',
+      situacao,
+      i.transferencia?'SC×SP':''
+    ];
+  });
+  return { titulo, head, rows, base:`paletes_${ini||'periodo'}` };
+}
+function exportPaletes(fmt){
+  if (!(paletesFiltradosCache||[]).length) { showToast('Nada para exportar. Filtre um período primeiro.', 'warning'); return; }
+  const {titulo, head, rows, base} = _palExportDados();
+  if (fmt==='txt') exportarTXT(titulo, head, rows, base);
+  else if (fmt==='xls') exportarXLS(titulo, head, rows, base);
+  else if (fmt==='pdf') exportarPDF(titulo, head, rows);
 }
 
 function _palDiaLabel(diaKey){
