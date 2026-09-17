@@ -588,6 +588,18 @@
         <h4>🪵 Paletes</h4>
         <div id="palete-retorno-banner"></div>
         <div id="paletes-list" class="item-cards-grid"></div>
+
+        <!-- Paletes destinados a um cliente (controle paralelo) -->
+        <div id="paletes-cliente-wrap" style="margin-top:14px;border-top:1px dashed #ddd;padding-top:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div style="font-size:0.85rem;font-weight:600;color:var(--navy);">🏷️ Paletes para cliente <span style="font-weight:400;color:#888;">(opcional)</span></div>
+          </div>
+          <p style="font-size:0.76rem;color:#999;margin:4px 0 8px;">
+            Se parte dos paletes vai para um cliente específico (ex.: BRAFT), lance essas unidades aqui, à parte dos paletes normais acima.
+          </p>
+          <div id="paletes-cliente-list"></div>
+          <button type="button" class="btn-add-palete" id="btn-add-palete-cliente" onclick="addPaleteClienteRow()">+ Adicionar palete para cliente</button>
+        </div>
       </div>
 
       <!-- INSUMOS UTILIZADOS -->
@@ -816,6 +828,7 @@ let currentPlaca      = '';     // identidade do grupo (placa real OU "JEM"/"AGE
 let currentTipo       = 'ENTRADA';
 let insTipo           = 'ENTRADA';
 let allInsumos        = [];
+let clientesPaleteCache = [];   // clientes de destino de paletes (controle paralelo) — vem do admin
 let allContatosErro   = [];     // contatos p/ WhatsApp de divergência (NÃO OK)
 let fotosBase64       = [];
 let insAv_fotosBase64 = [];
@@ -927,6 +940,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('sel-date').value = today;
 
   await loadInsumos();
+  await loadClientesPalete();
   await loadContatosErro();
   await initEnderecosPadrao();
   await loadCatalogoEnderecos();
@@ -954,6 +968,14 @@ async function loadInsumos() {
     allInsumos = snap.docs.map(d=>({id:d.id,...d.data()}))
       .sort((a,b)=>(a.categoria||'').localeCompare(b.categoria||''));
   } catch(e) { console.warn('loadInsumos:', e.message); }
+}
+
+// Clientes de destino de paletes (BRAFT, MATTEL, THOMPSON…) cadastrados no admin.
+async function loadClientesPalete() {
+  try {
+    const snap = await db.collection('clientesPalete').orderBy('nome').get();
+    clientesPaleteCache = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.ativo!==false);
+  } catch(e) { console.warn('loadClientesPalete:', e.message); clientesPaleteCache = []; }
 }
 
 // Contatos que recebem o WhatsApp de divergência (cadastrados no admin → Apontamento de Erro)
@@ -1465,6 +1487,7 @@ async function openConferencia(group) {
   // Paletes: usa currentTipo (já definido acima, pode ter mudado para op pendente)
   document.getElementById('paletes-list').innerHTML = '';
   document.getElementById('palete-retorno-banner').innerHTML = '';
+  resetPaletesCliente();
   await setupPaletes(group.placa, currentTipo);
 
   // Insumos
@@ -1912,6 +1935,8 @@ function setTipo(t) {
   btnE.className = 'tipo-opt' + (t==='ENTRADA'?' e-active':'') + (eConc?' op-concluida':'');
   btnS.className = 'tipo-opt' + (t==='SAIDA'?' s-active':'')   + (sConc?' op-concluida':'');
   document.getElementById('card-cliente-unico').style.display = t==='SAIDA'?'block':'none';
+  const pcWrap = document.getElementById('paletes-cliente-wrap');
+  if (pcWrap) pcWrap.style.display = t==='SAIDA'?'block':'none';
   document.getElementById('insumos-tipo-label').textContent =
     t==='ENTRADA'?'(recebidos / retornados)':'(utilizados / enviados)';
   // Reaponta o listener de status ao vivo para o doc do tipo agora selecionado
@@ -2141,6 +2166,64 @@ function changeQty(btn, delta) {
 }
 
 // ── PALETES: CARDS FIXOS ──
+// ── PALETES PARA CLIENTE (controle paralelo) ────────────────────
+// Cada linha: tipo (PBR/Descartável/Outros[+nome]) · quantidade · cliente de destino.
+function _paleteClienteRowHtml(){
+  if (!clientesPaleteCache.length){
+    return `<div style="font-size:0.78rem;color:#c0392b;padding:6px 0;">
+      Nenhum cliente cadastrado. Peça ao admin para cadastrar em <b>Clientes / Paletes</b>.</div>`;
+  }
+  const cliOpts = clientesPaleteCache.map(c=>`<option value="${c.nome}">${c.nome}</option>`).join('');
+  return `<div class="palete-row palete-cliente-row" style="margin-bottom:8px;">
+    <select class="pc-tipo" onchange="_pcToggleCustom(this)">
+      <option value="PBR">PBR</option>
+      <option value="DESCARTAVEL">Descartável</option>
+      <option value="OUTROS">Outros</option>
+    </select>
+    <input type="text" class="pc-custom" placeholder="Qual tipo?" style="display:none;flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.85rem;"/>
+    <select class="pc-cliente" style="flex:1;">${cliOpts}</select>
+    <input type="number" class="pc-qtd" min="1" value="1" style="width:70px;"/>
+    <button type="button" class="rm-btn" onclick="this.closest('.palete-cliente-row').remove()">✕</button>
+  </div>`;
+}
+function _pcToggleCustom(sel){
+  const row = sel.closest('.palete-cliente-row');
+  const custom = row.querySelector('.pc-custom');
+  custom.style.display = sel.value==='OUTROS' ? 'block' : 'none';
+  if (sel.value!=='OUTROS') custom.value='';
+}
+function addPaleteClienteRow(){
+  const list = document.getElementById('paletes-cliente-list');
+  if (!clientesPaleteCache.length){
+    if (!list.querySelector('.pc-empty')){
+      list.insertAdjacentHTML('beforeend', `<div class="pc-empty">${_paleteClienteRowHtml()}</div>`);
+    }
+    return;
+  }
+  list.insertAdjacentHTML('beforeend', _paleteClienteRowHtml());
+}
+// Coleta as linhas de cliente como itens de palete com `destino`
+function coletarPaletesCliente(){
+  const out = [];
+  document.querySelectorAll('#paletes-cliente-list .palete-cliente-row').forEach(row=>{
+    const qtd = parseInt(row.querySelector('.pc-qtd')?.value)||0;
+    const cliente = row.querySelector('.pc-cliente')?.value || '';
+    if (qtd<=0 || !cliente) return;
+    const tipo = row.querySelector('.pc-tipo')?.value || 'PBR';
+    const item = { tipo, quantidade: qtd, destino: cliente };
+    if (tipo==='OUTROS'){
+      const custom = (row.querySelector('.pc-custom')?.value||'').trim();
+      if (custom) item.tipoCustom = custom;
+    }
+    out.push(item);
+  });
+  return out;
+}
+function resetPaletesCliente(){
+  const list = document.getElementById('paletes-cliente-list');
+  if (list) list.innerHTML = '';
+}
+
 function renderPaleteCards(retorno) {
   const container = document.getElementById('paletes-list');
   const banner    = document.getElementById('palete-retorno-banner');
@@ -2752,6 +2835,8 @@ async function submeterConferencia() {
         paletes.push({tipo, tipoCustom, quantidade: qtd});
       }
     });
+    // Paletes destinados a cliente (controle paralelo)
+    coletarPaletesCliente().forEach(p => paletes.push(p));
 
     // ── Coleta insumos dos cards ──
     const insumosSel = [];
