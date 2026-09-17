@@ -135,6 +135,7 @@
   .pal-dia-detalhe { grid-column:1 / -1; display:none; background:#fbfcfe; border:1px solid #eef0f6; border-radius:12px; padding:14px 16px; margin-top:-2px; }
   .pal-dia-detalhe.aberto { display:block; }
   .pal-badge-alerta { background:#fff3e0; color:#b35900; border-radius:20px; padding:1px 8px; font-size:0.7rem; font-weight:700; }
+  .pal-tipo-chip { display:inline-block; background:#eef2f8; color:#334; border-radius:12px; padding:1px 8px; font-size:0.72rem; margin:1px 1px; white-space:nowrap; }
   .placa-comp.is-transf { background:#eef7fb; border-left:4px solid #17a2b8; }
   .pal-transf-btn { font-size:0.72rem; font-weight:700; white-space:nowrap; border:1px solid #b8d9e2; background:#fff; color:#0c7c8c; padding:4px 10px; border-radius:8px; }
   .pal-transf-btn:hover { background:#e8f6fa; }
@@ -624,7 +625,7 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Transferência</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Tipo</th><th>Transferência</th><th>Paletes (por tipo)</th><th>Cliente</th><th>Conferente</th><th>Status</th><th>Detalhes</th></tr></thead>
           <tbody id="op-tbody"></tbody>
         </table>
       </div>
@@ -1953,6 +1954,42 @@ async function loadHistorico() {
   }).join('');
 }
 
+// ── PALETES POR TIPO — helpers compartilhados ─────────────────
+// Normaliza o rótulo do tipo de um palete (PBR, Descartável, ou o nome custom de "Outros")
+function _palTipoLabel(p){
+  if (!p) return 'Outros';
+  if (p.tipo === 'PBR') return 'PBR';
+  if (p.tipo === 'DESCARTAVEL') return 'Descartável';
+  if (p.tipo === 'OUTROS') return (p.tipoCustom && p.tipoCustom.trim()) ? p.tipoCustom.trim() : 'Outros';
+  return p.tipo || 'Outros';
+}
+// Soma as quantidades de um array de paletes agrupando por rótulo → { 'PBR':6, 'Descartável':2, ... }
+function _palPorTipo(paletes){
+  const m = {};
+  (paletes||[]).forEach(p=>{
+    const k = _palTipoLabel(p);
+    m[k] = (m[k]||0) + (parseInt(p.quantidade)||0);
+  });
+  return m;
+}
+// Texto curto "PBR 6 · Descartável 2 · Rampa 1" a partir de um mapa por tipo
+function _palTipoResumo(mapa){
+  const ent = Object.entries(mapa||{}).filter(([,v])=>v>0);
+  if (!ent.length) return '—';
+  // ordem preferida: PBR, Descartável, depois o resto alfabético
+  const ordem = t => t==='PBR'?0 : t==='Descartável'?1 : 2;
+  ent.sort((a,b)=> ordem(a[0])-ordem(b[0]) || a[0].localeCompare(b[0]));
+  return ent.map(([t,v])=>`${t} ${v}`).join(' · ');
+}
+// Chips HTML para exibição na tabela/cards
+function _palTipoChips(mapa){
+  const ent = Object.entries(mapa||{}).filter(([,v])=>v>0);
+  if (!ent.length) return '<span style="color:#bbb;">—</span>';
+  const ordem = t => t==='PBR'?0 : t==='Descartável'?1 : 2;
+  ent.sort((a,b)=> ordem(a[0])-ordem(b[0]) || a[0].localeCompare(b[0]));
+  return ent.map(([t,v])=>`<span class="pal-tipo-chip">${esc(t)} <b>${v}</b></span>`).join(' ');
+}
+
 // ── EXPORTAÇÃO (TXT / XLS / PDF) — genérico ───────────────────
 // Recebe: titulo, array de cabeçalhos e array de linhas (cada linha = array de células).
 function _expNomeArquivo(base){
@@ -2017,17 +2054,26 @@ function _opExportDados(){
   const ini = document.getElementById('op-data-ini').value || '';
   const fim = document.getElementById('op-data-fim').value || ini;
   const titulo = `Log de Operações — ${ini}${fim&&fim!==ini?' a '+fim:''}`;
-  const head = ['Data/Hora','Placa','Tipo','Transferência','Cliente','Conferente','Status','Paletes'];
-  const rows = operacoesCache.map(r=>[
-    fmtDate(r.timestamp),
-    r.placa||'',
-    r.tipoExecucao==='ENTRADA'?'ENTRADA':(r.tipoExecucao==='SAIDA'?'SAÍDA':(r.tipoExecucao||'')),
-    r.transferencia?'SC×SP':'',
-    r.cliente||'',
-    r.conferenteNome||'',
-    r.status==='CONCLUIDA'?'Concluída':'Em Andamento',
-    (r.paletes||[]).reduce((s,p)=>s+(parseInt(p.quantidade)||0),0)
-  ]);
+  const head = ['Data/Hora','Placa','Tipo','Transferência','PBR','Descartável','Outros','Detalhe Paletes','Cliente','Conferente','Status'];
+  const rows = operacoesCache.map(r=>{
+    const mapa = _palPorTipo(r.paletes);
+    const pbr = mapa['PBR']||0;
+    const desc = mapa['Descartável']||0;
+    const outros = Object.entries(mapa).filter(([t])=>t!=='PBR'&&t!=='Descartável').reduce((s,[,v])=>s+v,0);
+    return [
+      fmtDate(r.timestamp),
+      r.placa||'',
+      r.tipoExecucao==='ENTRADA'?'ENTRADA':(r.tipoExecucao==='SAIDA'?'SAÍDA':(r.tipoExecucao||'')),
+      r.transferencia?'SC×SP':'',
+      pbr||'',
+      desc||'',
+      outros||'',
+      _palTipoResumo(mapa),
+      r.cliente||'',
+      r.conferenteNome||'',
+      r.status==='CONCLUIDA'?'Concluída':'Em Andamento'
+    ];
+  });
   return { titulo, head, rows, base:`operacoes_${ini||'periodo'}` };
 }
 function exportOperacoes(fmt){
@@ -2058,12 +2104,13 @@ async function loadOperacoes() {
   if (transf==='NAO') rows = rows.filter(r=>!r.transferencia);
   operacoesCache = rows;
   const tbody = document.getElementById('op-tbody');
-  if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Nenhuma operação</td></tr>'; return; }
   tbody.innerHTML = rows.map(r=>`<tr>
     <td>${fmtDate(r.timestamp)}</td>
     <td><b>${r.placa||'—'}</b></td>
     <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
     <td>${r.transferencia?'<span class="badge bg-info text-dark" style="font-size:0.72rem;">🔄 SC×SP</span>':'<span class="text-muted" style="font-size:0.78rem;">—</span>'}</td>
+    <td>${_palTipoChips(_palPorTipo(r.paletes))}</td>
     <td>${r.cliente||'—'}</td>
     <td>${r.conferenteNome||'—'}</td>
     <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}${r.corrigido?' <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Corrigido</span>':''}</td>
@@ -2581,6 +2628,7 @@ function renderResumoPaletesPeriodo(ops) {
     DESCARTAVEL: { entrada: 0, saida: 0 },
     OUTROS:      { entrada: 0, saida: 0 },
   };
+  const outrosDetalhe = {};   // { 'Rampa': {entrada, saida}, ... } — variações dentro de OUTROS
 
   ops.forEach(op => {
     if (op.transferencia) return;
@@ -2588,7 +2636,12 @@ function renderResumoPaletesPeriodo(ops) {
     const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
     op.paletes.forEach(p => {
       const key = p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'DESCARTAVEL' : 'OUTROS';
-      totais[key][dir] += (parseInt(p.quantidade) || 0);
+      const q = (parseInt(p.quantidade) || 0);
+      totais[key][dir] += q;
+      if (key === 'OUTROS') {
+        const nome = _palTipoLabel(p);   // nome custom, ou "Outros"
+        (outrosDetalhe[nome] = outrosDetalhe[nome] || {entrada:0,saida:0})[dir] += q;
+      }
     });
   });
 
@@ -2597,6 +2650,15 @@ function renderResumoPaletesPeriodo(ops) {
     { key:'DESCARTAVEL', nome:'Descartável' },
     { key:'OUTROS',      nome:'Outros' },
   ];
+
+  const detalheEntries = Object.entries(outrosDetalhe).filter(([,v])=>v.entrada||v.saida);
+  const detalheHtml = detalheEntries.length ? `
+    <div style="margin-top:8px;font-size:0.8rem;color:#555;">
+      <span style="font-weight:600;color:var(--navy);">Detalhe de "Outros" por variação:</span>
+      ${detalheEntries.sort((a,b)=>a[0].localeCompare(b[0])).map(([nome,v])=>
+        `<span class="pal-tipo-chip" style="margin-left:4px;">${esc(nome)}: <b style="color:#c0392b;">↑${v.saida}</b> / <b style="color:#1a7a3c;">↓${v.entrada}</b></span>`
+      ).join(' ')}
+    </div>` : '';
 
   document.getElementById('paletes-resumo-diario').innerHTML = `
     <div class="row g-2">
@@ -2609,7 +2671,7 @@ function renderResumoPaletesPeriodo(ops) {
           </div>
         </div>`;
       }).join('')}
-    </div>`;
+    </div>${detalheHtml}`;
 }
 
 let paletesItemsCache = [];
@@ -2700,7 +2762,10 @@ function _palMontaItem(saida, entrada) {
     saidaId: saida ? saida.id : null,
     entradaId: entrada ? entrada.id : null,
     // marcado = transferência já está aplicada em TODAS as operações existentes do par
-    transferencia: (!saida || !!saida.transferencia) && (!entrada || !!entrada.transferencia)
+    transferencia: (!saida || !!saida.transferencia) && (!entrada || !!entrada.transferencia),
+    // quebra por tipo de palete (saída e volta)
+    tiposSaida:   saida   ? _palPorTipo(saida.paletes)   : {},
+    tiposEntrada: entrada ? _palPorTipo(entrada.paletes) : {}
   };
 }
 
@@ -2726,23 +2791,30 @@ function _palExportDados(){
   const ini = document.getElementById('pal-data-ini').value || '';
   const fim = document.getElementById('pal-data-fim').value || '';
   const titulo = `Paletes por Veículo — ${ini}${fim?' a '+fim:''}`;
-  const head = ['Data Ref.','Placa','Cliente','NF','Conferente','Saiu','Voltou','Diferença','Situação','Transferência'];
+  const head = ['Data Ref.','Placa','Cliente','NF','Conferente',
+                'Saiu PBR','Saiu Descartável','Saiu Outros','Saiu Total',
+                'Voltou PBR','Voltou Descartável','Voltou Outros','Voltou Total',
+                'Diferença','Situação','Transferência','Detalhe Saída','Detalhe Volta'];
+  const somaOutros = m => Object.entries(m||{}).filter(([t])=>t!=='PBR'&&t!=='Descartável').reduce((s,[,v])=>s+v,0);
   const rows = (paletesFiltradosCache||[]).map(i=>{
     let situacao;
     if (i.semSaida) situacao = 'Chegada sem saída';
     else if (i.totalEntrada===null) situacao = 'Sem retorno';
     else situacao = i.ok ? 'OK' : 'Diferença';
+    const s = i.tiposSaida||{}, e = i.tiposEntrada||{};
     return [
       i.refData||'',
       i.placa||'',
       i.cliente||'',
       i.nf||'',
       i.conferente||'',
-      i.totalSaida!=null?i.totalSaida:'',
-      i.totalEntrada!=null?i.totalEntrada:'',
+      s['PBR']||'', s['Descartável']||'', somaOutros(s)||'', (i.totalSaida!=null?i.totalSaida:''),
+      (i.semSaida||i.totalEntrada!==null)?(e['PBR']||''):'', (i.semSaida||i.totalEntrada!==null)?(e['Descartável']||''):'', (i.semSaida||i.totalEntrada!==null)?(somaOutros(e)||''):'', (i.totalEntrada!=null?i.totalEntrada:''),
       i.diff!=null?(i.diff>0?'+'+i.diff:i.diff):'',
       situacao,
-      i.transferencia?'SC×SP':''
+      i.transferencia?'SC×SP':'',
+      _palTipoResumo(s),
+      i.totalEntrada!==null||i.semSaida ? _palTipoResumo(e) : ''
     ];
   });
   return { titulo, head, rows, base:`paletes_${ini||'periodo'}` };
@@ -2843,6 +2915,10 @@ function _palLinhaDetalhe(i){
                  : '<span style="color:#aaa;">Sem retorno registrado ainda</span>'}`
           }
           ${i.transferencia?' <span class="badge bg-info text-dark" style="font-size:0.68rem;">controle paralelo — fora do total</span>':''}
+        </div>
+        <div style="font-size:0.76rem;margin-top:4px;line-height:1.7;">
+          <span style="color:#c0392b;">↑ Saiu:</span> ${_palTipoChips(i.tiposSaida)}
+          ${i.semSaida ? '' : ` &nbsp; <span style="color:#1a7a3c;">↓ Voltou:</span> ${(i.totalEntrada!==null?_palTipoChips(i.tiposEntrada):'<span style=\"color:#aaa;\">—</span>')}`}
         </div>
       </div>
       ${btn}
