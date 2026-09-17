@@ -81,6 +81,8 @@
   .form-control:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(26,58,92,0.1); }
   .btn-navy  { background:var(--navy); color:#fff; border:none; }
   .btn-navy:hover  { background:var(--blue); color:#fff; }
+  .btn-outline-navy { background:#fff; color:var(--navy); border:1px solid var(--navy); }
+  .btn-outline-navy:hover { background:var(--navy); color:#fff; }
   .btn-amber { background:var(--amber); color:var(--navy); border:none; font-weight:700; }
   .btn-amber:hover { background:var(--amber-dk); color:#fff; }
   /* TOAST */
@@ -136,6 +138,7 @@
   .pal-dia-detalhe.aberto { display:block; }
   .pal-badge-alerta { background:#fff3e0; color:#b35900; border-radius:20px; padding:1px 8px; font-size:0.7rem; font-weight:700; }
   .pal-tipo-chip { display:inline-block; background:#eef2f8; color:#334; border-radius:12px; padding:1px 8px; font-size:0.72rem; margin:1px 1px; white-space:nowrap; }
+  .pal-cli-chip { display:inline-block; background:#fff3e0; color:#a35200; border:1px solid #ffd9a0; border-radius:12px; padding:1px 8px; font-size:0.72rem; margin:1px 1px; white-space:nowrap; font-weight:600; }
   .placa-comp.is-transf { background:#eef7fb; border-left:4px solid #17a2b8; }
   .pal-transf-btn { font-size:0.72rem; font-weight:700; white-space:nowrap; border:1px solid #b8d9e2; background:#fff; color:#0c7c8c; padding:4px 10px; border-radius:8px; }
   .pal-transf-btn:hover { background:#e8f6fa; }
@@ -197,6 +200,10 @@
     <a class="sb-item" data-section="motoristas" onclick="showSection('motoristas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/></svg>
       Motoristas
+    </a>
+    <a class="sb-item" data-section="clientes-palete" onclick="showSection('clientes-palete')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+      Clientes / Paletes
     </a>
     <div class="sb-section">Acompanhamento</div>
     <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
@@ -589,6 +596,40 @@
             Layout atual do galpão: 01-10 TRF (Transferências) · 11-29 Cargas Diversas · 30-31 Mattel — edite abaixo se o layout mudar.
           </p>
           <div id="enderecos-cad-list" style="padding:8px 16px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CLIENTES / PALETES ===== -->
+  <div class="section" id="sec-clientes-palete">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-section">
+          <h5 id="cli-form-title">Novo Cliente de Paletes</h5>
+          <p style="font-size:0.76rem;color:#888;margin-top:-8px;margin-bottom:14px;">
+            Clientes cadastrados aqui aparecem como <b>destino</b> ao lançar paletes (no conferente) e geram um
+            <b>controle paralelo</b> na aba Paletes — separado do total normal. Ex.: BRAFT, MATTEL, THOMPSON.
+          </p>
+          <input type="hidden" id="cli-id"/>
+          <div class="mb-3">
+            <label class="form-label">Nome do Cliente</label>
+            <input type="text" class="form-control" id="cli-nome" placeholder="Ex: BRAFT" oninput="this.value=this.value.toUpperCase()"/>
+          </div>
+          <div class="mb-3 form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="cli-ativo" checked>
+            <label class="form-check-label" for="cli-ativo" style="font-size:0.85rem;">Ativo (aparece para o conferente)</label>
+          </div>
+          <button class="btn btn-navy w-100" onclick="salvarClientePalete()">Salvar Cliente</button>
+          <button class="btn btn-outline-secondary w-100 mt-2" style="display:none;" id="cli-cancel" onclick="resetClienteForm()">Cancelar edição</button>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="table-card">
+          <h5 class="mb-3">Clientes cadastrados</h5>
+          <table class="tbl"><thead><tr><th>Nome</th><th>Situação</th><th style="width:130px;">Ações</th></tr></thead>
+            <tbody id="clientes-palete-body"><tr><td colspan="3" style="text-align:center;color:#aaa;padding:20px;">Carregando…</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1116,6 +1157,7 @@
 <script>
 let chartConf, chartVeic;
 let allInsumos = [];
+let clientesPaleteCache = [];   // [{id, nome, ativo}] — clientes de controle paralelo de paletes
 
 // ── INIT ──────────────────────────────────────────────────────
 auth.onAuthStateChanged(async user => {
@@ -1147,6 +1189,7 @@ auth.onAuthStateChanged(async user => {
   await loadInsumos();
   await loadConferentes();
   await loadMotoristas();
+  await loadClientesPalete();
   await loadDashboard();
 });
 
@@ -1157,7 +1200,7 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas','clientes-palete':'Clientes / Paletes',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='consumos')           loadConsumos();
@@ -1166,6 +1209,7 @@ function showSection(id) {
   if (id==='paletes')            loadPaletes();
   if (id==='apontamento')        loadApontamento();
   if (id==='motoristas')         loadMotoristas().then(loadNomesRecentesOperacoes);
+  if (id==='clientes-palete')    loadClientesPalete();
   if (id==='notificacoes')       loadNotificacoes();
   if (id==='apontamento-erro')   loadContatosErro();
   if (id==='enderecos')          loadEnderecosCadastro();
@@ -1954,6 +1998,79 @@ async function loadHistorico() {
   }).join('');
 }
 
+// ── CLIENTES DE PALETES (controle paralelo) ───────────────────
+async function loadClientesPalete(){
+  try {
+    const snap = await db.collection('clientesPalete').orderBy('nome').get();
+    clientesPaleteCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  } catch(e){
+    console.warn('loadClientesPalete:', e.message);
+    clientesPaleteCache = [];
+  }
+  renderClientesPaleteTabela();
+}
+function clientesPaleteAtivos(){ return clientesPaleteCache.filter(c=>c.ativo!==false); }
+function renderClientesPaleteTabela(){
+  const tb = document.getElementById('clientes-palete-body');
+  if (!tb) return;
+  if (!clientesPaleteCache.length){ tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:#aaa;padding:20px;">Nenhum cliente cadastrado ainda.</td></tr>'; return; }
+  tb.innerHTML = clientesPaleteCache.map(c=>`<tr>
+    <td><b>${esc(c.nome)}</b></td>
+    <td>${c.ativo!==false?'<span class="badge bg-success">Ativo</span>':'<span class="badge bg-secondary">Inativo</span>'}</td>
+    <td>
+      <button class="btn btn-sm btn-outline-secondary" onclick="editarClientePalete('${c.id}')">✏️</button>
+      <button class="btn btn-sm btn-outline-danger" onclick="excluirClientePalete('${c.id}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+function resetClienteForm(){
+  document.getElementById('cli-id').value='';
+  document.getElementById('cli-nome').value='';
+  document.getElementById('cli-ativo').checked=true;
+  document.getElementById('cli-form-title').textContent='Novo Cliente de Paletes';
+  document.getElementById('cli-cancel').style.display='none';
+}
+function editarClientePalete(id){
+  const c = clientesPaleteCache.find(x=>x.id===id); if(!c) return;
+  document.getElementById('cli-id').value=c.id;
+  document.getElementById('cli-nome').value=c.nome||'';
+  document.getElementById('cli-ativo').checked=c.ativo!==false;
+  document.getElementById('cli-form-title').textContent='Editar Cliente';
+  document.getElementById('cli-cancel').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function salvarClientePalete(){
+  const id = document.getElementById('cli-id').value;
+  const nome = document.getElementById('cli-nome').value.trim().toUpperCase();
+  const ativo = document.getElementById('cli-ativo').checked;
+  if (!nome){ showToast('Informe o nome do cliente.','warning'); return; }
+  const dup = clientesPaleteCache.find(c=>c.nome===nome && c.id!==id);
+  if (dup){ showToast('Já existe um cliente com esse nome.','warning'); return; }
+  loading(true);
+  try{
+    if (id){
+      await db.collection('clientesPalete').doc(id).update({ nome, ativo });
+    } else {
+      await db.collection('clientesPalete').add({ nome, ativo, criadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    showToast('Cliente salvo.');
+    resetClienteForm();
+    await loadClientesPalete();
+  }catch(e){ showToast('Erro ao salvar cliente: '+e.message,'error'); }
+  finally{ loading(false); }
+}
+async function excluirClientePalete(id){
+  const c = clientesPaleteCache.find(x=>x.id===id); if(!c) return;
+  if (!confirm(`Excluir o cliente "${c.nome}"? Operações já lançadas com esse destino não mudam; ele apenas deixa de aparecer para novos lançamentos.`)) return;
+  loading(true);
+  try{
+    await db.collection('clientesPalete').doc(id).delete();
+    showToast('Cliente excluído.');
+    await loadClientesPalete();
+  }catch(e){ showToast('Erro ao excluir: '+e.message,'error'); }
+  finally{ loading(false); }
+}
+
 // ── PALETES POR TIPO — helpers compartilhados ─────────────────
 // Normaliza o rótulo do tipo de um palete (PBR, Descartável, ou o nome custom de "Outros")
 function _palTipoLabel(p){
@@ -1988,6 +2105,29 @@ function _palTipoChips(mapa){
   const ordem = t => t==='PBR'?0 : t==='Descartável'?1 : 2;
   ent.sort((a,b)=> ordem(a[0])-ordem(b[0]) || a[0].localeCompare(b[0]));
   return ent.map(([t,v])=>`<span class="pal-tipo-chip">${esc(t)} <b>${v}</b></span>`).join(' ');
+}
+// Destino (cliente) de um palete — '' = normal
+function _palDestino(p){ return (p && p.destino) ? p.destino : ''; }
+// Soma por destino → { '': 13, 'BRAFT': 5 }
+function _palPorDestino(paletes){
+  const m = {};
+  (paletes||[]).forEach(p=>{ const k=_palDestino(p); m[k]=(m[k]||0)+(parseInt(p.quantidade)||0); });
+  return m;
+}
+// Chips de destino (só clientes; ignora normal). Ex.: "BRAFT 5 · MATTEL 2"
+function _palDestinoChips(paletes){
+  const m = _palPorDestino(paletes);
+  const ent = Object.entries(m).filter(([k,v])=>k && v>0);
+  if (!ent.length) return '';
+  ent.sort((a,b)=>a[0].localeCompare(b[0]));
+  return ent.map(([k,v])=>`<span class="pal-cli-chip">🏷️ ${esc(k)} <b>${v}</b></span>`).join(' ');
+}
+function _palDestinoResumo(paletes){
+  const m = _palPorDestino(paletes);
+  const ent = Object.entries(m).filter(([k,v])=>k && v>0);
+  if (!ent.length) return '';
+  ent.sort((a,b)=>a[0].localeCompare(b[0]));
+  return ent.map(([k,v])=>`${k} ${v}`).join(' · ');
 }
 
 // ── EXPORTAÇÃO (TXT / XLS / PDF) — genérico ───────────────────
@@ -2054,7 +2194,7 @@ function _opExportDados(){
   const ini = document.getElementById('op-data-ini').value || '';
   const fim = document.getElementById('op-data-fim').value || ini;
   const titulo = `Log de Operações — ${ini}${fim&&fim!==ini?' a '+fim:''}`;
-  const head = ['Data/Hora','Placa','Tipo','Transferência','PBR','Descartável','Outros','Detalhe Paletes','Cliente','Conferente','Status'];
+  const head = ['Data/Hora','Placa','Tipo','Transferência','PBR','Descartável','Outros','Cliente(s) Palete','Detalhe Paletes','Cliente','Conferente','Status'];
   const rows = operacoesCache.map(r=>{
     const mapa = _palPorTipo(r.paletes);
     const pbr = mapa['PBR']||0;
@@ -2068,6 +2208,7 @@ function _opExportDados(){
       pbr||'',
       desc||'',
       outros||'',
+      _palDestinoResumo(r.paletes),
       _palTipoResumo(mapa),
       r.cliente||'',
       r.conferenteNome||'',
@@ -2110,7 +2251,7 @@ async function loadOperacoes() {
     <td><b>${r.placa||'—'}</b></td>
     <td>${r.tipoExecucao==='ENTRADA'?'<span class="badge-entrada">ENTRADA</span>':'<span class="badge-saida">SAÍDA</span>'}</td>
     <td>${r.transferencia?'<span class="badge bg-info text-dark" style="font-size:0.72rem;">🔄 SC×SP</span>':'<span class="text-muted" style="font-size:0.78rem;">—</span>'}</td>
-    <td>${_palTipoChips(_palPorTipo(r.paletes))}</td>
+    <td>${_palTipoChips(_palPorTipo(r.paletes))}${(()=>{const d=_palDestinoChips(r.paletes);return d?`<div style="margin-top:3px;">${d}</div>`:'';})()}</td>
     <td>${r.cliente||'—'}</td>
     <td>${r.conferenteNome||'—'}</td>
     <td>${r.status==='CONCLUIDA'?'<span class="badge-ok">Concluída</span>':'<span class="badge-pendente">Em Andamento</span>'}${r.corrigido?' <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Corrigido</span>':''}</td>
@@ -2161,11 +2302,7 @@ async function verDetalhes(id) {
       </tr>`;
     }).join('');
 
-    const paletesRows = (r.paletes||[]).map((p,i)=>`
-      <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
-        <div class="col-7"><input class="form-control form-control-sm" value="${esc((p.tipo==='OUTROS'&&p.tipoCustom)?p.tipoCustom:p.tipo)}" readonly></div>
-        <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-pal-qtd" value="${p.quantidade||0}"></div>
-      </div>`).join('');
+    const paletesRows = (r.paletes||[]).map((p,i)=>_edPaleteRowHtml(p)).join('');
 
     const insumosRows = (r.insumos||[]).map((ins,i)=>`
       <div class="row g-2 mb-2 align-items-center" data-idx="${i}">
@@ -2195,7 +2332,12 @@ async function verDetalhes(id) {
         </div>
       </div>
       ${nfsRows?`<h6>NFs / Itens conferidos</h6><table class="tbl mb-3"><thead><tr><th>Item</th><th>Status</th><th>Qtd Averig.</th><th>Observação</th></tr></thead><tbody id="ed-nfs-body">${nfsRows}</tbody></table>`:''}
-      ${paletesRows?`<h6>Paletes</h6><div id="ed-paletes-body" class="mb-3">${paletesRows}</div>`:''}
+      ${(r.paletes||[]).length||['SAIDA','ENTRADA'].includes(r.tipoExecucao)?`
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Paletes <small class="text-muted" style="font-weight:400;">(destino = cliente do controle paralelo)</small></h6>
+          <button class="btn btn-sm btn-outline-navy" onclick="edAddPaleteRow()">+ linha</button>
+        </div>
+        <div id="ed-paletes-body" class="mb-3 mt-2">${paletesRows}</div>`:''}
       ${insumosRows?`<h6>Insumos utilizados</h6><div id="ed-insumos-body" class="mb-3">${insumosRows}</div>`:''}
       <div class="mb-3"><label class="form-label" style="font-size:0.8rem;">Observações Gerais</label><textarea class="form-control form-control-sm" id="ed-observacoes" rows="2">${esc(r.observacoes)}</textarea></div>
       ${(r.fotos||[]).length?`<h6>Fotos</h6><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${r.fotos.map(f=>`<img src="${f}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`:''}
@@ -2206,6 +2348,41 @@ async function verDetalhes(id) {
   } finally {
     loading(false);
   }
+}
+
+// Monta UMA linha de palete editável no modal (tipo, qtd, destino, ações)
+function _edPaleteRowHtml(p){
+  p = p || {};
+  const tipo = p.tipo || 'OUTROS';
+  const custom = p.tipoCustom || '';
+  const destino = p.destino || '';
+  const tipoLabel = (tipo==='OUTROS' && custom) ? custom : (tipo==='PBR'?'PBR':tipo==='DESCARTAVEL'?'Descartável':'Outros');
+  const opts = ['<option value="">Normal (sem cliente)</option>']
+    .concat(clientesPaleteAtivos().map(c=>`<option value="${esc(c.nome)}" ${destino===c.nome?'selected':''}>${esc(c.nome)}</option>`));
+  // se o destino gravado não está mais na lista ativa, preserva como opção
+  if (destino && !clientesPaleteAtivos().some(c=>c.nome===destino))
+    opts.push(`<option value="${esc(destino)}" selected>${esc(destino)} (inativo)</option>`);
+  return `<div class="row g-1 mb-2 align-items-center ed-pal-row" data-tipo="${esc(tipo)}" data-custom="${esc(custom)}">
+    <div class="col-4"><input class="form-control form-control-sm" value="${esc(tipoLabel)}" readonly title="Tipo do palete"></div>
+    <div class="col-2"><input type="number" min="0" class="form-control form-control-sm ed-pal-qtd" value="${p.quantidade||0}" title="Quantidade"></div>
+    <div class="col-5"><select class="form-select form-select-sm ed-pal-destino" title="Destino / cliente">${opts.join('')}</select></div>
+    <div class="col-1 text-end"><button class="btn btn-sm btn-link text-danger p-0" title="Remover linha" onclick="edRemovePaleteRow(this)">✕</button></div>
+  </div>`;
+}
+// Adiciona uma nova linha em branco (admin escolhe tipo via prompt simples)
+function edAddPaleteRow(){
+  const body = document.getElementById('ed-paletes-body'); if(!body) return;
+  const tipo = prompt('Tipo do palete desta linha? Digite: PBR, DESCARTAVEL ou o nome de um tipo "Outros".','PBR');
+  if (tipo===null) return;
+  const t = tipo.trim().toUpperCase();
+  let novo;
+  if (t==='PBR') novo={tipo:'PBR',quantidade:0,destino:''};
+  else if (t==='DESCARTAVEL'||t==='DESCARTÁVEL') novo={tipo:'DESCARTAVEL',quantidade:0,destino:''};
+  else novo={tipo:'OUTROS',tipoCustom:tipo.trim(),quantidade:0,destino:''};
+  body.insertAdjacentHTML('beforeend', _edPaleteRowHtml(novo));
+}
+function edRemovePaleteRow(btn){
+  const row = btn.closest('.ed-pal-row'); if(row) row.remove();
 }
 
 async function salvarCorrecaoOperacao(id) {
@@ -2236,11 +2413,19 @@ async function salvarCorrecaoOperacao(id) {
       };
     });
 
-    const novosPaletes = (original.paletes||[]).map((p,i)=>{
-      const row = document.querySelector(`#ed-paletes-body [data-idx="${i}"]`);
-      const qtdInput = row?.querySelector('.ed-pal-qtd');
-      return qtdInput ? { ...p, quantidade: parseInt(qtdInput.value)||0 } : p;
-    });
+    const palRows = document.querySelectorAll('#ed-paletes-body .ed-pal-row');
+    const novosPaletes = palRows.length
+      ? Array.from(palRows).map(row=>{
+          const tipo = row.dataset.tipo || 'OUTROS';
+          const custom = row.dataset.custom || '';
+          const qtd = parseInt(row.querySelector('.ed-pal-qtd')?.value)||0;
+          const destino = row.querySelector('.ed-pal-destino')?.value || '';
+          const item = { tipo, quantidade: qtd };
+          if (tipo==='OUTROS' && custom) item.tipoCustom = custom;
+          if (destino) item.destino = destino;
+          return item;
+        }).filter(p=>p.quantidade>0 || p.destino)
+      : (original.paletes||[]);
 
     const novosInsumos = (original.insumos||[]).map((ins,i)=>{
       const row = document.querySelector(`#ed-insumos-body [data-idx="${i}"]`);
@@ -2660,6 +2845,34 @@ function renderResumoPaletesPeriodo(ops) {
       ).join(' ')}
     </div>` : '';
 
+  // Controle paralelo POR CLIENTE (BRAFT / MATTEL / THOMPSON…) — independente da transferência
+  const porCliente = {};   // { BRAFT: {saida, entrada, transf:0} }
+  ops.forEach(op=>{
+    if (!op.paletes || !op.paletes.length) return;
+    const dir = op.tipoExecucao === 'SAIDA' ? 'saida' : 'entrada';
+    op.paletes.forEach(p=>{
+      const dest = p.destino; if (!dest) return;
+      const q = parseInt(p.quantidade)||0; if (!q) return;
+      const c = porCliente[dest] = porCliente[dest] || {saida:0, entrada:0, transf:0};
+      c[dir]+=q; if (op.transferencia) c.transf+=q;
+    });
+  });
+  const cliEntries = Object.entries(porCliente).filter(([,v])=>v.saida||v.entrada);
+  const clienteHtml = cliEntries.length ? `
+    <div style="margin-top:14px;">
+      <div style="font-weight:700;color:var(--navy);font-size:0.9rem;margin-bottom:6px;">🏷️ Controle paralelo por cliente</div>
+      <div class="row g-2">
+        ${cliEntries.sort((a,b)=>a[0].localeCompare(b[0])).map(([nome,v])=>`
+          <div class="col-12 col-md-4">
+            <div style="background:#fff8ef;border:1px solid #ffe1b3;border-radius:10px;padding:10px 14px;">
+              <div style="font-weight:700;color:#a35200;font-size:0.9rem;margin-bottom:4px;">${esc(nome)}</div>
+              <div style="font-size:0.85rem;"><span style="color:#c0392b;font-weight:700;">↑ Saída ${v.saida}</span> &nbsp; <span style="color:#1a7a3c;font-weight:700;">↓ Entrada ${v.entrada}</span></div>
+              ${v.transf?`<div style="font-size:0.72rem;color:#0c7c8c;margin-top:2px;">🔄 ${v.transf} em transferência SC×SP</div>`:''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
   document.getElementById('paletes-resumo-diario').innerHTML = `
     <div class="row g-2">
       ${linhas.map(l => {
@@ -2671,7 +2884,7 @@ function renderResumoPaletesPeriodo(ops) {
           </div>
         </div>`;
       }).join('')}
-    </div>${detalheHtml}`;
+    </div>${detalheHtml}${clienteHtml}`;
 }
 
 let paletesItemsCache = [];
@@ -2765,7 +2978,10 @@ function _palMontaItem(saida, entrada) {
     transferencia: (!saida || !!saida.transferencia) && (!entrada || !!entrada.transferencia),
     // quebra por tipo de palete (saída e volta)
     tiposSaida:   saida   ? _palPorTipo(saida.paletes)   : {},
-    tiposEntrada: entrada ? _palPorTipo(entrada.paletes) : {}
+    tiposEntrada: entrada ? _palPorTipo(entrada.paletes) : {},
+    // paletes crus (para destino/cliente)
+    paletesSaida:   saida   ? (saida.paletes||[])   : [],
+    paletesEntrada: entrada ? (entrada.paletes||[]) : []
   };
 }
 
@@ -2794,7 +3010,7 @@ function _palExportDados(){
   const head = ['Data Ref.','Placa','Cliente','NF','Conferente',
                 'Saiu PBR','Saiu Descartável','Saiu Outros','Saiu Total',
                 'Voltou PBR','Voltou Descartável','Voltou Outros','Voltou Total',
-                'Diferença','Situação','Transferência','Detalhe Saída','Detalhe Volta'];
+                'Diferença','Situação','Transferência','Cliente Saída','Cliente Volta','Detalhe Saída','Detalhe Volta'];
   const somaOutros = m => Object.entries(m||{}).filter(([t])=>t!=='PBR'&&t!=='Descartável').reduce((s,[,v])=>s+v,0);
   const rows = (paletesFiltradosCache||[]).map(i=>{
     let situacao;
@@ -2813,6 +3029,8 @@ function _palExportDados(){
       i.diff!=null?(i.diff>0?'+'+i.diff:i.diff):'',
       situacao,
       i.transferencia?'SC×SP':'',
+      _palDestinoResumo(i.paletesSaida),
+      (i.totalEntrada!==null||i.semSaida)?_palDestinoResumo(i.paletesEntrada):'',
       _palTipoResumo(s),
       i.totalEntrada!==null||i.semSaida ? _palTipoResumo(e) : ''
     ];
@@ -2920,6 +3138,10 @@ function _palLinhaDetalhe(i){
           <span style="color:#c0392b;">↑ Saiu:</span> ${_palTipoChips(i.tiposSaida)}
           ${i.semSaida ? '' : ` &nbsp; <span style="color:#1a7a3c;">↓ Voltou:</span> ${(i.totalEntrada!==null?_palTipoChips(i.tiposEntrada):'<span style=\"color:#aaa;\">—</span>')}`}
         </div>
+        ${(()=>{ const ds=_palDestinoChips(i.paletesSaida), de=_palDestinoChips(i.paletesEntrada);
+          if(!ds&&!de) return '';
+          return `<div style="font-size:0.74rem;margin-top:3px;">Cliente(s): ${ds||'—'}${de?` <span style="color:#aaa;">(volta: ${de})</span>`:''}</div>`;
+        })()}
       </div>
       ${btn}
     </div>`;
