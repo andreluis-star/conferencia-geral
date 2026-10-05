@@ -430,14 +430,19 @@ function formatPlaca(p) {
   return (p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-/** Monta o texto do TFA e abre o WhatsApp (link wa.me, sem número fixo: o usuário escolhe
- *  o contato/grupo e confere antes de enviar). Fotos não vão anexadas pelo link. */
-function enviarTFAWhatsApp(rec) {
-  if (!rec) { showToast('Registro não encontrado.', 'error'); return; }
+function _carregarScriptExterno(src) {
+  return new Promise((ok, erro) => {
+    if (document.querySelector(`script[src="${src}"]`)) return ok();
+    const sc = document.createElement('script');
+    sc.src = src; sc.onload = ok; sc.onerror = () => erro(new Error('Falha ao carregar ' + src));
+    document.head.appendChild(sc);
+  });
+}
+
+function _textoTFA(rec) {
   const num = String(rec.id || '').slice(-6).toUpperCase();
   const data = (rec.timestamp && rec.timestamp.toDate) ? fmtDate(rec.timestamp) : (rec.dataRef || '—');
-  const nFotos = (rec.fotos || []).length;
-  const linhas = [
+  return [
     `*TFA ${num} — Termo de Falta e Avaria*`,
     `Data: ${data}`,
     `Cliente: ${rec.cliente || '—'}`,
@@ -446,10 +451,70 @@ function enviarTFAWhatsApp(rec) {
     `Motorista: ${rec.motorista || '—'}`,
     `Qtd. volumes: ${rec.qtdVolumes || '—'}`,
     `Conferente: ${rec.conferenteNome || '—'}`,
-    '',
-    `*Descrição:*`,
-    rec.descricao || '—'
-  ];
-  if (nFotos) linhas.push('', `📷 ${nFotos} foto(s) registrada(s) no sistema (enviar à parte, se necessário).`);
-  window.open('https://wa.me/?text=' + encodeURIComponent(linhas.join('\n')), '_blank');
+    '', `*Descrição:*`, rec.descricao || '—'
+  ].join('\n');
+}
+
+/** Gera o PDF do TFA (com fotos) no próprio navegador e devolve um File. */
+async function gerarArquivoPDFTFA(rec) {
+  await _carregarScriptExterno('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  await _carregarScriptExterno('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const num = String(rec.id || '').slice(-6).toUpperCase();
+  const data = (rec.timestamp && rec.timestamp.toDate) ? fmtDate(rec.timestamp) : (rec.dataRef || '—');
+  const campo = (l, v) => `<div style="margin:4px 0;"><b>${l}:</b> ${esc(v || '—')}</div>`;
+  const fotos = (rec.fotos || []).map(f => `<img src="${f}" style="width:48%;margin:1%;border:1px solid #ccc;"/>`).join('');
+
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:14px;padding:32px;box-sizing:border-box;';
+  box.innerHTML = `
+    <div style="border-bottom:3px solid #0d2137;padding-bottom:8px;margin-bottom:14px;">
+      <div style="font-size:20px;font-weight:700;color:#0d2137;">TERMO DE FALTA E AVARIA — TFA ${num}</div>
+      <div style="color:#666;">${esc(data)}</div></div>
+    ${campo('Cliente', rec.cliente)}${campo('NF', rec.nf)}${campo('DI', rec.di)}${campo('DEC (MD)', rec.dec)}
+    ${campo('Motorista', rec.motorista)}${campo('Veículo / Placa', rec.veiculo || rec.placa)}
+    ${campo('Qtd. volumes', rec.qtdVolumes)}${campo('Conferente', rec.conferenteNome)}
+    <div style="margin-top:14px;font-weight:700;color:#0d2137;">Descrição da falta / avaria</div>
+    <div style="border:1px solid #ccc;padding:10px;min-height:60px;white-space:pre-wrap;">${esc(rec.descricao)}</div>
+    ${fotos ? `<div style="margin-top:14px;font-weight:700;color:#0d2137;">Registro fotográfico</div><div>${fotos}</div>` : ''}`;
+  document.body.appendChild(box);
+  try {
+    await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 1 : new Promise(r => { im.onload = im.onerror = r; })));
+    const canvas = await html2canvas(box, { scale: 1.5, backgroundColor: '#fff' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pw = 210, ph = 297, ih = canvas.height * pw / canvas.width;
+    const img = canvas.toDataURL('image/jpeg', 0.8);
+    let y = 0;
+    pdf.addImage(img, 'JPEG', 0, y, pw, ih);
+    while (ih + y > ph) { y -= ph; pdf.addPage(); pdf.addImage(img, 'JPEG', 0, y, pw, ih); if (ih + y <= ph) break; }
+    return new File([pdf.output('blob')], `TFA-${num}.pdf`, { type: 'application/pdf' });
+  } finally { box.remove(); }
+}
+
+/** Envia o TFA pelo WhatsApp: texto + PDF. No celular abre o menu de compartilhar (escolha
+ *  WhatsApp e o contato/grupo) já com o PDF anexado. Se o aparelho não permitir anexar,
+ *  baixa o PDF e abre o WhatsApp com o texto, para anexar manualmente. */
+async function enviarTFAWhatsApp(rec) {
+  if (!rec) { showToast('Registro não encontrado.', 'error'); return; }
+  const texto = _textoTFA(rec);
+  loading(true);
+  let arquivo = null;
+  try { arquivo = await gerarArquivoPDFTFA(rec); }
+  catch (e) { console.warn('PDF TFA falhou:', e); }
+  loading(false);
+
+  if (arquivo && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+    try { await navigator.share({ files: [arquivo], text: texto, title: arquivo.name }); return; }
+    catch (e) { if (e.name === 'AbortError') return; console.warn('share falhou:', e); }
+  }
+  if (arquivo) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(arquivo); a.download = arquivo.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    showToast('PDF baixado — anexe-o na conversa do WhatsApp.', 'warning');
+  } else {
+    showToast('Não foi possível gerar o PDF; enviando só o texto.', 'warning');
+  }
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
 }
