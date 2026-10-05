@@ -395,12 +395,29 @@ function fmtDateOnly(ts) {
 function showToast(msg, tipo = 'success') {
   const el = document.getElementById('toast-container');
   if (!el) return;
+
+  // Evita empilhar o mesmo aviso várias vezes (ex.: usuário toca repetidamente num botão
+  // travado) — se o mesmo texto já estiver visível, só reinicia o tempo dele.
+  const existente = [...el.children].find(t => t.textContent === msg);
+  if (existente) {
+    clearTimeout(existente._hideTimeout);
+    existente.classList.add('show');
+    existente._hideTimeout = setTimeout(() => {
+      existente.classList.remove('show');
+      setTimeout(() => existente.remove(), 300);
+    }, 3000);
+    return;
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast-msg toast-${tipo}`;
   toast.textContent = msg;
   el.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+  toast._hideTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 function loading(show) {
@@ -411,4 +428,28 @@ function loading(show) {
 /** Sanitiza string de placa para exibição */
 function formatPlaca(p) {
   return (p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/** Monta o texto do TFA e abre o WhatsApp (link wa.me, sem número fixo: o usuário escolhe
+ *  o contato/grupo e confere antes de enviar). Fotos não vão anexadas pelo link. */
+function enviarTFAWhatsApp(rec) {
+  if (!rec) { showToast('Registro não encontrado.', 'error'); return; }
+  const num = String(rec.id || '').slice(-6).toUpperCase();
+  const data = (rec.timestamp && rec.timestamp.toDate) ? fmtDate(rec.timestamp) : (rec.dataRef || '—');
+  const nFotos = (rec.fotos || []).length;
+  const linhas = [
+    `*TFA ${num} — Termo de Falta e Avaria*`,
+    `Data: ${data}`,
+    `Cliente: ${rec.cliente || '—'}`,
+    `NF: ${rec.nf || '—'}` + (rec.di ? ` | DI: ${rec.di}` : '') + (rec.dec ? ` | DEC (MD): ${rec.dec}` : ''),
+    `Veículo/Placa: ${rec.veiculo || rec.placa || '—'}`,
+    `Motorista: ${rec.motorista || '—'}`,
+    `Qtd. volumes: ${rec.qtdVolumes || '—'}`,
+    `Conferente: ${rec.conferenteNome || '—'}`,
+    '',
+    `*Descrição:*`,
+    rec.descricao || '—'
+  ];
+  if (nFotos) linhas.push('', `📷 ${nFotos} foto(s) registrada(s) no sistema (enviar à parte, se necessário).`);
+  window.open('https://wa.me/?text=' + encodeURIComponent(linhas.join('\n')), '_blank');
 }
