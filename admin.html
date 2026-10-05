@@ -2611,7 +2611,8 @@ async function loadTFA() {
         <td>${r.conferenteNome || '—'}</td>
         <td style="font-size:0.83rem;max-width:260px;" title="${descSafe}">${descResumo}</td>
         <td>${nFotos ? `📷 ${nFotos}` : '—'}</td>
-        <td><button class="btn btn-sm btn-outline-secondary" onclick="imprimirTFAAdmin('${r.id}')">🖨️ Imprimir</button></td>
+        <td><button class="btn btn-sm btn-outline-secondary" onclick="imprimirTFAAdmin('${r.id}')">🖨️ Imprimir</button>
+          <button class="btn btn-sm btn-outline-success" onclick="enviarTFAWhatsApp(tfaAdmRecords.find(x=>x.id==='${r.id}'))">📲 WhatsApp</button></td>
       </tr>`;
     }).join('');
   } catch (e) {
