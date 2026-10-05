@@ -2581,6 +2581,7 @@ function renderTFARegistros(idx) {
       <div class="tfa-reg-actions">
         ${nFotos ? `<button onclick="verFotosTFA('${r.id}')" title="Ver ${nFotos} foto(s)">📷</button>` : ''}
         <button onclick="gerarPDFTFA('${r.id}')" title="Gerar PDF">📄</button>
+        <button onclick="enviarTFAWhatsApp(findTFARecordById('${r.id}'))" title="Enviar por WhatsApp">📲</button>
       </div>
     </div>`;
   }).join('');
