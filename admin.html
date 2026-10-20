@@ -2310,11 +2310,14 @@ async function verDetalhes(id) {
         <div class="col-5"><input type="number" min="0" class="form-control form-control-sm ed-ins-qtd" value="${ins.quantidade||0}"></div>
       </div>`).join('');
 
-    const historico = histSnap.docs.map(d=>d.data());
+    const historico = histSnap.docs.map(d=>({_id:d.id,...d.data()}));
     const historicoHtml = historico.length ? `
       <h6>🕓 Histórico de Correções</h6>
-      <div style="max-height:150px;overflow-y:auto;font-size:0.78rem;background:#f8faff;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
-        ${historico.map(h=>`<div style="padding:4px 0;border-bottom:1px dashed #dde5f0;"><b>${esc(h.editadoPor)}</b> em ${fmtDate(h.timestamp)} — ${esc(h.resumo)}</div>`).join('')}
+      <div style="max-height:200px;overflow-y:auto;font-size:0.78rem;background:#f8faff;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
+        ${historico.map(h=>`<div style="padding:4px 0;border-bottom:1px dashed #dde5f0;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;">
+          <div><b>${esc(h.editadoPor)}</b> em ${fmtDate(h.timestamp)} — ${esc(h.resumo)}${h.revertida?` <span class="badge bg-secondary" style="font-size:0.65rem;">revertida</span>`:''}</div>
+          ${(h.valoresAntigos&&!h.revertida)?`<button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.72rem;white-space:nowrap;" onclick="reverterCorrecaoOperacao('${id}','${h._id}')" title="Volta os valores ao que eram antes desta correção">↩ Reverter</button>`:''}
+        </div>`).join('')}
       </div>` : '';
 
     document.getElementById('modal-op-title').textContent = `Operação — ${r.placa||'—'} (${r.tipoExecucao})`;
@@ -2324,6 +2327,15 @@ async function verDetalhes(id) {
         <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Cliente</label><input class="form-control form-control-sm" id="ed-cliente" value="${esc(r.cliente)}"></div>
         <div class="col-6"><label class="form-label" style="font-size:0.8rem;">Conferente</label><select class="form-select form-select-sm" id="ed-conferente">${conferenteOptions}</select></div>
         <div class="col-6"><small class="text-muted">Horário (não editável)</small><div><b>${fmtDate(r.timestamp)}</b></div></div>
+        <div class="col-6">
+          <label class="form-label" style="font-size:0.8rem;">Tipo (Entrada / Saída)</label>
+          <select class="form-select form-select-sm" id="ed-tipo" data-original="${esc(r.tipoExecucao||'')}" onchange="edTipoAviso(this)">
+            <option value="ENTRADA" ${r.tipoExecucao==='ENTRADA'?'selected':''}>⬇ ENTRADA</option>
+            <option value="SAIDA" ${r.tipoExecucao==='SAIDA'?'selected':''}>⬆ SAÍDA</option>
+            ${(r.tipoExecucao&&!['ENTRADA','SAIDA'].includes(r.tipoExecucao))?`<option value="${esc(r.tipoExecucao)}" selected>${esc(r.tipoExecucao)}</option>`:''}
+          </select>
+        </div>
+        <div class="col-6 d-flex align-items-end"><div id="ed-tipo-aviso" style="font-size:0.74rem;color:#b45309;display:none;"></div></div>
         <div class="col-12">
           <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" id="ed-transferencia" ${r.transferencia?'checked':''}>
@@ -2400,6 +2412,7 @@ async function salvarCorrecaoOperacao(id) {
     const novoConferenteNome = selConf.options[selConf.selectedIndex]?.textContent || original.conferenteNome;
     const novasObservacoes = document.getElementById('ed-observacoes').value.trim();
     const novaTransferencia = document.getElementById('ed-transferencia').checked;
+    const novoTipo = document.getElementById('ed-tipo')?.value || original.tipoExecucao;
 
     const novosNfs = (original.nfs||[]).map((nf,i)=>{
       const row = document.querySelector(`#ed-nfs-body tr[data-idx="${i}"]`);
@@ -2434,6 +2447,7 @@ async function salvarCorrecaoOperacao(id) {
     });
 
     const resumoPartes = [];
+    if (novoTipo !== (original.tipoExecucao||'')) resumoPartes.push(`tipo ${_tipoLabel(original.tipoExecucao)}→${_tipoLabel(novoTipo)}`);
     if (novaPlaca !== (original.placa||'')) resumoPartes.push(`placa "${original.placa||'—'}"→"${novaPlaca}"`);
     if (novoCliente !== (original.cliente||'')) resumoPartes.push('cliente alterado');
     if (novoConferenteId !== original.conferenteId) resumoPartes.push('conferente alterado');
@@ -2456,11 +2470,17 @@ async function salvarCorrecaoOperacao(id) {
         placa: original.placa||null, cliente: original.cliente||null,
         conferenteId: original.conferenteId||null, conferenteNome: original.conferenteNome||null,
         nfs: original.nfs||[], paletes: original.paletes||[], insumos: original.insumos||[],
-        observacoes: original.observacoes||null, transferencia: !!original.transferencia
+        observacoes: original.observacoes||null, transferencia: !!original.transferencia,
+        tipoExecucao: original.tipoExecucao||null
       }
     });
 
+    if (novoTipo !== (original.tipoExecucao||'')) {
+      await _ajustarEstoqueTrocaTipo(id, original, original.tipoExecucao, novoTipo, novosInsumos);
+    }
+
     await docRef.update({
+      tipoExecucao: novoTipo,
       placa: novaPlaca, cliente: novoCliente,
       conferenteId: novoConferenteId, conferenteNome: novoConferenteNome,
       nfs: novosNfs, paletes: novosPaletes, insumos: novosInsumos,
@@ -2481,6 +2501,116 @@ async function salvarCorrecaoOperacao(id) {
   }
 }
 
+
+function _tipoLabel(t){ return t==='SAIDA'?'SAÍDA':(t||'—'); }
+
+function edTipoAviso(sel){
+  const av = document.getElementById('ed-tipo-aviso');
+  if (!av) return;
+  const mudou = sel.value !== (sel.dataset.original||'');
+  av.style.display = mudou ? 'block' : 'none';
+  if (mudou) av.textContent = `⚠ Esta operação passará de ${_tipoLabel(sel.dataset.original)} para ${_tipoLabel(sel.value)}. Paletes e apontamentos passam a contar como ${_tipoLabel(sel.value)}; saldo dos insumos é ajustado. Pode ser revertido pelo histórico.`;
+}
+
+/**
+ * Quando o tipo da operação muda (ENTRADA↔SAÍDA) e ela já estava CONCLUÍDA,
+ * o conferente.html já tinha movimentado o saldo dos insumos com o sinal do tipo antigo.
+ * Aqui desfazemos o sinal antigo, aplicamos o novo e atualizamos os registros de
+ * `movimentacoes` ligados a esta operação (para a aba Consumos ficar coerente).
+ */
+async function _ajustarEstoqueTrocaTipo(opId, op, tipoAntigo, tipoNovo, insumos){
+  if (op.status !== 'CONCLUIDA') return;
+  const sinal = t => t==='SAIDA' ? -1 : (t==='ENTRADA' ? 1 : 0);
+  const fator = sinal(tipoNovo) - sinal(tipoAntigo);
+  if (fator) {
+    for (const ins of (insumos||[])) {
+      if (!ins.insumoId || !ins.quantidade) continue;
+      const ref = db.collection('insumos').doc(ins.insumoId);
+      const d = await ref.get();
+      if (!d.exists) continue;
+      const novo = (d.data().saldo||0) + fator*ins.quantidade;
+      await ref.update({ saldo: Math.max(0, novo) });
+    }
+  }
+  const movs = await db.collection('movimentacoes').where('operacaoId','==',opId).get();
+  for (const m of movs.docs) {
+    const md = m.data();
+    if (md.tipo !== tipoAntigo) continue;
+    await m.ref.update({
+      tipo: tipoNovo,
+      observacao: `${tipoNovo} - ${md.placa||op.placa||''} (corrigido de ${tipoAntigo})`
+    });
+  }
+}
+
+/**
+ * Reverte UMA correção do histórico: volta os campos para `valoresAntigos`.
+ * A reversão também vira uma correção (com os valores atuais guardados), então
+ * pode ser desfeita de novo se necessário.
+ */
+async function reverterCorrecaoOperacao(opId, corrId){
+  const docRef = db.collection('operacoes').doc(opId);
+  loading(true);
+  try {
+    const [opSnap, corrSnap] = await Promise.all([docRef.get(), docRef.collection('correcoes').doc(corrId).get()]);
+    if (!opSnap.exists || !corrSnap.exists) { showToast('Registro não encontrado.','error'); return; }
+    const atual = opSnap.data();
+    const corr = corrSnap.data();
+    const antigos = corr.valoresAntigos || {};
+    const campos = ['placa','cliente','conferenteId','conferenteNome','nfs','paletes','insumos','observacoes','transferencia','tipoExecucao'];
+
+    const upd = {}, backup = {};
+    for (const c of campos) {
+      if (!(c in antigos)) continue;
+      if (c==='tipoExecucao' && !antigos[c]) continue;   // correções antigas sem tipo gravado
+      const v = antigos[c];
+      if (JSON.stringify(v ?? null) === JSON.stringify(atual[c] ?? null)) continue;
+      upd[c] = (v===null && ['placa','cliente','observacoes'].includes(c)) ? '' : v;
+      backup[c] = atual[c] ?? null;
+    }
+    if (!Object.keys(upd).length) {
+      loading(false);
+      showToast('Os valores já estão iguais aos de antes desta correção.','warning');
+      return;
+    }
+    loading(false);
+    const lista = Object.keys(upd).map(c=> c==='tipoExecucao' ? `tipo → ${_tipoLabel(upd[c])}` : c).join(', ');
+    if (!confirm(`Reverter a correção "${corr.resumo}"?\n\nCampos que voltarão ao valor anterior: ${lista}`)) return;
+    loading(true);
+
+    const adminData = window.currentAdminData || {};
+    const editor = adminData.nome || adminData.email || 'Admin';
+
+    if ('tipoExecucao' in upd) {
+      await _ajustarEstoqueTrocaTipo(opId, atual, atual.tipoExecucao, upd.tipoExecucao, upd.insumos || atual.insumos);
+    }
+
+    await docRef.collection('correcoes').add({
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      editadoPor: editor,
+      resumo: `REVERSÃO de "${corr.resumo}"`,
+      valoresAntigos: backup,
+      reverteu: corrId
+    });
+    await docRef.collection('correcoes').doc(corrId).update({ revertida: true, revertidaPor: editor });
+
+    await docRef.update({
+      ...upd,
+      corrigido: true,
+      corrigidoPor: editor,
+      corrigidoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('Correção revertida.');
+    bootstrap.Modal.getInstance(document.getElementById('modal-op'))?.hide();
+    loadOperacoes();
+  } catch(e) {
+    console.error('reverterCorrecaoOperacao:', e);
+    showToast('Erro ao reverter: '+e.message, 'error');
+  } finally {
+    loading(false);
+  }
+}
 
 // ── DISCREPÂNCIAS ─────────────────────────────────────────────
 async function loadDiscrepancias() {
@@ -4251,7 +4381,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.08.25-4';
+const APP_VERSION = '2026.10.20-1';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
