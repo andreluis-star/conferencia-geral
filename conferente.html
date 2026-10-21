@@ -409,6 +409,53 @@
   .pwa-row2 { display:flex; gap:8px; margin-top:11px; }
   #btn-pwa-install { flex:1; background:var(--amber); color:var(--navy); border:none; border-radius:10px; padding:11px 16px; font-weight:800; font-size:0.9rem; cursor:pointer; }
   #btn-pwa-dismiss { background:transparent; color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.25); border-radius:10px; padding:11px 14px; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
+
+  /* ══ BLOCOS ENTRADA / SAÍDA (tela da placa) ══ */
+  .op-bloco { background:#fff; border-radius:var(--radius); margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden; border-left:6px solid #1a5c1a; }
+  .op-bloco.saida { border-left-color:#7a1a1a; }
+  .op-bloco-head { padding:14px 14px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .op-bloco-l1 { display:flex; align-items:center; gap:8px; }
+  .op-bloco-titulo { font-size:1.02rem; font-weight:900; letter-spacing:0.3px; color:#1a5c1a; flex:1; }
+  .op-bloco.saida .op-bloco-titulo { color:#7a1a1a; }
+  .op-bloco-badge { font-size:0.62rem; font-weight:900; border-radius:6px; padding:3px 8px; background:#eef1f6; color:#667; letter-spacing:0.4px; }
+  .op-bloco-badge.ok { background:var(--green); color:#fff; }
+  .op-bloco-badge.parcial { background:var(--amber); color:#111; }
+  .op-bloco-chev { font-size:0.85rem; color:#99a; transition:transform 0.2s; }
+  .op-bloco.aberto .op-bloco-chev { transform:rotate(180deg); }
+  .op-bloco-resumo { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .op-bloco-rs { background:#f5f8fc; border-radius:8px; padding:7px 4px; text-align:center; }
+  .op-bloco-rs b { display:block; font-size:1.15rem; font-weight:900; color:var(--navy); line-height:1.1; }
+  .op-bloco-rs small { font-size:0.62rem; font-weight:700; color:#8a94a6; text-transform:uppercase; }
+  .op-bloco-clientes { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+  .op-bloco-cli { font-size:0.68rem; font-weight:700; background:#eef3fb; color:var(--blue); border-radius:20px; padding:2px 9px; }
+  .op-bloco-conf { margin-top:8px; font-size:0.78rem; color:#1a5c1a; background:#eaf6ec; border-radius:8px; padding:6px 10px; }
+  .op-bloco-conf.parcial { color:#7a5500; background:#fff6dd; }
+  .op-bloco-body { padding:0 10px 12px; display:none; }
+  .op-bloco.aberto .op-bloco-body { display:block; }
+  .op-bloco-body .form-card { box-shadow:none; border:1px solid #e6ebf2; padding:12px; }
+  .op-bloco-dica { font-size:0.72rem; color:#8a94a6; margin:-4px 0 10px; }
+
+  /* Lista de NFs recolhida (toca para abrir os detalhes) */
+  .nf-block { padding:0; overflow:hidden; }
+  .nf-linha { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .nf-pill { width:24px; height:24px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:900; background:#e3e8ef; color:#8a94a6; }
+  .nf-pill.ok { background:var(--green); color:#fff; }
+  .nf-pill.nok { background:var(--red); color:#fff; }
+  .nf-linha-txt { flex:1; min-width:0; }
+  .nf-linha-tit { font-size:0.84rem; font-weight:800; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nf-linha-sub { font-size:0.72rem; color:#7a8597; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  .nf-chev { color:#aab; font-size:0.8rem; transition:transform 0.2s; }
+  .nf-block.aberta .nf-chev { transform:rotate(180deg); }
+  .nf-detalhe { display:none; padding:0 12px 12px; border-top:1px dashed #e0e8f5; padding-top:10px; }
+  .nf-block.aberta .nf-detalhe { display:block; }
+  .nf-lista-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+  .nf-lista-head h4 { margin:0 !important; border:none !important; padding:0 !important; }
+  .btn-todas-ok { background:#eaf6ec; color:#1a5c1a; border:1px solid #bfe3c6; border-radius:8px; padding:5px 10px; font-size:0.72rem; font-weight:800; cursor:pointer; white-space:nowrap; }
+  .bloco-lancado { font-size:0.82rem; color:#333; }
+  .bloco-lancado .bl-linha { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f2f2f2; }
+  .bloco-lancado .bl-linha:last-child { border-bottom:none; }
+  .bloco-lancado .bl-tit { font-size:0.72rem; font-weight:800; color:#8a94a6; text-transform:uppercase; margin:10px 0 2px; }
+  .placa-conf { font-size:0.62rem; color:#1a5c1a; text-align:center; padding:3px 4px 0; line-height:1.3; }
 </style>
 </head>
 <body>
@@ -540,15 +587,23 @@
     </div>
     <div style="padding:14px 14px calc(80px + var(--safe-bottom));">
 
-      <!-- TIPO: ENTRADA / SAÍDA -->
-      <div class="form-card">
-        <h4>Tipo de Operação</h4>
+      <!-- Seletor antigo de tipo: mantido oculto (setTipo ainda usa estes ids) -->
+      <div style="display:none;">
         <div class="tipo-bar" id="tipo-bar">
-          <div class="tipo-opt e-active" id="tipo-entrada" onclick="setTipo('ENTRADA')">📥 ENTRADA</div>
-          <div class="tipo-opt" id="tipo-saida" onclick="setTipo('SAIDA')">📤 SAÍDA</div>
+          <div class="tipo-opt e-active" id="tipo-entrada">📥 ENTRADA</div>
+          <div class="tipo-opt" id="tipo-saida">📤 SAÍDA</div>
         </div>
       </div>
 
+      <!-- BLOCOS: um por tipo (ENTRADA / SAÍDA), montados pelo JS -->
+      <div id="blocos-op"></div>
+
+      <!-- PAINEL DO BLOCO ABERTO: é movido para dentro do bloco ativo -->
+      <div id="painel-bloco-holder" style="display:none;">
+      <div id="painel-bloco">
+      <div class="form-card" id="bloco-concluido-info" style="display:none;"></div>
+
+      <div id="painel-cadastro">
       <!-- TRANSFERÊNCIA SC x SP -->
       <div class="form-card" id="card-transferencia">
         <h4>🔄 Transferência SC × SP</h4>
@@ -557,15 +612,6 @@
           Este veículo faz a transferência SC × SP de hoje
         </label>
         <p style="font-size:0.72rem;color:#888;margin-top:6px;">Paletes e insumos desta transferência têm controle paralelo próprio.</p>
-      </div>
-
-      <!-- CONFERÊNCIA DE CAMPOS (gerado dinamicamente por NF) -->
-      <div class="form-card">
-        <div style="display:flex;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
-          <h4 style="margin:0;border:none;padding:0;">📋 Conferência de Campos</h4>
-        </div>
-        <!-- Os blocos por NF são renderizados aqui pelo JS -->
-        <div id="campos-conferencia"></div>
       </div>
 
       <!-- CLIENTE ÚNICO (só SAÍDA) -->
@@ -608,6 +654,19 @@
         <div id="insumos-rows-list" class="item-cards-grid"></div>
       </div>
 
+      </div>
+
+      <!-- LISTA DE NFs DO BLOCO (recolhida — toca para ver detalhes) -->
+      <div class="form-card">
+        <div class="nf-lista-head">
+          <h4>📋 Notas do bloco</h4>
+          <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Marcar todas OK</button>
+        </div>
+        <p class="op-bloco-dica">Acompanhamento visual. Toque numa nota para ver os detalhes. Marcar OK/NÃO OK é opcional.</p>
+        <div id="campos-conferencia"></div>
+      </div>
+
+      <div id="painel-final">
       <!-- FOTOS -->
       <div class="form-card">
         <h4>📷 Fotos</h4>
@@ -627,6 +686,9 @@
       </div>
 
       <button class="btn-submit" id="btn-submit" onclick="submeterConferencia()">✔ CONFIRMAR CONFERÊNCIA</button>
+      </div>
+      </div>
+      </div>
     </div>
   </div>
 </div>
@@ -823,6 +885,7 @@ let currentUser       = null;
 let sheetVehicles     = [];     // todas as linhas da planilha
 let groupedByPlate    = [];     // [ { placa, tipo, vehicles:[] }, ... ]
 let completedOps      = {};     // `${placa}_${tipo}` → status
+let completedInfo     = {};     // `${placa}_${tipo}` → operação do dia (quem conferiu, hora, paletes, insumos, NFs)
 let currentVehicles   = [];     // grupo selecionado para conferência
 let currentPlaca      = '';     // identidade do grupo (placa real OU "JEM"/"AGENTES" nos grupos virtuais)
 let currentTipo       = 'ENTRADA';
@@ -1196,6 +1259,7 @@ async function loadPlacas() {
 
   // Busca operações já realizadas
   completedOps = {};
+  completedInfo = {};
   try {
     const start = new Date(dateVal+'T00:00:00');
     const end   = new Date(dateVal+'T23:59:59');
@@ -1203,9 +1267,17 @@ async function loadPlacas() {
       .where('timestamp','>=',firebase.firestore.Timestamp.fromDate(start))
       .where('timestamp','<=',firebase.firestore.Timestamp.fromDate(end)).get();
     const opsDoDia = opsSnap.docs.map(d=>d.data());
+    // Se houver mais de uma operação para a mesma placa+tipo, vale a CONCLUÍDA; empate → a mais recente
+    const _ms = o => (o.timestamp && o.timestamp.toMillis) ? o.timestamp.toMillis() : 0;
     opsDoDia.forEach(op=>{
-      completedOps[`${op.placa}_${op.tipoExecucao}`] = op.status;
+      const k = `${op.placa}_${op.tipoExecucao}`;
+      const prev = completedInfo[k];
+      const melhor = !prev
+        || (op.status === 'CONCLUIDA' && prev.status !== 'CONCLUIDA')
+        || (op.status === prev.status && _ms(op) > _ms(prev));
+      if (melhor) completedInfo[k] = op;
     });
+    Object.keys(completedInfo).forEach(k => { completedOps[k] = completedInfo[k].status; });
     renderResumoPaletesDia(opsDoDia);
   } catch(e) {
     console.warn('Aviso ao buscar operações:', e.message);
@@ -1336,7 +1408,16 @@ function buildPlacaCard(group) {
       <div class="placa-rodape">
         <span>${destinoStr||'—'}</span>
         <span>${statusBadge}</span>
-      </div>`;
+      </div>
+      ${(()=>{
+        const linhas = ['ENTRADA','SAIDA'].map(t => {
+          const op = completedInfo[`${placa}_${t}`];
+          if (!op || op.status !== 'CONCLUIDA') return '';
+          const nome = escConf((op.conferenteNome||'').split(' ')[0] || '—');
+          return `${t==='ENTRADA'?'📥':'📤'} ${nome} ${_horaOp(op)}`;
+        }).filter(Boolean);
+        return linhas.length ? `<div class="placa-conf">✔ ${linhas.join(' · ')}</div>` : '';
+      })()}`;
   el.addEventListener('click', ()=>openConferencia(group));
   return el;
 }
@@ -1388,13 +1469,150 @@ function campoObsId(rowIdx, nomeCampo) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  TELA 2: FORMULÁRIO — abre com grupo de NFs
+//  TELA 2: PLACA → BLOCOS (ENTRADA / SAÍDA)
+//  Cada tipo presente no veículo vira um bloco com resumo
+//  (NFs, volumes, clientes, quem conferiu e a que horas).
+//  Só um bloco fica aberto por vez: o painel de cadastro
+//  (paletes, insumos, NFs, fotos, obs) é movido para dentro
+//  do bloco aberto — assim toda a lógica de salvar continua
+//  a mesma (uma operação por placa + tipo).
 // ═══════════════════════════════════════════════════════
-async function openConferencia(group) {
+let currentGroup = null;
+let blocoCarregado = null;    // tipo cujo painel está montado agora
+
+/** Lê coluna por nome(s) ou, se vazio, pela letra (mesma regra da tela de NFs). */
+function _colConf(v, letter, ...names) {
+  for (const c of names) {
+    if (v[c] && v[c].toString().trim()) return v[c].toString().trim();
+    const k = Object.keys(v).find(key => !key.startsWith('_') && key.trim().toLowerCase() === c.toLowerCase());
+    if (k && v[k] && v[k].toString().trim()) return v[k].toString().trim();
+  }
+  return (v['_C' + letter.toUpperCase()] || '').toString().trim();
+}
+
+/** Dados de uma linha da planilha usados na lista de NFs e no resumo do bloco. */
+function _dadosLinhaNf(v, idx) {
+  const d = {
+    nf:      _colConf(v, 'M', 'NF', 'Nº NF'),
+    di:      _colConf(v, 'N', 'DI/Cotação / R$ / Prazo', 'DI/Cotação', 'DI'),
+    oc:      _colConf(v, 'Q', 'OC'),
+    md:      _colConf(v, 'R', 'MD'),
+    dest:    _colConf(v, 'H', 'Destinatário', 'Destinatario'),
+    cidade:  _colConf(v, 'L', 'Cidade Destino'),
+    vol:     _colConf(v, 'E', 'Volume'),
+    servico: _colConf(v, 'O', 'Serviço', 'Servico'),
+  };
+  d.relevante = !!(d.nf || d.di || d.oc || d.md || d.dest || d.cidade || d.vol);
+  d.tituloOp = _colConf(v, 'A', 'Coleta/Entrega/processo/cliente') || (d.nf ? `NF ${d.nf}` : `Entrega ${idx+1}`);
+  return d;
+}
+
+function _tipoLinha(v) { return (v._operationType === 'SAIDA') ? 'SAIDA' : 'ENTRADA'; }
+
+/** Tipos presentes no grupo (ENTRADA primeiro). */
+function _tiposDoGrupo(group) {
+  const set = new Set((group.vehicles || []).map(_tipoLinha));
+  if (!set.size) set.add(group.tipo === 'SAIDA' ? 'SAIDA' : 'ENTRADA');
+  return ['ENTRADA', 'SAIDA'].filter(t => set.has(t));
+}
+
+function _numVolume(s) {
+  const n = parseFloat(String(s || '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+/** Resumo do bloco: nº de NFs, volumes e clientes das linhas daquele tipo. */
+function _resumoBloco(vehicles, tipo) {
+  let nfs = 0, vol = 0;
+  const clientes = new Set();
+  vehicles.forEach((v, idx) => {
+    if (_tipoLinha(v) !== tipo) return;
+    const d = _dadosLinhaNf(v, idx);
+    if (!d.relevante) return;
+    nfs++;
+    vol += _numVolume(d.vol);
+    const c = (v._cliente || d.dest || '').trim().toUpperCase();
+    if (c) clientes.add(c);
+  });
+  return { nfs, vol, clientes: [...clientes] };
+}
+
+function _horaOp(op) {
+  const t = op && op.timestamp && op.timestamp.toDate ? op.timestamp.toDate() : null;
+  return t ? t.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '';
+}
+
+/** Linha "Conferido por X às HH:MM" (ou parcial). */
+function _confTexto(op) {
+  if (!op) return '';
+  const nome = escConf(op.conferenteNome || '—');
+  const hora = _horaOp(op);
+  return op.status === 'CONCLUIDA'
+    ? `✔ Conferido por <b>${nome}</b>${hora ? ` às <b>${hora}</b>` : ''}`
+    : `⏳ Salvo parcialmente por <b>${nome}</b>${hora ? ` às <b>${hora}</b>` : ''}`;
+}
+
+function _progressoSalvo(op) {
+  const nfs = (op && op.nfs) || [];
+  return nfs.filter(n => n.status === 'OK' || n.status === 'NAO_OK').length;
+}
+
+function renderBlocosOp() {
+  const wrap = document.getElementById('blocos-op');
+  // Devolve o painel ao "holder" antes de recriar os blocos (senão ele seria apagado junto)
+  document.getElementById('painel-bloco-holder').appendChild(document.getElementById('painel-bloco'));
+  const tipos = _tiposDoGrupo(currentGroup);
+  wrap.innerHTML = tipos.map(tipo => {
+    const r   = _resumoBloco(currentVehicles, tipo);
+    const op  = completedInfo[`${currentPlaca}_${tipo}`];
+    const done = op && op.status === 'CONCLUIDA';
+    const parc = op && op.status === 'PARCIAL';
+    const badge = done ? '<span class="op-bloco-badge ok">✔ CONFERIDO</span>'
+                : parc ? '<span class="op-bloco-badge parcial">PARCIAL</span>'
+                : '<span class="op-bloco-badge">PENDENTE</span>';
+    const cls = tipo === 'ENTRADA' ? 'entrada' : 'saida';
+    const tit = tipo === 'ENTRADA' ? '📥 ENTRADA' : '📤 SAÍDA';
+    const volTxt = r.vol ? r.vol.toLocaleString('pt-BR') : '0';
+    const clientes = r.clientes.length
+      ? `<div class="op-bloco-clientes">${r.clientes.map(c => `<span class="op-bloco-cli">${escConf(c)}</span>`).join('')}</div>` : '';
+    const conf = op ? `<div class="op-bloco-conf${done ? '' : ' parcial'}">${_confTexto(op)}</div>` : '';
+    return `<div class="op-bloco ${cls}" id="bloco-${tipo}">
+      <div class="op-bloco-head" onclick="abrirBloco('${tipo}')">
+        <div class="op-bloco-l1">
+          <span class="op-bloco-titulo">${tit}</span>${badge}<span class="op-bloco-chev">▼</span>
+        </div>
+        <div class="op-bloco-resumo">
+          <div class="op-bloco-rs"><b>${r.nfs}</b><small>Notas</small></div>
+          <div class="op-bloco-rs"><b>${volTxt}</b><small>Volumes</small></div>
+          <div class="op-bloco-rs"><b id="bloco-prog-${tipo}">${_progressoSalvo(op)}/${r.nfs}</b><small>NFs marcadas</small></div>
+        </div>
+        ${clientes}
+        ${conf}
+      </div>
+      <div class="op-bloco-body" id="bloco-body-${tipo}"></div>
+    </div>`;
+  }).join('');
+}
+
+/** Há algo lançado no painel que ainda não foi salvo? (para avisar antes de trocar de bloco) */
+function _temLancamentoNaoSalvo() {
+  if (fotosBase64.length) return true;
+  if ((document.getElementById('obs-geral').value || '').trim()) return true;
+  if (document.querySelectorAll('#paletes-cliente-list .palete-cliente-row').length) return true;
+  const insumos = Array.from(document.querySelectorAll('#insumos-rows-list .qty-val')).some(el => (parseInt(el.textContent) || 0) > 0);
+  if (insumos) return true;
+  return Array.from(document.querySelectorAll('#paletes-list .palete-card')).some(card => {
+    const ini = parseInt(card.dataset.qtdSaiu) || 0;
+    return (parseInt(card.querySelector('.qty-val')?.textContent) || 0) !== ini;
+  });
+}
+
+async function openConferencia(group, tipoPreferido) {
   pararLiveStatusListener();    // encerra listener de uma conferência anterior, se houver
+  currentGroup = group;
   currentVehicles = group.vehicles;
   currentPlaca = group.placa;   // usa a identidade do grupo (cobre também JEM/AGENTES, que não vêm da coluna Placa)
-  fotosBase64 = [];
+  blocoCarregado = null;
 
   // Garante que o catálogo de endereços já esteja carregado antes de renderizar
   // os dropdowns — evita ficar preso em "Carregando catálogo…" por corrida de carregamento.
@@ -1402,185 +1620,193 @@ async function openConferencia(group) {
     await loadCatalogoEnderecos();
   }
 
-  // Reset fotos
-  document.getElementById('foto-area').innerHTML = `
-    <label class="foto-upload" for="foto-input">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Tirar foto
-    </label>`;
-
   document.getElementById('form-placa-title').textContent = group.placa;
+  const tipos = _tiposDoGrupo(group);
+  const subLabel = tipos.length > 1 ? 'Entrada e Saída' : (tipos[0] === 'SAIDA' ? 'Operação de Saída' : 'Operação de Entrada');
+  const totalNfs = tipos.reduce((s, t) => s + _resumoBloco(group.vehicles, t).nfs, 0);
+  document.getElementById('form-op-sub').textContent = subLabel + (totalNfs ? ` · ${totalNfs} NF${totalNfs > 1 ? 's' : ''}` : '');
 
-  // Sempre reativa o botão ao abrir novo formulário
-  const btnSubmitReset = document.getElementById('btn-submit');
-  btnSubmitReset.disabled = false;
-  btnSubmitReset.textContent = '✔ CONFIRMAR CONFERÊNCIA';
+  renderBlocosOp();
 
-  // Reset campo TRANSFERÊNCIA
-  const chkTransf = document.getElementById('chk-transferencia');
-  chkTransf.checked = false;
-  chkTransf.disabled = false;
+  // Abre o bloco pedido; senão o primeiro ainda não conferido; senão o primeiro
+  const inicial = (tipoPreferido && tipos.includes(tipoPreferido)) ? tipoPreferido
+    : (tipos.find(t => completedOps[`${group.placa}_${t}`] !== 'CONCLUIDA') || tipos[0]);
 
-  // Tipo operação
-  const inicialTipo = group.tipo==='SAIDA'?'SAIDA':'ENTRADA';
+  if (!document.getElementById('screen-form').classList.contains('active')) goTo('screen-form');
+  await abrirBloco(inicial, true);
+}
 
-  // Sempre reset de estado dos botões de tipo antes de configurar
-  const btnE = document.getElementById('tipo-entrada');
-  const btnS = document.getElementById('tipo-saida');
-  btnE.classList.remove('op-concluida');
-  btnS.classList.remove('op-concluida');
-  btnE.style.pointerEvents = '';
-  btnS.style.pointerEvents = '';
+/** Abre (ou recolhe) um bloco. Ao trocar de bloco, remonta o painel para o tipo escolhido. */
+async function abrirBloco(tipo, forcar) {
+  const blocoEl = document.getElementById('bloco-' + tipo);
+  if (!blocoEl) return;
 
-  if (group.tipo !== 'ENTRADA_SAIDA') {
-    // Tipo único: barra inteira travada (não muda)
-    setTipo(inicialTipo);
-    document.getElementById('tipo-bar').style.opacity = '0.6';
-    document.getElementById('tipo-bar').style.pointerEvents = 'none';
-  } else {
-    document.getElementById('tipo-bar').style.opacity = '1';
-    document.getElementById('tipo-bar').style.pointerEvents = 'auto';
-
-    const doneE_op = completedOps[`${group.placa}_ENTRADA`] === 'CONCLUIDA';
-    const doneS_op = completedOps[`${group.placa}_SAIDA`]   === 'CONCLUIDA';
-
-    // Força o tipo para a operação ainda pendente
-    if (doneE_op && !doneS_op) {
-      setTipo('SAIDA');
-    } else if (doneS_op && !doneE_op) {
-      setTipo('ENTRADA');
-    } else {
-      setTipo(inicialTipo);
-    }
-
-    // Trava visualmente o botão da op já concluída
-    if (doneE_op) {
-      btnE.classList.add('op-concluida');
-      btnE.style.pointerEvents = 'none';
-    }
-    if (doneS_op) {
-      btnS.classList.add('op-concluida');
-      btnS.style.pointerEvents = 'none';
-    }
+  // Toque no bloco que já está montado: só abre/recolhe, sem perder o que foi lançado
+  if (!forcar && blocoCarregado === tipo) {
+    blocoEl.classList.toggle('aberto');
+    return;
+  }
+  if (!forcar && blocoCarregado && _temLancamentoNaoSalvo()) {
+    const nomeAtual = blocoCarregado === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+    if (!confirm(`Há lançamentos da ${nomeAtual} ainda não confirmados. Se abrir o outro bloco agora, eles serão perdidos.\n\nContinuar mesmo assim?`)) return;
   }
 
-  const subLabel = group.tipo==='ENTRADA'?'Operação de Entrada'
-    :group.tipo==='SAIDA'?'Operação de Saída'
-    :'Entrada e Saída';
-  document.getElementById('form-op-sub').textContent =
-    subLabel + (group.vehicles.length>1 ? ` · ${group.vehicles.length} NFs` : '');
+  loading(true);
+  try {
+    // Move o painel para dentro do bloco e marca como aberto
+    document.querySelectorAll('.op-bloco').forEach(b => b.classList.remove('aberto'));
+    document.getElementById('bloco-body-' + tipo).appendChild(document.getElementById('painel-bloco'));
+    blocoEl.classList.add('aberto');
 
-  // Renderiza blocos por NF com dados da planilha
-  renderCamposConferencia(group.vehicles);
+    setTipo(tipo);   // define currentTipo, cliente único, rótulo de insumos e listener ao vivo
+    blocoCarregado = tipo;
 
-  // Busca endereços já registrados (pré-preenche ENTRADA reaberta / mostra cadeia na SAÍDA)
-  await popularEnderecosPorBloco(group.vehicles);
+    // Reset do painel
+    fotosBase64 = [];
+    document.getElementById('foto-area').innerHTML = `
+      <label class="foto-upload" for="foto-input">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Tirar foto
+      </label>`;
+    const btnSubmit = document.getElementById('btn-submit');
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = tipo === 'ENTRADA' ? '✔ CONFIRMAR ENTRADA' : '✔ CONFIRMAR SAÍDA';
+    const chkTransf = document.getElementById('chk-transferencia');
+    chkTransf.checked = false;
+    chkTransf.disabled = false;
+    document.getElementById('chk-cliente-unico').checked = false;
+    document.getElementById('cliente-unico-input').style.display = 'none';
+    const vTipo = currentVehicles.find(v => _tipoLinha(v) === tipo) || currentVehicles[0] || {};
+    document.getElementById('inp-cliente').value = vTipo['cliente'] || vTipo['Destinatário'] || '';
+    document.getElementById('obs-geral').value = '';
 
-  // TFA: carrega ocorrências já registradas para esta placa e marca os botões
-  await carregarTFARegistros(group.placa);
+    // NFs do bloco (somente as linhas deste tipo)
+    renderCamposConferencia(currentVehicles);
+    await popularEnderecosPorBloco(currentVehicles);
+    await carregarTFARegistros(currentPlaca);
 
-  // Cliente único
-  document.getElementById('chk-cliente-unico').checked = false;
-  document.getElementById('cliente-unico-input').style.display = 'none';
-  document.getElementById('inp-cliente').value = group.vehicles[0]['cliente']||group.vehicles[0]['Destinatário']||'';
+    // Paletes e insumos — iguais aos de antes
+    document.getElementById('paletes-list').innerHTML = '';
+    document.getElementById('palete-retorno-banner').innerHTML = '';
+    resetPaletesCliente();
+    await setupPaletes(currentPlaca, tipo);
+    renderInsumosSel();
 
-  // Paletes: usa currentTipo (já definido acima, pode ter mudado para op pendente)
-  document.getElementById('paletes-list').innerHTML = '';
-  document.getElementById('palete-retorno-banner').innerHTML = '';
-  resetPaletesCliente();
-  await setupPaletes(group.placa, currentTipo);
+    // Dados já salvos deste bloco (NFs marcadas, transferência, observações)
+    prefillDoBloco(currentPlaca, tipo);
+    atualizarProgressoBloco();
 
-  // Insumos
-  renderInsumosSel();
+    // Bloco já conferido: mostra o que foi lançado e quem conferiu, sem permitir reenviar
+    const op = completedInfo[`${currentPlaca}_${tipo}`];
+    const done = op && op.status === 'CONCLUIDA';
+    document.getElementById('painel-cadastro').style.display = done ? 'none' : '';
+    document.getElementById('painel-final').style.display    = done ? 'none' : '';
+    const info = document.getElementById('bloco-concluido-info');
+    info.style.display = done ? 'block' : 'none';
+    info.innerHTML = done ? _htmlBlocoLancado(op) : '';
+    document.getElementById('btn-todas-ok').style.display = done ? 'none' : '';
+  } finally {
+    loading(false);
+  }
+  // Ao trocar de bloco, rola até o cabeçalho dele (descontando o cabeçalho fixo da tela)
+  if (!forcar) setTimeout(() => {
+    const sc = document.getElementById('screen-form');
+    const fh = document.querySelector('#screen-form .form-header');
+    const topo = fh ? fh.getBoundingClientRect().bottom : 0;
+    sc.scrollTo({ top: sc.scrollTop + blocoEl.getBoundingClientRect().top - topo - 10, behavior: 'smooth' });
+  }, 60);
+}
 
-  // Obs
-  document.getElementById('obs-geral').value = '';
-
-  // Pré-carrega status de NF se já existe conferência para este tipo
-  await prefillFromExistingOp(group.placa, currentTipo);
-
-  // Passa a escutar em tempo real alterações de OK/NÃO OK feitas por outros conferentes
-  iniciarLiveStatusListener(group.placa, currentTipo);
-
-  goTo('screen-form');
+/** Resumo do que foi lançado num bloco já conferido. */
+function _htmlBlocoLancado(op) {
+  const nomePal = p => p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'Descartável' : (p.tipoCustom || 'Outros');
+  const pal = (op.paletes || []).map(p =>
+    `<div class="bl-linha"><span>🪵 ${escConf(nomePal(p))}${p.destino ? ` → <b>${escConf(p.destino)}</b>` : ''}</span><b>${p.quantidade || 0}</b></div>`).join('')
+    || '<div class="bl-linha"><span style="color:#aaa;">Nenhum palete lançado</span></div>';
+  const ins = (op.insumos || []).map(i =>
+    `<div class="bl-linha"><span>📦 ${escConf(i.insumoNome)}</span><b>${i.quantidade || 0}</b></div>`).join('')
+    || '<div class="bl-linha"><span style="color:#aaa;">Nenhum insumo lançado</span></div>';
+  return `<h4>✔ Lançado nesta conferência</h4>
+    <div class="bloco-lancado">
+      ${op.transferencia ? '<div class="bl-linha"><span>🔄 Transferência SC × SP</span><b>Sim</b></div>' : ''}
+      ${op.cliente ? `<div class="bl-linha"><span>🏢 Cliente da viagem</span><b>${escConf(op.cliente)}</b></div>` : ''}
+      <div class="bl-tit">Paletes</div>${pal}
+      <div class="bl-tit">Insumos</div>${ins}
+      ${op.observacoes ? `<div class="bl-tit">Observações</div><div style="padding:4px 0;">${escConf(op.observacoes)}</div>` : ''}
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════
-//  Pré-carrega status OK/NÃO OK de conferência já salva
-//  e trava os botões quando é referência de op anterior
+//  Pré-carrega dados já salvos do bloco (operação do dia
+//  desta placa + tipo): status das NFs, transferência, obs.
 // ═══════════════════════════════════════════════════════
-async function prefillFromExistingOp(placa, tipo) {
-  try {
-    const snap = await db.collection('operacoes').where('placa', '==', placa).get();
-    const todos = snap.docs.map(d => d.data())
-      .filter(op => (op.status === 'CONCLUIDA' || op.status === 'PARCIAL') && op.nfs?.length)
-      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
-
-    if (!todos.length) return;
-
-    // Prefere op do mesmo tipo; se não houver, usa a mais recente (referência cruzada)
-    const opMesmoTipo = todos.find(o => o.tipoExecucao === tipo);
-    const op = opMesmoTipo || todos[0];
-
-    // isReference = dados vêm de op de tipo DIFERENTE (ex.: ENTRADA mostrada na tela de SAÍDA)
-    const isReference = op.tipoExecucao !== tipo;
-    // shouldDisableAll = trava campos auxiliares (transferência) quando é referência cruzada ou op já concluída.
-    // OBS: o status OK/NÃO OK de cada NF NUNCA é travado — fica sempre disponível para
-    // inserir ou retirar a marcação, mesmo em referência cruzada ou operação já concluída.
-    const shouldDisableAll = isReference || completedOps[`${placa}_${tipo}`] === 'CONCLUIDA';
-
-    // Operação já concluída (mesmo tipo, não é referência cruzada): não há o que reenviar.
-    // Trava o botão para evitar que o conferente fique tocando nele sem efeito — cada toque
-    // disparava um novo aviso "Esta operação já foi conferida.", empilhando vários toasts na tela.
-    if (!isReference && completedOps[`${placa}_${tipo}`] === 'CONCLUIDA') {
-      const btnSubmit = document.getElementById('btn-submit');
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = '✔ Operação já conferida';
-    }
-
-    // Prefill TRANSFERÊNCIA (só do mesmo tipo, não referência cruzada)
-    if (!isReference) {
-      const chkTransf = document.getElementById('chk-transferencia');
-      chkTransf.checked = !!op.transferencia;
-      if (shouldDisableAll) chkTransf.disabled = true;
-    }
-
-    // Banner de referência cruzada
-    if (isReference) {
-      const container = document.getElementById('campos-conferencia');
-      const banner = document.createElement('div');
-      banner.style.cssText = 'background:#e8f5e9;border:1px solid var(--green);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.8rem;color:#1a5c1a;display:flex;align-items:center;gap:6px;';
-      banner.innerHTML = `<span style="font-size:1rem;">✔</span><span>Conferência de <strong>${op.tipoExecucao}</strong> já realizada — campos exibidos como referência. O status OK/NÃO OK de cada NF pode ser revisado se necessário.</span>`;
-      container.prepend(banner);
-    }
-
-    op.nfs.forEach((nf, arrayIdx) => {
-      // blockIdx é o data-idx real do DOM; fallback para posição no array (ops antigas sem blockIdx)
-      const domIdx = nf.blockIdx !== undefined ? nf.blockIdx : arrayIdx;
-      const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${domIdx}"]`);
-      if (!block) return;
-      // Escopo apenas nos botões OK/NÃO OK (não inclui o botão de TFA, que também tem a classe .toggle-btn)
-      const toggleBar = block.querySelector('.toggle-bar');
-      const btns = toggleBar ? toggleBar.querySelectorAll('.toggle-btn') : [];
-      btns.forEach(b => b.classList.remove('ok-active','naook-active'));
-
-      if (nf.status === 'OK') {
-        btns[0]?.classList.add('ok-active');
-      } else if (nf.status === 'NAO_OK') {
-        btns[1]?.classList.add('naook-active');
-        const obsRow = document.getElementById('nf-obs-' + domIdx);
-        if (obsRow) {
-          obsRow.classList.add('show');
-          const inputs = obsRow.querySelectorAll('input');
-          if (inputs[0] && nf.quantidadeAveriguada != null) inputs[0].value = nf.quantidadeAveriguada;
-          if (inputs[1] && nf.observacao) inputs[1].value = nf.observacao;
-        }
+function prefillDoBloco(placa, tipo) {
+  const op = completedInfo[`${placa}_${tipo}`];
+  if (!op) return;
+  const chkTransf = document.getElementById('chk-transferencia');
+  chkTransf.checked = !!op.transferencia;
+  if (op.status === 'CONCLUIDA') {
+    chkTransf.disabled = true;
+    const btnSubmit = document.getElementById('btn-submit');
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = '✔ Operação já conferida';
+  }
+  (op.nfs || []).forEach((nf, arrayIdx) => {
+    // blockIdx é o data-idx real do DOM; fallback para posição no array (ops antigas sem blockIdx)
+    const domIdx = nf.blockIdx !== undefined ? nf.blockIdx : arrayIdx;
+    const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${domIdx}"]`);
+    if (!block) return;
+    const toggleBar = block.querySelector('.toggle-bar');
+    const btns = toggleBar ? toggleBar.querySelectorAll('.toggle-btn') : [];
+    btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+    if (nf.status === 'OK') {
+      btns[0]?.classList.add('ok-active');
+    } else if (nf.status === 'NAO_OK') {
+      btns[1]?.classList.add('naook-active');
+      const obsRow = document.getElementById('nf-obs-' + domIdx);
+      if (obsRow) {
+        obsRow.classList.add('show');
+        const inputs = obsRow.querySelectorAll('input');
+        if (inputs[0] && nf.quantidadeAveriguada != null) inputs[0].value = nf.quantidadeAveriguada;
+        if (inputs[1] && nf.observacao) inputs[1].value = nf.observacao;
       }
-      // OK/NÃO OK e o campo de divergência ficam sempre editáveis — nunca são travados aqui.
-    });
+    }
+    atualizarPillNf(domIdx);
+  });
+  if (op.observacoes) document.getElementById('obs-geral').value = op.observacoes;
+}
 
-    if (op.observacoes) document.getElementById('obs-geral').value = op.observacoes;
-  } catch(e) { console.warn('prefillFromExistingOp:', e.message); }
+/** Atualiza a bolinha de status (✔ / ✖ / •) da linha recolhida da NF. */
+function atualizarPillNf(idx) {
+  const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+  const pill  = document.getElementById('nf-pill-' + idx);
+  if (!block || !pill) return;
+  const ok  = block.querySelector('.toggle-bar .ok-active');
+  const nok = block.querySelector('.toggle-bar .naook-active');
+  pill.className = 'nf-pill' + (ok ? ' ok' : nok ? ' nok' : '');
+  pill.textContent = ok ? '✔' : nok ? '✖' : '•';
+  atualizarProgressoBloco();
+}
+
+/** Contador "x/y NFs marcadas" no cabeçalho do bloco aberto. */
+function atualizarProgressoBloco() {
+  const el = document.getElementById('bloco-prog-' + currentTipo);
+  if (!el) return;
+  const blocks = document.querySelectorAll('#campos-conferencia .nf-block');
+  const marcadas = Array.from(blocks).filter(b => b.querySelector('.toggle-bar .ok-active, .toggle-bar .naook-active')).length;
+  el.textContent = `${marcadas}/${blocks.length}`;
+}
+
+function toggleNfDetalhe(idx) {
+  const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+  if (block) block.classList.toggle('aberta');
+}
+
+function marcarTodosOKConfirm() {
+  const n = document.querySelectorAll('#campos-conferencia .nf-block').length;
+  if (!n) return;
+  if (!confirm(`Marcar as ${n} nota(s) deste bloco como OK?`)) return;
+  marcarTodosOK();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1626,6 +1852,8 @@ function renderCamposConferencia(vehicles) {
 
   // ── Renderiza campos ──
   vehicles.forEach((v, idx) => {
+    // Cada bloco (ENTRADA / SAÍDA) mostra só as NFs do seu tipo
+    if (_tipoLinha(v) !== currentTipo) return;
     const campos    = camposIndependentes(v);
     const nfVal     = campos.nf;
     const diVal     = campos.di;
@@ -1695,8 +1923,17 @@ function renderCamposConferencia(vehicles) {
            <div id="endereco-chip-${idx}"><span style="font-size:0.78rem;color:#aaa;">Carregando…</span></div>
          </div>`;
 
+    const subLinha = [nfVal ? `NF ${nfVal}` : '', volVal ? `${volVal} vol` : '', destVal || cidadeVal].filter(Boolean).join(' · ');
     block.innerHTML = `
-      <div class="nf-titulo-op">${tituloOp}</div>
+      <div class="nf-linha" onclick="toggleNfDetalhe(${idx})">
+        <span class="nf-pill" id="nf-pill-${idx}">•</span>
+        <div class="nf-linha-txt">
+          <div class="nf-linha-tit">${tituloOp}</div>
+          <div class="nf-linha-sub">${subLinha || '—'}</div>
+        </div>
+        <span class="nf-chev">▼</span>
+      </div>
+      <div class="nf-detalhe">
       <div class="nf-data-row">
         <div class="nf-fields">
           ${chip('Volume', volVal)}
@@ -1718,13 +1955,6 @@ function renderCamposConferencia(vehicles) {
               ? `<button type="button" class="toggle-btn tfa-btn" id="tfa-btn-${idx}" onclick="abrirTFA(${idx})">📋 TFA</button>`
               : '';
           })()}
-          ${(()=>{
-            const t = (v._operationType || currentTipo || '').toString().trim().toUpperCase();
-            if (t === 'ENTRADA')       return '<span class="op-tipo-badge entrada">📥 ENTRADA</span>';
-            if (t === 'SAIDA')         return '<span class="op-tipo-badge saida">📤 SAÍDA</span>';
-            if (t === 'ENTRADA_SAIDA') return '<span class="op-tipo-badge entrada">⇅ ENT/SAÍDA</span>';
-            return '<span class="op-tipo-badge unknown">⚠ STATUS NÃO ENCONTRADO</span>';
-          })()}
           <div class="toggle-bar">
             <button class="toggle-btn" onclick="setNfStatus(this,'OK',${idx})">OK</button>
             <button class="toggle-btn" onclick="setNfStatus(this,'NAO_OK',${idx})">NÃO OK</button>
@@ -1737,10 +1967,14 @@ function renderCamposConferencia(vehicles) {
         <input type="text" placeholder="Observação sobre a divergência"/>
         <button type="button" class="btn-apontar-erro" onclick="apontarErroWhats(${idx})">📲 Apontar erro no WhatsApp</button>
       </div>
-      ${enderecoHtml}`;
+      ${enderecoHtml}
+      </div>`;
 
     container.appendChild(block);
   });
+  if (!container.children.length) {
+    container.innerHTML = '<p style="font-size:0.8rem;color:#aaa;text-align:center;padding:8px;">Nenhuma nota deste tipo na planilha.</p>';
+  }
 }
 
 /** Adiciona outra linha de endereço no bloco de NF (carga dividida em mais de um endereço) */
@@ -1961,6 +2195,7 @@ function setNfStatus(btn, status, idx) {
     if (status==='OK')     { btn.classList.add('ok-active'); }
     if (status==='NAO_OK') { btn.classList.add('naook-active'); obsRow?.classList.add('show'); }
   }
+  atualizarPillNf(idx);
   // Avisa em tempo real os demais conferentes que possam estar na mesma tela
   publicarStatusLive(idx, alreadyActive ? 'PENDENTE' : status);
 }
@@ -2056,6 +2291,7 @@ function marcarTodosOK() {
     okBtn.classList.add('ok-active');
     const obsRow = document.getElementById('nf-obs-' + block.dataset.idx);
     obsRow?.classList.remove('show');
+    atualizarPillNf(block.dataset.idx);
     publicarStatusLive(block.dataset.idx, 'OK');
   });
 }
@@ -2120,6 +2356,8 @@ function aplicarStatusRemoto(idx, info) {
     if (info.status === 'OK')     btns[0]?.classList.add('ok-active');
     if (info.status === 'NAO_OK') btns[1]?.classList.add('naook-active');
   }
+  if (info.status === 'PENDENTE') btns.forEach(b => b.classList.remove('ok-active','naook-active'));
+  atualizarPillNf(idx);
 
   let badge = document.getElementById('nf-live-badge-' + idx);
   if (!badge) {
@@ -2857,22 +3095,36 @@ async function submeterConferencia() {
     const observacoes = document.getElementById('obs-geral').value.trim();
     const transferencia = document.getElementById('chk-transferencia').checked;
 
+    // ── Confirmação com resumo do bloco (NFs não precisam estar marcadas) ──
+    {
+      const totPal = paletes.reduce((s, p) => s + (p.quantidade || 0), 0);
+      const totIns = insumosSel.reduce((s, i) => s + (i.quantidade || 0), 0);
+      const marcadas = nfsData.filter(nf => nf.status === 'OK' || nf.status === 'NAO_OK').length;
+      const nomeTipo = currentTipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+      loading(false);
+      const ok = confirm(`Confirmar ${nomeTipo} da placa ${placa}?\n\n` +
+        `🪵 Paletes: ${totPal}\n📦 Insumos: ${totIns}\n📋 NFs marcadas: ${marcadas} de ${nfsData.length}`);
+      if (!ok) { btn.disabled = false; return; }
+      loading(true);
+    }
+
     // ── Fotos ──
     const fotosUrls = [];
     for (const b64 of fotosBase64) { fotosUrls.push(await compressImage(b64)); }
 
-    // ── Determina status: CONCLUIDA só se todos os campos foram respondidos ──
-    const todasRespondidas = nfsData.every(nf => nf.status === 'OK' || nf.status === 'NAO_OK');
-    const opStatus = todasRespondidas ? 'CONCLUIDA' : 'PARCIAL';
+    // ── Status: confirmar o bloco conclui a operação. A marcação das NFs é opcional
+    //    (a lista serve de acompanhamento visual) — NFs não marcadas ficam PENDENTE.
+    const opStatus = 'CONCLUIDA';
 
-    // Se parcial, remove operação parcial anterior do mesmo tipo (evita duplicatas)
-    if (opStatus === 'PARCIAL') {
+    // Remove operação PARCIAL anterior desta placa+tipo no mesmo dia (modelo antigo) — evita duplicata
+    {
       const oldParcialSnap = await db.collection('operacoes')
         .where('placa','==',placa)
         .where('tipoExecucao','==',currentTipo)
         .where('status','==','PARCIAL').get();
       for (const oldDoc of oldParcialSnap.docs) {
-        await oldDoc.ref.delete();
+        const dr = oldDoc.data().dataRef;
+        if (!dr || dr === dataRef) await oldDoc.ref.delete();
       }
     }
 
@@ -3002,7 +3254,14 @@ async function submeterConferencia() {
       showToast('Conferência parcial salva. Os campos pendentes podem ser preenchidos depois.', 'warning');
     }
     await loadPlacas();
-    goTo('screen-placas');
+    // Se o veículo ainda tem outro bloco pendente (ex.: SAÍDA), já abre ele; senão volta à lista
+    const g = groupedByPlate.find(x => x.placa === placa);
+    const pend = g && _tiposDoGrupo(g).find(t => completedOps[`${placa}_${t}`] !== 'CONCLUIDA');
+    if (g && pend) {
+      await openConferencia(g, pend);
+    } else {
+      goTo('screen-placas');
+    }
   } catch(e) {
     loading(false); console.error(e);
     showToast('Erro ao salvar. Tente novamente.','error');
@@ -3432,7 +3691,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.20-1';
+const APP_VERSION = '2026.10.21-1';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
