@@ -463,6 +463,10 @@
   .nf-obs-ant-item:first-of-type { border-top:none; }
   .nf-obs-ant-item small { display:block; font-size:0.66rem; color:#9a7d2a; font-weight:700; }
   .nf-obs-flag { font-size:0.8rem; }
+  .ins-placas-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .ins-placas-tit { width:100%; font-size:0.72rem; color:#889; font-weight:700; }
+  .ins-placa-chip { background:#eef3fb; color:var(--navy); border:1.5px solid #d5deea; border-radius:20px; padding:5px 11px; font-size:0.78rem; font-weight:800; letter-spacing:0.5px; cursor:pointer; }
+  .ins-placa-chip.ativo { background:var(--navy); color:#fff; border-color:var(--navy); }
   .btn-etiquetas { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:5px 10px; font-size:0.72rem; font-weight:800; cursor:pointer; white-space:nowrap; }
   .etq-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.55); align-items:flex-end; justify-content:center; }
   .etq-overlay.open { display:flex; }
@@ -716,7 +720,7 @@
             <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Todas OK</button>
           </div>
         </div>
-        <p class="op-bloco-dica">Acompanhamento visual por cliente. Toque no cliente para ver as notas. Marcar OK/NÃO OK é opcional. 💬 = tem observação anterior.</p>
+        <p class="op-bloco-dica">Toque no cliente para ver as notas. O bloco só vai para CONCLUÍDOS quando todas as notas tiverem OK ou NÃO OK. 💬 = tem observação anterior.</p>
         <div id="campos-conferencia"></div>
       </div>
 
@@ -859,7 +863,9 @@
       </div>
       <div class="form-card">
         <h4>🚚 Placa (opcional)</h4>
-        <input type="text" class="form-input" id="ins-placa" placeholder="Ex: ABC1D23 — deixe em branco se não for de um veículo específico" maxlength="8" oninput="this.value=this.value.toUpperCase()"/>
+        <input type="text" class="form-input" id="ins-placa" list="ins-placas-dia" placeholder="Digite qualquer placa ou escolha uma do dia abaixo" maxlength="20" autocomplete="off" oninput="this.value=this.value.toUpperCase();_marcarChipPlaca()"/>
+        <datalist id="ins-placas-dia"></datalist>
+        <div id="ins-placas-chips" class="ins-placas-chips"></div>
         <div style="font-size:0.74rem;color:#aaa;margin-top:4px;">Se informar a placa, esta movimentação fica vinculada a esse veículo. Sem placa, ela ainda é registrada e aparece em Discrepâncias para revisão.</div>
       </div>
       <div class="form-card">
@@ -1533,6 +1539,7 @@ function campoObsId(rowIdx, nomeCampo) {
 // ═══════════════════════════════════════════════════════
 let currentGroup = null;
 let blocoCarregado = null;    // tipo cujo painel está montado agora
+let fotosAnteriores = [];     // fotos de um salvamento PENDENTE (PARCIAL) do bloco — mantidas ao salvar de novo
 
 /** Lê coluna por nome(s) ou, se vazio, pela letra (mesma regra da tela de NFs). */
 function _colConf(v, letter, ...names) {
@@ -1717,6 +1724,7 @@ async function abrirBloco(tipo, forcar) {
 
     // Reset do painel
     fotosBase64 = [];
+    fotosAnteriores = [];
     document.getElementById('foto-area').innerHTML = `
       <label class="foto-upload" for="foto-input">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -1832,6 +1840,51 @@ function prefillDoBloco(placa, tipo) {
     atualizarPillNf(domIdx);
   });
   if (op.observacoes) document.getElementById('obs-geral').value = op.observacoes;
+
+  // Bloco salvo como PENDENTE: traz de volta paletes, insumos, cliente e fotos já lançados
+  if (op.status === 'PARCIAL') {
+    const tipoCard = t => (t === 'PBR' || t === 'DESCARTAVEL') ? t : 'OUTROS';
+    const somaCard = {};
+    (op.paletes || []).filter(p => !p.destino).forEach(p => {
+      const k = tipoCard(p.tipo);
+      somaCard[k] = (somaCard[k] || 0) + (parseInt(p.quantidade) || 0);
+      if (k === 'OUTROS' && p.tipoCustom) {
+        const c = document.querySelector('#paletes-list .palete-card[data-tipo="OUTROS"] .outros-custom-inp');
+        if (c) c.value = p.tipoCustom;
+      }
+    });
+    Object.entries(somaCard).forEach(([k, q]) => {
+      const card = document.querySelector(`#paletes-list .palete-card[data-tipo="${k}"]`);
+      if (!card) return;
+      card.querySelector('.qty-val').value = q;
+      _aplicarQtd(card, q, true);
+    });
+    (op.paletes || []).filter(p => p.destino).forEach(p => {
+      addPaleteClienteRow();
+      const rows = document.querySelectorAll('#paletes-cliente-list .palete-cliente-row');
+      const row = rows[rows.length - 1]; if (!row) return;
+      const selT = row.querySelector('.pc-tipo'); if (selT) { selT.value = p.tipo || 'PBR'; _pcToggleCustom(selT); }
+      const cus = row.querySelector('.pc-custom'); if (cus && p.tipoCustom) cus.value = p.tipoCustom;
+      const cli = row.querySelector('.pc-cliente'); if (cli) cli.value = p.destino;
+      const q = row.querySelector('.pc-qtd'); if (q) q.value = p.quantidade || 1;
+    });
+    (op.insumos || []).forEach(i => {
+      const card = document.querySelector(`#insumos-rows-list .insumo-card[data-insumo-id="${i.insumoId}"]`);
+      if (!card) return;
+      card.querySelector('.qty-val').value = i.quantidade || 0;
+      _aplicarQtd(card, parseInt(i.quantidade) || 0, true);
+    });
+    if (op.clienteUnico) {
+      document.getElementById('chk-cliente-unico').checked = true;
+      document.getElementById('inp-cliente').value = op.cliente || '';
+      toggleClienteUnico();
+    }
+    fotosAnteriores = Array.isArray(op.fotos) ? op.fotos.slice() : [];
+    if (fotosAnteriores.length) {
+      document.getElementById('foto-area').insertAdjacentHTML('afterbegin',
+        `<div style="font-size:0.74rem;color:#7a5500;width:100%;margin-bottom:6px;">📷 ${fotosAnteriores.length} foto(s) já salvas neste bloco — serão mantidas.</div>`);
+    }
+  }
 }
 
 /** Atualiza a bolinha de status (✔ / ✖ / •) da linha recolhida da NF. */
@@ -1982,17 +2035,33 @@ async function carregarObsAnteriores(placa, tipo, dataRef) {
 // ═══════════════════════════════════════════════════════
 
 /** Notas do bloco aberto agrupadas por cliente, na mesma ordem dos mini-cards. */
+/**
+ * Abrevia o nome do destinatário (coluna H) para a etiqueta: tira sufixos
+ * societários (LTDA, S/A, ME, EPP, EIRELI…) e fica com até 2 palavras / 22 letras.
+ * Ex.: "CAMELON MAMUT TEXTIL LTDA" → "CAMELON MAMUT".
+ */
+function _abreviarDestinatario(nome) {
+  let t = String(nome || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  t = t.replace(/\b(LTDA\.?|S\.?\/?A\.?|ME|EPP|EIRELI|MEI|& ?CIA\.?|CIA\.?)$/g, '').trim();
+  t = t.replace(/\b(LTDA\.?|S\.?\/?A\.?|ME|EPP|EIRELI|MEI)\b/g, '').replace(/\s+/g, ' ').trim();
+  const palavras = t.split(' ').filter(w => w && !['-', '–'].includes(w));
+  let curto = palavras.slice(0, 2).join(' ');
+  if (curto.length > 22) curto = curto.slice(0, 21) + '…';
+  return curto || String(nome || '').trim().toUpperCase();
+}
+
 function _notasPorClienteDoBloco(tipo) {
   const mapa = new Map();
   currentVehicles.forEach((v, idx) => {
     if (_tipoLinha(v) !== tipo) return;
     const d = _dadosLinhaNf(v, idx);
     if (!d.relevante) return;
-    const cli = ((v._cliente || d.dest || d.tituloOp || 'SEM CLIENTE') + '').trim().toUpperCase();
+    // Cliente da etiqueta = Destinatário (coluna H), abreviado
+    const cli = _abreviarDestinatario(d.dest || v._cliente || d.tituloOp || 'SEM DESTINATÁRIO');
     if (!mapa.has(cli)) mapa.set(cli, []);
     // Nota; se não houver número de NF, usa o processo (MD / OC / DI)
     const doc = d.nf ? `NF ${d.nf}` : d.md ? `MD ${d.md}` : d.oc ? `OC ${d.oc}` : d.di ? `PROC ${d.di}` : d.tituloOp;
-    mapa.get(cli).push({ doc });
+    mapa.get(cli).push({ doc, nf: d.nf || d.md || d.oc || d.di || '', vol: d.vol || '', servico: d.servico || '' });
   });
   return [...mapa.entries()].map(([cliente, notas]) => ({ cliente, notas }));
 }
@@ -2011,6 +2080,7 @@ function _montarEtiquetas(tipo) {
     g.notas.forEach((n, i) => {
       seq++;
       lista.push({ gi, placa: currentPlaca, tipo, dia, conferente, cliente: g.cliente, doc: n.doc,
+                   nf: n.nf, vol: n.vol, servico: n.servico,
                    cliSeq: i + 1, cliTot: g.notas.length, veiSeq: seq, veiTot: total });
     });
   });
@@ -2047,6 +2117,7 @@ function abrirEtiquetas() {
     </div>`;
   ov.classList.add('open');
   _etqContar();
+  _carregarLibQr().then(ok => { if (ok) _etqContar(); else showToast('QR Code indisponível sem internet — etiqueta sai sem o QR na impressão (o ZPL tem QR próprio).', 'warning'); });
 }
 function fecharEtiquetas() { document.getElementById('etq-overlay')?.classList.remove('open'); }
 
@@ -2076,14 +2147,62 @@ function _fonteQueCabe(texto, larguraMm, maxMm, espacoMm) {
   return Math.max(3, Math.min(maxMm, ((larguraMm - espaco) / larguraEm) * 0.92));
 }
 
+/** Conteúdo do QR Code: nota e volumes (ex.: "NF:3003;VOL:5"). */
+function _qrTexto(e) {
+  const tipoDoc = (e.doc || '').split(' ')[0] || 'NF';
+  return `${tipoDoc}:${e.nf || ''};VOL:${e.vol || ''}`;
+}
+
+/** Carrega a biblioteca de QR Code (só quando abre as etiquetas). */
+function _carregarLibQr() {
+  if (window.qrcode) return Promise.resolve(true);
+  if (_carregarLibQr._p) return _carregarLibQr._p;
+  const urls = ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'];
+  _carregarLibQr._p = (async () => {
+    for (const u of urls) {
+      const ok = await new Promise(res => {
+        const sc = document.createElement('script');
+        sc.src = u; sc.onload = () => res(!!window.qrcode); sc.onerror = () => { sc.remove(); res(false); };
+        document.head.appendChild(sc);
+      });
+      if (ok) return true;
+    }
+    _carregarLibQr._p = null;
+    return false;
+  })();
+  return _carregarLibQr._p;
+}
+
+/** QR Code como SVG (sem margem) — vazio se a biblioteca não carregou. */
+function _qrSvg(texto) {
+  if (!window.qrcode) return '';
+  try {
+    const qr = qrcode(0, 'M'); qr.addData(texto); qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c},${r}h1v1h-1z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path d="${d}" fill="#000"/></svg>`;
+  } catch (err) { console.warn('QR:', err.message); return ''; }
+}
+
 function _htmlEtiqueta(e) {
   const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
-  const fDoc   = _fonteQueCabe(e.doc, 93, 11);
+  const fDoc   = _fonteQueCabe(e.doc, 70, 10);
   const fPlaca = _fonteQueCabe(e.placa, 89, 8.5, 0.5);
+  const qr = _qrSvg(_qrTexto(e));
+  const extras = [e.vol ? `<b>VOL: ${escConf(e.vol)}</b>` : '', e.servico ? `SERVIÇO: ${escConf(e.servico)}` : '']
+    .filter(Boolean).join(' &nbsp;·&nbsp; ');
   return `<div class="lbl">
     <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
-    <div class="lbl-doc" style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</div>
-    <div class="lbl-cli">${escConf(e.cliente)}</div>
+    <div class="lbl-meio">
+      <div class="lbl-info">
+        <div class="lbl-doc" style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</div>
+        <div class="lbl-cli">${escConf(e.cliente)}</div>
+        <div class="lbl-extra">${extras}</div>
+      </div>
+      ${qr ? `<div class="lbl-qr">${qr}</div>` : ''}
+    </div>
     <div class="lbl-placa"><span style="font-size:${fPlaca.toFixed(2)}mm;">${escConf(e.placa)}</span></div>
     <div class="lbl-cont">
       <div class="lbl-box"><small>CLIENTE</small><b>${e.cliSeq}/${e.cliTot}</b></div>
@@ -2096,15 +2215,21 @@ const _ETQ_CSS = `
   .lbl { -webkit-print-color-adjust:exact; print-color-adjust:exact; width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
   .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
   .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
-  .lbl-doc { text-align:center; font-size:11mm; line-height:13mm; height:13mm; font-weight:900; white-space:nowrap; overflow:hidden; margin-top:1mm; }
-  .lbl-cli { font-size:5mm; font-weight:900; margin-top:0.5mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lbl-meio { display:flex; align-items:center; gap:2mm; margin-top:1mm; height:21mm; }
+  .lbl-info { flex:1; min-width:0; }
+  .lbl-qr { width:20mm; height:20mm; flex-shrink:0; }
+  .lbl-qr svg { width:100%; height:100%; display:block; }
+  .lbl-doc { text-align:center; font-size:10mm; line-height:11mm; height:11mm; font-weight:900; white-space:nowrap; overflow:hidden; }
+  .lbl-cli { font-size:4.6mm; font-weight:900; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+  .lbl-extra { font-size:3mm; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
   .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; height:12mm; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:0.5mm; border-radius:1.5mm; margin-top:1mm; white-space:nowrap; overflow:hidden; padding:0 2mm; }
   .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
   .lbl-box { flex:1; border:0.8mm solid #000; border-radius:1.5mm; text-align:center; padding:0.5mm 0 0; }
   .lbl-box small { display:block; font-size:3.2mm; font-weight:900; letter-spacing:0.5mm; }
   .lbl-box b { display:block; font-size:12mm; line-height:13mm; font-weight:900; }`;
 
-function imprimirEtiquetas() {
+async function imprimirEtiquetas() {
+  await _carregarLibQr();
   const sel = _etqSelecionadas();
   if (!sel.length) { showToast('Selecione ao menos um cliente.', 'warning'); return; }
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas ${escConf(currentPlaca)}</title>
@@ -2155,18 +2280,21 @@ function _zplEtiqueta(e) {
     '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
     `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
     `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
-    // NF / MD — centralizada, fonte reduzida automaticamente para caber
-    (() => { const f = _zplFonte(e.doc, 752, 90, 80); return `^FO24,${52 + Math.round((96 - f.h) / 2)}^FB752,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
-    `^FO24,156^FB752,1,0,L^A0N,40,38^FD${z(e.cliente)}^FS`,
+    // NF / MD — centralizada na área à esquerda do QR, fonte que cabe
+    (() => { const f = _zplFonte(e.doc, 570, 80, 72); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
+    `^FO20,142^FB580,1,0,C^A0N,36,34^FD${z(e.cliente)}^FS`,
+    `^FO20,186^FB580,1,0,C^A0N,24,22^FD${[e.vol ? 'VOL: ' + z(e.vol) : '', e.servico ? 'SERVICO: ' + z(e.servico) : ''].filter(Boolean).join('  -  ')}^FS`,
+    // QR Code (nota e volumes) à direita
+    `^FO612,44^BQN,2,5^FDMA,${z(_qrTexto(e))}^FS`,
     // Placa — fundo cinza (grifado) e texto que sempre cabe na faixa
-    '^FO20,206^XGR:CINZA.GRF,1,1^FS',
-    (() => { const f = _zplFonte(e.placa, 720, 72, 64); return `^FO20,${206 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.placa)}^FS`; })(),
-    '^FO20,330^GB370,214,5^FS',
-    '^FO410,330^GB370,214,5^FS',
+    '^FO20,222^XGR:CINZA.GRF,1,1^FS',
+    (() => { const f = _zplFonte(e.placa, 720, 72, 64); return `^FO20,${222 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.placa)}^FS`; })(),
+    '^FO20,332^GB370,210,5^FS',
+    '^FO410,332^GB370,210,5^FS',
     '^FO20,346^FB370,1,0,C^A0N,32,32^FDCLIENTE^FS',
     '^FO410,346^FB370,1,0,C^A0N,32,32^FDVEICULO^FS',
-    `^FO20,392^FB370,1,0,C^A0N,130,110^FD${e.cliSeq}/${e.cliTot}^FS`,
-    `^FO410,392^FB370,1,0,C^A0N,130,110^FD${e.veiSeq}/${e.veiTot}^FS`,
+    `^FO20,390^FB370,1,0,C^A0N,130,110^FD${e.cliSeq}/${e.cliTot}^FS`,
+    `^FO410,390^FB370,1,0,C^A0N,130,110^FD${e.veiSeq}/${e.veiTot}^FS`,
     '^PQ1', '^XZ'
   ].join('\n');
 }
@@ -3580,26 +3708,31 @@ async function submeterConferencia() {
     const observacoes = document.getElementById('obs-geral').value.trim();
     const transferencia = document.getElementById('chk-transferencia').checked;
 
-    // ── Confirmação com resumo do bloco (NFs não precisam estar marcadas) ──
+    // ── Confirmação com resumo do bloco ──
+    const marcadasNf = nfsData.filter(nf => nf.status === 'OK' || nf.status === 'NAO_OK').length;
     {
       const totPal = paletes.reduce((s, p) => s + (p.quantidade || 0), 0);
       const totIns = insumosSel.reduce((s, i) => s + (i.quantidade || 0), 0);
-      const marcadas = nfsData.filter(nf => nf.status === 'OK' || nf.status === 'NAO_OK').length;
       const nomeTipo = currentTipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+      const faltam = nfsData.length - marcadasNf;
+      const aviso = faltam > 0
+        ? `\n\n⚠ ${faltam} NF(s) ainda sem OK/NÃO OK.\nA ${nomeTipo} fica PENDENTE (paletes e insumos ficam salvos) e só vai para CONCLUÍDOS quando todas as notas estiverem marcadas.`
+        : '';
       loading(false);
-      const ok = confirm(`Confirmar ${nomeTipo} da placa ${placa}?\n\n` +
-        `🪵 Paletes: ${totPal}\n📦 Insumos: ${totIns}\n📋 NFs marcadas: ${marcadas} de ${nfsData.length}`);
+      const ok = confirm(`${faltam > 0 ? 'Salvar' : 'Confirmar'} ${nomeTipo} da placa ${placa}?\n\n` +
+        `🪵 Paletes: ${totPal}\n📦 Insumos: ${totIns}\n📋 NFs marcadas: ${marcadasNf} de ${nfsData.length}` + aviso);
       if (!ok) { btn.disabled = false; return; }
       loading(true);
     }
 
     // ── Fotos ──
-    const fotosUrls = [];
+    const fotosUrls = [...fotosAnteriores];   // fotos de um salvamento PENDENTE anterior são mantidas
     for (const b64 of fotosBase64) { fotosUrls.push(await compressImage(b64)); }
 
-    // ── Status: confirmar o bloco conclui a operação. A marcação das NFs é opcional
-    //    (a lista serve de acompanhamento visual) — NFs não marcadas ficam PENDENTE.
-    const opStatus = 'CONCLUIDA';
+    // ── Status: só CONCLUÍDA quando TODAS as NFs tiverem OK ou NÃO OK.
+    //    Senão fica PARCIAL (pendente) — paletes/insumos ficam salvos e voltam
+    //    preenchidos quando o bloco for reaberto. Estoque e discrepâncias só na conclusão.
+    const opStatus = (nfsData.length === 0 || marcadasNf === nfsData.length) ? 'CONCLUIDA' : 'PARCIAL';
 
     // Remove operação PARCIAL anterior desta placa+tipo no mesmo dia (modelo antigo) — evita duplicata
     {
@@ -3741,7 +3874,8 @@ async function submeterConferencia() {
     await loadPlacas();
     // Se o veículo ainda tem outro bloco pendente (ex.: SAÍDA), já abre ele; senão volta à lista
     const g = groupedByPlate.find(x => x.placa === placa);
-    const pend = g && _tiposDoGrupo(g).find(t => completedOps[`${placa}_${t}`] !== 'CONCLUIDA');
+    const tipoSalvo = currentTipo;
+    const pend = g && _tiposDoGrupo(g).find(t => t !== tipoSalvo && completedOps[`${placa}_${t}`] !== 'CONCLUIDA');
     if (g && pend) {
       await openConferencia(g, pend);
     } else {
@@ -3769,7 +3903,28 @@ function openInsumos() {
   renderInsumosAvulso();
   document.getElementById('ins-placa').value='';
   document.getElementById('ins-obs').value='';
+  renderPlacasDoDiaInsumos();
   goTo('screen-insumos');
+}
+
+// Placas do dia (da planilha) como atalho no campo de placa — mas aceita qualquer placa digitada
+function renderPlacasDoDiaInsumos() {
+  const placas = [...new Set((groupedByPlate || []).map(g => g.placa).filter(Boolean))].sort();
+  document.getElementById('ins-placas-dia').innerHTML = placas.map(p => `<option value="${escConf(p)}">`).join('');
+  const chips = document.getElementById('ins-placas-chips');
+  chips.innerHTML = placas.length
+    ? `<div class="ins-placas-tit">Placas do dia (toque para usar):</div>` +
+      placas.map(p => `<button type="button" class="ins-placa-chip" data-placa="${escConf(p)}" onclick="_usarPlacaDoDia(this)">${escConf(p)}</button>`).join('')
+    : '<div class="ins-placas-tit">Nenhuma placa carregada para o dia — digite a placa.</div>';
+}
+function _usarPlacaDoDia(btn) {
+  const inp = document.getElementById('ins-placa');
+  inp.value = inp.value === btn.dataset.placa ? '' : btn.dataset.placa;   // toque de novo desmarca
+  _marcarChipPlaca();
+}
+function _marcarChipPlaca() {
+  const v = (document.getElementById('ins-placa').value || '').trim();
+  document.querySelectorAll('.ins-placa-chip').forEach(b => b.classList.toggle('ativo', b.dataset.placa === v));
 }
 
 // ── PALETES (tela avulsa): mesmo formato de card usado na tela de placas ──
@@ -4176,7 +4331,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-5';
+const APP_VERSION = '2026.10.21-6';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
