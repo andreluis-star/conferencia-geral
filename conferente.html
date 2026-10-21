@@ -2061,13 +2061,30 @@ function _etqContar() {
   if (prev) prev.innerHTML = sel.length ? `<div class="etq-escala">${_htmlEtiqueta(sel[0])}</div>` : '<p style="color:#aaa;font-size:0.8rem;">Nenhum cliente selecionado.</p>';
 }
 
+/**
+ * Tamanho de fonte (mm) para o texto caber na largura dada — mede o texto
+ * de verdade (Arial negrito) e limita ao tamanho máximo. Margem de 8% de folga.
+ */
+function _fonteQueCabe(texto, larguraMm, maxMm, espacoMm) {
+  const cv = _fonteQueCabe._cv || (_fonteQueCabe._cv = document.createElement('canvas'));
+  const ctx = cv.getContext('2d');
+  ctx.font = '900 100px Arial, Helvetica, sans-serif';
+  const t = String(texto || '');
+  const larguraEm = ctx.measureText(t).width / 100;          // largura em "em"
+  const espaco = (espacoMm || 0) * t.length;
+  if (!larguraEm) return maxMm;
+  return Math.max(3, Math.min(maxMm, ((larguraMm - espaco) / larguraEm) * 0.92));
+}
+
 function _htmlEtiqueta(e) {
   const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+  const fDoc   = _fonteQueCabe(e.doc, 93, 11);
+  const fPlaca = _fonteQueCabe(e.placa, 89, 8.5, 0.5);
   return `<div class="lbl">
     <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
-    <div class="lbl-placa"${String(e.placa).length > 9 ? ' style="font-size:8mm;letter-spacing:0.3mm;"' : ''}>${escConf(e.placa)}</div>
+    <div class="lbl-doc" style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</div>
     <div class="lbl-cli">${escConf(e.cliente)}</div>
-    <div class="lbl-doc">${escConf(e.doc)}</div>
+    <div class="lbl-placa"><span style="font-size:${fPlaca.toFixed(2)}mm;">${escConf(e.placa)}</span></div>
     <div class="lbl-cont">
       <div class="lbl-box"><small>CLIENTE</small><b>${e.cliSeq}/${e.cliTot}</b></div>
       <div class="lbl-box"><small>VEÍCULO</small><b>${e.veiSeq}/${e.veiTot}</b></div>
@@ -2079,9 +2096,9 @@ const _ETQ_CSS = `
   .lbl { -webkit-print-color-adjust:exact; print-color-adjust:exact; width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
   .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
   .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
-  .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; text-align:center; font-size:13mm; line-height:15mm; font-weight:900; letter-spacing:1mm; border-radius:1.5mm; margin-top:1.5mm; }
-  .lbl-cli { font-size:5mm; font-weight:900; margin-top:1.5mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .lbl-doc { font-size:9.5mm; line-height:10.5mm; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lbl-doc { text-align:center; font-size:11mm; line-height:13mm; height:13mm; font-weight:900; white-space:nowrap; overflow:hidden; margin-top:1mm; }
+  .lbl-cli { font-size:5mm; font-weight:900; margin-top:0.5mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; height:12mm; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:0.5mm; border-radius:1.5mm; margin-top:1mm; white-space:nowrap; overflow:hidden; padding:0 2mm; }
   .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
   .lbl-box { flex:1; border:0.8mm solid #000; border-radius:1.5mm; text-align:center; padding:0.5mm 0 0; }
   .lbl-box small { display:block; font-size:3.2mm; font-weight:900; letter-spacing:0.5mm; }
@@ -2113,13 +2130,21 @@ function imprimirEtiquetas() {
  * no início do arquivo (~DG) e reaproveitado em cada etiqueta (^XG).
  */
 function _zplFundoCinza() {
-  const bytesLinha = 95, linhas = 124;   // 760 pontos / 8
+  const bytesLinha = 95, linhas = 96;    // 760 × 96 pontos (760 / 8 = 95 bytes por linha)
   let hex = '';
   for (let r = 0; r < linhas; r++) {
     const padrao = r % 2 === 0 ? (r % 4 === 0 ? 'AA' : '55') : '00';
     hex += padrao.repeat(bytesLinha);
   }
   return `~DGR:CINZA.GRF,${bytesLinha * linhas},${bytesLinha},${hex}`;
+}
+
+/** Altura/largura da fonte A0 para o texto caber em `largura` pontos (estimativa conservadora). */
+function _zplFonte(texto, largura, hMax, wMax) {
+  const n = Math.max(1, String(texto || '').length);
+  const w = Math.max(20, Math.min(wMax, Math.floor(largura / (n * 0.62))));
+  const h = Math.max(24, Math.min(hMax, Math.round(w * 1.12)));
+  return { h, w };
 }
 
 /** ZPL para ZDesigner S4M 203 dpi: 100 mm = 800 pontos, 70 mm = 560 pontos. */
@@ -2130,12 +2155,12 @@ function _zplEtiqueta(e) {
     '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
     `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
     `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
-    '^FO20,52^XGR:CINZA.GRF,1,1^FS',                                 // fundo cinza (grifado) da placa
-    (String(e.placa).length > 9
-      ? `^FO20,84^FB760,1,0,C^A0N,72,56^FD${z(e.placa)}^FS`          // placa dupla (cavalo/carreta)
-      : `^FO20,64^FB760,1,0,C^A0N,112,100^FD${z(e.placa)}^FS`),
-    `^FO24,190^FB752,1,0,L^A0N,42,40^FD${z(e.cliente)}^FS`,
-    `^FO24,236^FB752,1,0,L^A0N,80,72^FD${z(e.doc)}^FS`,
+    // NF / MD — centralizada, fonte reduzida automaticamente para caber
+    (() => { const f = _zplFonte(e.doc, 752, 90, 80); return `^FO24,${52 + Math.round((96 - f.h) / 2)}^FB752,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
+    `^FO24,156^FB752,1,0,L^A0N,40,38^FD${z(e.cliente)}^FS`,
+    // Placa — fundo cinza (grifado) e texto que sempre cabe na faixa
+    '^FO20,206^XGR:CINZA.GRF,1,1^FS',
+    (() => { const f = _zplFonte(e.placa, 720, 72, 64); return `^FO20,${206 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.placa)}^FS`; })(),
     '^FO20,330^GB370,214,5^FS',
     '^FO410,330^GB370,214,5^FS',
     '^FO20,346^FB370,1,0,C^A0N,32,32^FDCLIENTE^FS',
@@ -4151,7 +4176,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-4';
+const APP_VERSION = '2026.10.21-5';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
