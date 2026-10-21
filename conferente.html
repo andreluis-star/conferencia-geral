@@ -2076,10 +2076,10 @@ function _htmlEtiqueta(e) {
 }
 
 const _ETQ_CSS = `
-  .lbl { width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
+  .lbl { -webkit-print-color-adjust:exact; print-color-adjust:exact; width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
   .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
   .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
-  .lbl-placa { background:#000; color:#fff; text-align:center; font-size:13mm; line-height:15mm; font-weight:900; letter-spacing:1mm; border-radius:1.5mm; margin-top:1.5mm; }
+  .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; text-align:center; font-size:13mm; line-height:15mm; font-weight:900; letter-spacing:1mm; border-radius:1.5mm; margin-top:1.5mm; }
   .lbl-cli { font-size:5mm; font-weight:900; margin-top:1.5mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lbl-doc { font-size:9.5mm; line-height:10.5mm; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
@@ -2107,6 +2107,21 @@ function imprimirEtiquetas() {
   setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); }, 300);
 }
 
+/**
+ * Fundo cinza da placa no ZPL: a Zebra térmica não imprime cinza "de verdade",
+ * então é um retículo (pontos espaçados) de 760 × 124 pontos, enviado uma vez
+ * no início do arquivo (~DG) e reaproveitado em cada etiqueta (^XG).
+ */
+function _zplFundoCinza() {
+  const bytesLinha = 95, linhas = 124;   // 760 pontos / 8
+  let hex = '';
+  for (let r = 0; r < linhas; r++) {
+    const padrao = r % 2 === 0 ? (r % 4 === 0 ? 'AA' : '55') : '00';
+    hex += padrao.repeat(bytesLinha);
+  }
+  return `~DGR:CINZA.GRF,${bytesLinha * linhas},${bytesLinha},${hex}`;
+}
+
 /** ZPL para ZDesigner S4M 203 dpi: 100 mm = 800 pontos, 70 mm = 560 pontos. */
 function _zplEtiqueta(e) {
   const z = s => String(s == null ? '' : s).replace(/[\^~\\]/g, ' ');
@@ -2115,10 +2130,10 @@ function _zplEtiqueta(e) {
     '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
     `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
     `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
-    '^FO20,52^GB760,124,124^FS',
+    '^FO20,52^XGR:CINZA.GRF,1,1^FS',                                 // fundo cinza (grifado) da placa
     (String(e.placa).length > 9
-      ? `^FO20,84^FR^FB760,1,0,C^A0N,72,56^FD${z(e.placa)}^FS`      // placa dupla (cavalo/carreta)
-      : `^FO20,64^FR^FB760,1,0,C^A0N,112,100^FD${z(e.placa)}^FS`),
+      ? `^FO20,84^FB760,1,0,C^A0N,72,56^FD${z(e.placa)}^FS`          // placa dupla (cavalo/carreta)
+      : `^FO20,64^FB760,1,0,C^A0N,112,100^FD${z(e.placa)}^FS`),
     `^FO24,190^FB752,1,0,L^A0N,42,40^FD${z(e.cliente)}^FS`,
     `^FO24,236^FB752,1,0,L^A0N,80,72^FD${z(e.doc)}^FS`,
     '^FO20,330^GB370,214,5^FS',
@@ -2138,7 +2153,7 @@ function _zplArquivo() {
   const dia = (sel[0].dia || '').replace(/\//g, '');
   return {
     sel,
-    zpl:  sel.map(_zplEtiqueta).join('\n'),
+    zpl:  _zplFundoCinza() + '\n' + sel.map(_zplEtiqueta).join('\n'),
     base: `etiquetas_${(currentPlaca || '').replace(/[^A-Za-z0-9]/g, '')}_${sel[0].tipo}_${dia}`
   };
 }
@@ -4136,7 +4151,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-3';
+const APP_VERSION = '2026.10.21-4';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
