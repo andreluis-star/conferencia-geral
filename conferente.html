@@ -463,6 +463,26 @@
   .nf-obs-ant-item:first-of-type { border-top:none; }
   .nf-obs-ant-item small { display:block; font-size:0.66rem; color:#9a7d2a; font-weight:700; }
   .nf-obs-flag { font-size:0.8rem; }
+  .btn-etiquetas { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:5px 10px; font-size:0.72rem; font-weight:800; cursor:pointer; white-space:nowrap; }
+  .etq-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.55); align-items:flex-end; justify-content:center; }
+  .etq-overlay.open { display:flex; }
+  .etq-modal { background:#fff; width:100%; max-width:520px; max-height:92vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
+  .etq-head { background:var(--navy); color:#fff; font-weight:800; font-size:0.92rem; padding:14px 16px; border-radius:16px 16px 0 0; display:flex; align-items:center; gap:8px; }
+  .etq-x { margin-left:auto; background:none; border:none; color:#fff; font-size:1.1rem; cursor:pointer; }
+  .etq-body { padding:12px 16px; overflow-y:auto; }
+  .etq-dica { font-size:0.74rem; color:#667; margin-bottom:10px; }
+  .etq-cli { display:flex; align-items:center; gap:8px; font-size:0.85rem; padding:8px 4px; border-bottom:1px solid #f0f0f0; }
+  .etq-cli input { width:18px; height:18px; accent-color:var(--navy); }
+  .etq-cli span { margin-left:auto; font-size:0.72rem; color:#889; font-weight:700; }
+  .etq-prev-wrap { margin-top:12px; }
+  .etq-prev-tit { font-size:0.7rem; font-weight:800; color:#889; text-transform:uppercase; margin-bottom:6px; }
+  .etq-escala { width:calc(100mm * 0.8); height:calc(70mm * 0.8); overflow:hidden; border:1px dashed #bbb; border-radius:6px; margin:0 auto; }
+  .etq-escala .lbl { transform:scale(0.8); transform-origin:top left; }
+  .etq-acoes { display:flex; gap:8px; padding:12px 16px calc(12px + var(--safe-bottom)); border-top:1px solid #eee; }
+  .etq-btn { flex:1; border:none; border-radius:10px; padding:12px; font-weight:800; font-size:0.88rem; cursor:pointer; }
+  .etq-print { background:var(--amber); color:var(--navy); }
+  .etq-zpl { background:#eef1f6; color:var(--navy); flex:0.7; }
+  .etq-wpp { background:#25d366; color:#fff; }
   .op-bloco-dica { font-size:0.72rem; color:#8a94a6; margin:-4px 0 10px; }
 
   /* Lista de NFs recolhida (toca para abrir os detalhes) */
@@ -487,6 +507,7 @@
   .bloco-lancado .bl-tit { font-size:0.72rem; font-weight:800; color:#8a94a6; text-transform:uppercase; margin:10px 0 2px; }
   .placa-conf { font-size:0.62rem; color:#1a5c1a; text-align:center; padding:3px 4px 0; line-height:1.3; }
 </style>
+<style id="etq-css-preview"></style>
 </head>
 <body>
 
@@ -690,7 +711,10 @@
       <div class="form-card">
         <div class="nf-lista-head">
           <h4>📋 Notas do bloco</h4>
-          <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Marcar todas OK</button>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="btn-etiquetas" onclick="abrirEtiquetas()">🏷 Etiquetas</button>
+            <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Todas OK</button>
+          </div>
         </div>
         <p class="op-bloco-dica">Acompanhamento visual por cliente. Toque no cliente para ver as notas. Marcar OK/NÃO OK é opcional. 💬 = tem observação anterior.</p>
         <div id="campos-conferencia"></div>
@@ -1948,6 +1972,231 @@ async function carregarObsAnteriores(placa, tipo, dataRef) {
     const cflag = card?.querySelector('.cli-obs-flag');
     if (cflag) cflag.style.display = '';
   });
+}
+
+// ═══════════════════════════════════════════════════════
+//  ETIQUETAS ZEBRA (100 × 70 mm, paisagem) — por bloco
+//  Uma etiqueta por nota. Numeração por cliente (1/5…)
+//  e total do veículo no bloco (1/10…). Imprime pelo
+//  navegador (driver ZDesigner) ou baixa o arquivo ZPL.
+// ═══════════════════════════════════════════════════════
+
+/** Notas do bloco aberto agrupadas por cliente, na mesma ordem dos mini-cards. */
+function _notasPorClienteDoBloco(tipo) {
+  const mapa = new Map();
+  currentVehicles.forEach((v, idx) => {
+    if (_tipoLinha(v) !== tipo) return;
+    const d = _dadosLinhaNf(v, idx);
+    if (!d.relevante) return;
+    const cli = ((v._cliente || d.dest || d.tituloOp || 'SEM CLIENTE') + '').trim().toUpperCase();
+    if (!mapa.has(cli)) mapa.set(cli, []);
+    // Nota; se não houver número de NF, usa o processo (MD / OC / DI)
+    const doc = d.nf ? `NF ${d.nf}` : d.md ? `MD ${d.md}` : d.oc ? `OC ${d.oc}` : d.di ? `PROC ${d.di}` : d.tituloOp;
+    mapa.get(cli).push({ doc });
+  });
+  return [...mapa.entries()].map(([cliente, notas]) => ({ cliente, notas }));
+}
+
+/** Monta a lista completa de etiquetas com as duas numerações. */
+function _montarEtiquetas(tipo) {
+  const grupos = _notasPorClienteDoBloco(tipo);
+  const total = grupos.reduce((s, g) => s + g.notas.length, 0);
+  const op = completedInfo[`${currentPlaca}_${tipo}`];
+  const conferente = (op && op.conferenteNome) || (currentUser && (currentUser.nome || currentUser.email)) || '';
+  const [y, m, d] = (document.getElementById('sel-date').value || '').split('-');
+  const dia = d ? `${d}/${m}/${y}` : '';
+  let seq = 0;
+  const lista = [];
+  grupos.forEach((g, gi) => {
+    g.notas.forEach((n, i) => {
+      seq++;
+      lista.push({ gi, placa: currentPlaca, tipo, dia, conferente, cliente: g.cliente, doc: n.doc,
+                   cliSeq: i + 1, cliTot: g.notas.length, veiSeq: seq, veiTot: total });
+    });
+  });
+  return { grupos, lista, total };
+}
+
+function abrirEtiquetas() {
+  const st = document.getElementById('etq-css-preview');
+  if (st && !st.textContent) st.textContent = _ETQ_CSS;
+  const { grupos, total } = _montarEtiquetas(currentTipo);
+  if (!total) { showToast('Nenhuma nota neste bloco para etiquetar.', 'warning'); return; }
+  let ov = document.getElementById('etq-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'etq-overlay';
+    ov.className = 'etq-overlay';
+    document.body.appendChild(ov);
+  }
+  const nomeTipo = currentTipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+  ov.innerHTML = `
+    <div class="etq-modal">
+      <div class="etq-head">🏷 Etiquetas — ${escConf(currentPlaca)} · ${nomeTipo}<button class="etq-x" onclick="fecharEtiquetas()">✕</button></div>
+      <div class="etq-body">
+        <p class="etq-dica">Uma etiqueta por nota · 100 × 70 mm paisagem · total do veículo: <b>${total}</b>. Desmarque um cliente para reimprimir só os outros (a numeração não muda).</p>
+        <label class="etq-cli etq-todos"><input type="checkbox" checked onchange="document.querySelectorAll('.etq-chk').forEach(c=>c.checked=this.checked);_etqContar()"> <b>Todos os clientes</b></label>
+        ${grupos.map((g, gi) => `<label class="etq-cli"><input type="checkbox" class="etq-chk" value="${gi}" checked onchange="_etqContar()"> ${escConf(g.cliente)} <span>${g.notas.length} etiqueta${g.notas.length > 1 ? 's' : ''}</span></label>`).join('')}
+        <div class="etq-prev-wrap"><div class="etq-prev-tit">Prévia da 1ª etiqueta</div><div id="etq-prev"></div></div>
+      </div>
+      <div class="etq-acoes">
+        <button class="etq-btn etq-print" onclick="imprimirEtiquetas()">🖨 Imprimir (<span id="etq-qtd">${total}</span>)</button>
+        <button class="etq-btn etq-zpl" onclick="baixarZplEtiquetas()">⬇ ZPL</button>
+        <button class="etq-btn etq-wpp" onclick="enviarZplWhatsApp()">📲 ZPL WhatsApp</button>
+      </div>
+    </div>`;
+  ov.classList.add('open');
+  _etqContar();
+}
+function fecharEtiquetas() { document.getElementById('etq-overlay')?.classList.remove('open'); }
+
+function _etqSelecionadas() {
+  const marcados = new Set(Array.from(document.querySelectorAll('.etq-chk:checked')).map(c => parseInt(c.value)));
+  return _montarEtiquetas(currentTipo).lista.filter(e => marcados.has(e.gi));
+}
+function _etqContar() {
+  const sel = _etqSelecionadas();
+  const q = document.getElementById('etq-qtd'); if (q) q.textContent = sel.length;
+  const prev = document.getElementById('etq-prev');
+  if (prev) prev.innerHTML = sel.length ? `<div class="etq-escala">${_htmlEtiqueta(sel[0])}</div>` : '<p style="color:#aaa;font-size:0.8rem;">Nenhum cliente selecionado.</p>';
+}
+
+function _htmlEtiqueta(e) {
+  const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+  return `<div class="lbl">
+    <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
+    <div class="lbl-placa"${String(e.placa).length > 9 ? ' style="font-size:8mm;letter-spacing:0.3mm;"' : ''}>${escConf(e.placa)}</div>
+    <div class="lbl-cli">${escConf(e.cliente)}</div>
+    <div class="lbl-doc">${escConf(e.doc)}</div>
+    <div class="lbl-cont">
+      <div class="lbl-box"><small>CLIENTE</small><b>${e.cliSeq}/${e.cliTot}</b></div>
+      <div class="lbl-box"><small>VEÍCULO</small><b>${e.veiSeq}/${e.veiTot}</b></div>
+    </div>
+  </div>`;
+}
+
+const _ETQ_CSS = `
+  .lbl { width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
+  .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
+  .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
+  .lbl-placa { background:#000; color:#fff; text-align:center; font-size:13mm; line-height:15mm; font-weight:900; letter-spacing:1mm; border-radius:1.5mm; margin-top:1.5mm; }
+  .lbl-cli { font-size:5mm; font-weight:900; margin-top:1.5mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lbl-doc { font-size:9.5mm; line-height:10.5mm; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
+  .lbl-box { flex:1; border:0.8mm solid #000; border-radius:1.5mm; text-align:center; padding:0.5mm 0 0; }
+  .lbl-box small { display:block; font-size:3.2mm; font-weight:900; letter-spacing:0.5mm; }
+  .lbl-box b { display:block; font-size:12mm; line-height:13mm; font-weight:900; }`;
+
+function imprimirEtiquetas() {
+  const sel = _etqSelecionadas();
+  if (!sel.length) { showToast('Selecione ao menos um cliente.', 'warning'); return; }
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas ${escConf(currentPlaca)}</title>
+    <style>@page { size:100mm 70mm; margin:0; } html,body { margin:0; padding:0; }
+    ${_ETQ_CSS}
+    .lbl { page-break-after:always; break-after:page; }
+    .lbl:last-child { page-break-after:auto; break-after:auto; }</style></head>
+    <body>${sel.map(_htmlEtiqueta).join('')}</body></html>`;
+  let fr = document.getElementById('etq-frame');
+  if (fr) fr.remove();
+  fr = document.createElement('iframe');
+  fr.id = 'etq-frame';
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  const doc = fr.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); }, 300);
+}
+
+/** ZPL para ZDesigner S4M 203 dpi: 100 mm = 800 pontos, 70 mm = 560 pontos. */
+function _zplEtiqueta(e) {
+  const z = s => String(s == null ? '' : s).replace(/[\^~\\]/g, ' ');
+  const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAIDA';
+  return [
+    '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
+    `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
+    `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
+    '^FO20,52^GB760,124,124^FS',
+    (String(e.placa).length > 9
+      ? `^FO20,84^FR^FB760,1,0,C^A0N,72,56^FD${z(e.placa)}^FS`      // placa dupla (cavalo/carreta)
+      : `^FO20,64^FR^FB760,1,0,C^A0N,112,100^FD${z(e.placa)}^FS`),
+    `^FO24,190^FB752,1,0,L^A0N,42,40^FD${z(e.cliente)}^FS`,
+    `^FO24,236^FB752,1,0,L^A0N,80,72^FD${z(e.doc)}^FS`,
+    '^FO20,330^GB370,214,5^FS',
+    '^FO410,330^GB370,214,5^FS',
+    '^FO20,346^FB370,1,0,C^A0N,32,32^FDCLIENTE^FS',
+    '^FO410,346^FB370,1,0,C^A0N,32,32^FDVEICULO^FS',
+    `^FO20,392^FB370,1,0,C^A0N,130,110^FD${e.cliSeq}/${e.cliTot}^FS`,
+    `^FO410,392^FB370,1,0,C^A0N,130,110^FD${e.veiSeq}/${e.veiTot}^FS`,
+    '^PQ1', '^XZ'
+  ].join('\n');
+}
+
+/** Gera o conteúdo ZPL das etiquetas selecionadas e o nome do arquivo. */
+function _zplArquivo() {
+  const sel = _etqSelecionadas();
+  if (!sel.length) { showToast('Selecione ao menos um cliente.', 'warning'); return null; }
+  const dia = (sel[0].dia || '').replace(/\//g, '');
+  return {
+    sel,
+    zpl:  sel.map(_zplEtiqueta).join('\n'),
+    base: `etiquetas_${(currentPlaca || '').replace(/[^A-Za-z0-9]/g, '')}_${sel[0].tipo}_${dia}`
+  };
+}
+
+/**
+ * Envia o arquivo ZPL pelo WhatsApp (compartilhamento manual do celular — o
+ * conferente escolhe o contato/grupo). O Chrome do Android só compartilha alguns
+ * tipos de arquivo; se ".zpl" não for aceito, envia como ".zpl.txt" (o conteúdo
+ * é o mesmo e a Zebra imprime igual). Sem suporte a compartilhar arquivo
+ * (ex.: computador), baixa o arquivo e abre o WhatsApp com a mensagem pronta.
+ */
+async function enviarZplWhatsApp() {
+  const arq = _zplArquivo(); if (!arq) return;
+  const { sel, zpl, base } = arq;
+  const nomeTipo = sel[0].tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+  const texto = `🏷 Etiquetas ZPL — placa ${currentPlaca} · ${nomeTipo} · ${sel[0].dia} · ${sel.length} etiqueta${sel.length > 1 ? 's' : ''} (100×70 mm)`;
+  const candidatos = [
+    new File([zpl], base + '.zpl',     { type: 'text/plain' }),
+    new File([zpl], base + '.zpl.txt', { type: 'text/plain' })
+  ];
+  if (navigator.share && navigator.canShare) {
+    const f = candidatos.find(c => { try { return navigator.canShare({ files: [c] }); } catch { return false; } });
+    if (f) {
+      try {
+        await navigator.share({ files: [f], title: f.name, text: texto });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // conferente cancelou
+        console.warn('share ZPL:', e.message);
+      }
+    }
+  }
+  // Fallback: baixa o arquivo e abre o WhatsApp para anexar manualmente
+  _baixarTexto(zpl, base + '.zpl');
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto + '\n(arquivo baixado — anexe o .zpl nesta conversa)'), '_blank');
+  showToast('Arquivo baixado. No WhatsApp, anexe o .zpl na conversa.', 'warning');
+}
+
+function _baixarTexto(conteudo, nome) {
+  const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function baixarZplEtiquetas() {
+  const arq = _zplArquivo(); if (!arq) return;
+  const { sel, zpl, base } = arq;
+  const nome = base + '.zpl';
+  const blob = new Blob([zpl], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  showToast(`Arquivo ${nome} gerado (${sel.length} etiqueta${sel.length > 1 ? 's' : ''}).`);
 }
 
 function toggleNfDetalhe(idx) {
@@ -3887,7 +4136,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-2';
+const APP_VERSION = '2026.10.21-3';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
