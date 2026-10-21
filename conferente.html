@@ -342,7 +342,9 @@
     display:flex; align-items:center; justify-content:center; padding:0; line-height:1; flex-shrink:0;
   }
   .qty-btn:active { background:#e0e8f5; }
-  .qty-val { min-width:22px; text-align:center; font-size:0.88rem; font-weight:800; color:var(--navy); }
+  .qty-val { width:44px; min-width:0; text-align:center; font-size:0.95rem; font-weight:800; color:var(--navy); border:1px solid #d5deea; border-radius:7px; padding:4px 2px; background:#fff; font-family:inherit; -moz-appearance:textfield; }
+  .qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .qty-val:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 2px rgba(26,58,92,0.15); }
   .outros-custom-inp {
     width:100%; margin-top:5px; border:1px solid #ddd; border-radius:6px;
     padding:3px 6px; font-size:0.70rem; text-align:center; outline:none; background:#fff;
@@ -411,28 +413,56 @@
   #btn-pwa-dismiss { background:transparent; color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.25); border-radius:10px; padding:11px 14px; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
 
   /* ══ BLOCOS ENTRADA / SAÍDA (tela da placa) ══ */
-  .op-bloco { background:#fff; border-radius:var(--radius); margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden; border-left:6px solid #1a5c1a; }
-  .op-bloco.saida { border-left-color:#7a1a1a; }
-  .op-bloco-head { padding:14px 14px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .op-bloco { --bl-cor:#1d6b30; --bl-fundo:#e6f4ea; --bl-borda:#bfe0c8; background:var(--bl-fundo); border-radius:var(--radius); margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.10); overflow:hidden; border:2px solid var(--bl-borda); }
+  .op-bloco.saida { --bl-cor:#8a1f1f; --bl-fundo:#fbeaea; --bl-borda:#efc4c4; }
+  .op-bloco-head { padding:14px 14px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; background:var(--bl-cor); color:#fff; }
   .op-bloco-l1 { display:flex; align-items:center; gap:8px; }
-  .op-bloco-titulo { font-size:1.02rem; font-weight:900; letter-spacing:0.3px; color:#1a5c1a; flex:1; }
-  .op-bloco.saida .op-bloco-titulo { color:#7a1a1a; }
-  .op-bloco-badge { font-size:0.62rem; font-weight:900; border-radius:6px; padding:3px 8px; background:#eef1f6; color:#667; letter-spacing:0.4px; }
-  .op-bloco-badge.ok { background:var(--green); color:#fff; }
+  .op-bloco-titulo { font-size:1.08rem; font-weight:900; letter-spacing:0.5px; color:#fff; flex:1; }
+  .op-bloco-badge { font-size:0.62rem; font-weight:900; border-radius:6px; padding:3px 8px; background:rgba(255,255,255,0.22); color:#fff; letter-spacing:0.4px; }
+  .op-bloco-badge.ok { background:#fff; color:#1d6b30; }
   .op-bloco-badge.parcial { background:var(--amber); color:#111; }
-  .op-bloco-chev { font-size:0.85rem; color:#99a; transition:transform 0.2s; }
+  .op-bloco-chev { font-size:0.85rem; color:rgba(255,255,255,0.8); transition:transform 0.2s; }
   .op-bloco.aberto .op-bloco-chev { transform:rotate(180deg); }
   .op-bloco-resumo { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
-  .op-bloco-rs { background:#f5f8fc; border-radius:8px; padding:7px 4px; text-align:center; }
-  .op-bloco-rs b { display:block; font-size:1.15rem; font-weight:900; color:var(--navy); line-height:1.1; }
-  .op-bloco-rs small { font-size:0.62rem; font-weight:700; color:#8a94a6; text-transform:uppercase; }
+  .op-bloco-rs { background:rgba(255,255,255,0.14); border-radius:8px; padding:7px 4px; text-align:center; }
+  .op-bloco-rs b { display:block; font-size:1.15rem; font-weight:900; color:#fff; line-height:1.1; }
+  .op-bloco-rs small { font-size:0.6rem; font-weight:700; color:rgba(255,255,255,0.75); text-transform:uppercase; }
   .op-bloco-clientes { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
-  .op-bloco-cli { font-size:0.68rem; font-weight:700; background:#eef3fb; color:var(--blue); border-radius:20px; padding:2px 9px; }
-  .op-bloco-conf { margin-top:8px; font-size:0.78rem; color:#1a5c1a; background:#eaf6ec; border-radius:8px; padding:6px 10px; }
+  .op-bloco-cli { font-size:0.68rem; font-weight:700; background:rgba(255,255,255,0.92); color:var(--bl-cor); border-radius:20px; padding:2px 9px; }
+  .op-bloco-conf { margin-top:8px; font-size:0.78rem; color:#1d6b30; background:#fff; border-radius:8px; padding:6px 10px; }
   .op-bloco-conf.parcial { color:#7a5500; background:#fff6dd; }
-  .op-bloco-body { padding:0 10px 12px; display:none; }
+  .op-bloco-body { padding:12px 10px; display:none; }
   .op-bloco.aberto .op-bloco-body { display:block; }
-  .op-bloco-body .form-card { box-shadow:none; border:1px solid #e6ebf2; padding:12px; }
+  .op-bloco-body .form-card { box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--bl-borda); padding:12px; }
+  .op-bloco-body .form-card h4 { color:var(--bl-cor); }
+
+  /* Mini-cards por cliente (lista de notas do bloco) */
+  .cli-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .cli-card { background:#fff; border:1.5px solid var(--bl-borda,#dde5f0); border-left:5px solid var(--bl-cor,#1a3a5c); border-radius:10px; overflow:hidden; }
+  .cli-card.aberto { grid-column:1 / -1; box-shadow:0 2px 10px rgba(0,0,0,0.10); }
+  .cli-card.tudo-ok { border-left-color:var(--green); }
+  .cli-card.tem-nok { border-left-color:var(--red); }
+  .cli-head { padding:9px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .cli-card.aberto .cli-head { background:var(--bl-fundo,#f5f8fc); border-bottom:1px solid var(--bl-borda,#e0e8f5); }
+  .cli-l1 { display:flex; align-items:center; gap:6px; }
+  .cli-nome { flex:1; min-width:0; font-size:0.86rem; font-weight:900; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cli-prog { font-size:0.66rem; font-weight:900; border-radius:10px; padding:1px 7px; background:#eef1f6; color:#667; white-space:nowrap; }
+  .cli-prog.ok { background:var(--green); color:#fff; }
+  .cli-nfs { font-size:0.72rem; color:#4a5568; font-weight:600; margin-top:3px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+  .cli-meta { display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.66rem; color:#8a94a6; font-weight:700; white-space:nowrap; }
+  .cli-meta > span:first-child { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .cli-obs-flag { background:#fff3cd; color:#7a5500; border-radius:8px; padding:1px 6px; font-weight:800; }
+  .cli-chev { margin-left:auto; color:#aab; transition:transform 0.2s; }
+  .cli-card.aberto .cli-chev { transform:rotate(180deg); }
+  .cli-body { display:none; padding:8px; }
+  .cli-card.aberto .cli-body { display:block; }
+  .cli-body .nf-block { margin-bottom:8px; }
+  .nf-obs-ant { margin-top:10px; background:#fff8e1; border:1px solid #f3dc9a; border-radius:8px; padding:8px 10px; }
+  .nf-obs-ant-tit { font-size:0.68rem; font-weight:900; color:#7a5500; text-transform:uppercase; margin-bottom:4px; }
+  .nf-obs-ant-item { font-size:0.78rem; color:#4a3b00; padding:4px 0; border-top:1px dashed #f0d98a; }
+  .nf-obs-ant-item:first-of-type { border-top:none; }
+  .nf-obs-ant-item small { display:block; font-size:0.66rem; color:#9a7d2a; font-weight:700; }
+  .nf-obs-flag { font-size:0.8rem; }
   .op-bloco-dica { font-size:0.72rem; color:#8a94a6; margin:-4px 0 10px; }
 
   /* Lista de NFs recolhida (toca para abrir os detalhes) */
@@ -662,7 +692,7 @@
           <h4>📋 Notas do bloco</h4>
           <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Marcar todas OK</button>
         </div>
-        <p class="op-bloco-dica">Acompanhamento visual. Toque numa nota para ver os detalhes. Marcar OK/NÃO OK é opcional.</p>
+        <p class="op-bloco-dica">Acompanhamento visual por cliente. Toque no cliente para ver as notas. Marcar OK/NÃO OK é opcional. 💬 = tem observação anterior.</p>
         <div id="campos-conferencia"></div>
       </div>
 
@@ -1599,11 +1629,11 @@ function _temLancamentoNaoSalvo() {
   if (fotosBase64.length) return true;
   if ((document.getElementById('obs-geral').value || '').trim()) return true;
   if (document.querySelectorAll('#paletes-cliente-list .palete-cliente-row').length) return true;
-  const insumos = Array.from(document.querySelectorAll('#insumos-rows-list .qty-val')).some(el => (parseInt(el.textContent) || 0) > 0);
+  const insumos = Array.from(document.querySelectorAll('#insumos-rows-list .qty-val')).some(el => _qtdDe(el) > 0);
   if (insumos) return true;
   return Array.from(document.querySelectorAll('#paletes-list .palete-card')).some(card => {
     const ini = parseInt(card.dataset.qtdSaiu) || 0;
-    return (parseInt(card.querySelector('.qty-val')?.textContent) || 0) !== ini;
+    return _qtdDe(card.querySelector('.qty-val')) !== ini;
   });
 }
 
@@ -1682,7 +1712,11 @@ async function abrirBloco(tipo, forcar) {
 
     // NFs do bloco (somente as linhas deste tipo)
     renderCamposConferencia(currentVehicles);
-    await popularEnderecosPorBloco(currentVehicles);
+    const _dv = document.getElementById('sel-date').value.split('-');
+    await Promise.all([
+      popularEnderecosPorBloco(currentVehicles),
+      carregarObsAnteriores(currentPlaca, tipo, `${_dv[2]}/${_dv[1]}/${_dv[0]}`)
+    ]);
     await carregarTFARegistros(currentPlaca);
 
     // Paletes e insumos — iguais aos de antes
@@ -1785,6 +1819,7 @@ function atualizarPillNf(idx) {
   const nok = block.querySelector('.toggle-bar .naook-active');
   pill.className = 'nf-pill' + (ok ? ' ok' : nok ? ' nok' : '');
   pill.textContent = ok ? '✔' : nok ? '✖' : '•';
+  _atualizarCliCard(block.closest('.cli-card'));
   atualizarProgressoBloco();
 }
 
@@ -1795,6 +1830,124 @@ function atualizarProgressoBloco() {
   const blocks = document.querySelectorAll('#campos-conferencia .nf-block');
   const marcadas = Array.from(blocks).filter(b => b.querySelector('.toggle-bar .ok-active, .toggle-bar .naook-active')).length;
   el.textContent = `${marcadas}/${blocks.length}`;
+}
+
+/** Progresso (x/y marcadas) e cor do mini-card do cliente. */
+function _atualizarCliCard(card) {
+  if (!card) return;
+  const blocks = card.querySelectorAll('.nf-block');
+  const ok  = card.querySelectorAll('.toggle-bar .ok-active').length;
+  const nok = card.querySelectorAll('.toggle-bar .naook-active').length;
+  const prog = card.querySelector('.cli-prog');
+  if (prog) {
+    prog.textContent = `${ok + nok}/${blocks.length}`;
+    prog.classList.toggle('ok', blocks.length > 0 && ok + nok === blocks.length);
+  }
+  card.classList.toggle('tudo-ok', blocks.length > 0 && ok === blocks.length);
+  card.classList.toggle('tem-nok', nok > 0);
+}
+
+/** Abre um mini-card de cliente por vez (fecha os demais do bloco). */
+function toggleCliCard(head) {
+  const card = head.closest('.cli-card');
+  const abrir = !card.classList.contains('aberto');
+  card.parentElement.querySelectorAll('.cli-card.aberto').forEach(c => c.classList.remove('aberto'));
+  if (abrir) {
+    card.classList.add('aberto');
+    setTimeout(() => {
+      const sc = document.getElementById('screen-form');
+      const fh = document.querySelector('#screen-form .form-header');
+      const topo = fh ? fh.getBoundingClientRect().bottom : 0;
+      sc.scrollTo({ top: sc.scrollTop + card.getBoundingClientRect().top - topo - 10, behavior: 'smooth' });
+    }, 30);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  OBSERVAÇÕES ANTERIORES DA NOTA
+//  Junta, para cada NF do bloco aberto, o que já foi anotado
+//  em etapas anteriores: divergência/observação de outra
+//  conferência (ex.: a ENTRADA, vista na SAÍDA), discrepâncias
+//  registradas (inclusive vindas de outra placa) e TFAs.
+// ═══════════════════════════════════════════════════════
+async function carregarObsAnteriores(placa, tipo, dataRef) {
+  const blocks = Array.from(document.querySelectorAll('#campos-conferencia .nf-block'));
+  const chaveDoIdx = {};          // idx → nº da NF
+  blocks.forEach(b => {
+    const c = nfCamposCache[b.dataset.idx] || {};
+    const k = (c.nf || '').trim();
+    if (k) chaveDoIdx[b.dataset.idx] = k;
+  });
+  const nfs = [...new Set(Object.values(chaveDoIdx))];
+  if (!nfs.length) return;
+
+  const porNf = {};               // nº NF → [{quando, quem, origem, texto, ms}]
+  const add = (nf, item) => { if (!nf) return; (porNf[nf] = porNf[nf] || []).push(item); };
+  const ms  = t => (t && t.toMillis) ? t.toMillis() : 0;
+  const dt  = t => (t && t.toDate) ? t.toDate().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+  const nomeTipo = t => t === 'SAIDA' ? 'SAÍDA' : t === 'ENTRADA' ? 'ENTRADA' : (t || '');
+  const opsVistas = new Set();
+  const opsProprias = new Set();
+
+  // 1) Conferências desta placa (outras etapas — não a do próprio bloco de hoje)
+  try {
+    const snap = await db.collection('operacoes').where('placa', '==', placa).get();
+    snap.docs.forEach(d => {
+      const op = d.data();
+      if (op.tipoExecucao === tipo && op.dataRef === dataRef) { opsProprias.add(d.id); return; }
+      opsVistas.add(d.id);
+      (op.nfs || []).forEach(nf => {
+        if (!nf.nf || !nfs.includes(String(nf.nf).trim())) return;
+        if (!(nf.observacao || nf.status === 'NAO_OK')) return;
+        const partes = [];
+        if (nf.status === 'NAO_OK') partes.push('NÃO OK');
+        if (nf.quantidadeAveriguada != null) partes.push(`qtd averiguada ${nf.quantidadeAveriguada}`);
+        if (nf.observacao) partes.push(nf.observacao);
+        add(String(nf.nf).trim(), { ms: ms(op.timestamp), origem: `${nomeTipo(op.tipoExecucao)} ${dt(op.timestamp)}`, quem: op.conferenteNome || '', texto: partes.join(' — ') });
+      });
+    });
+  } catch (e) { console.warn('obsAnteriores/operacoes:', e.message); }
+
+  // 2) Discrepâncias e 3) TFAs com o mesmo nº de NF (podem vir de outra placa)
+  for (let i = 0; i < nfs.length; i += 10) {
+    const lote = nfs.slice(i, i + 10);
+    try {
+      const snap = await db.collection('discrepancias').where('nf', 'in', lote).get();
+      snap.docs.forEach(d => {
+        const x = d.data();
+        if (x.operacaoId && opsVistas.has(x.operacaoId)) return;   // já mostrado pela conferência
+        if (x.operacaoId && opsProprias.has(x.operacaoId)) return;  // é da própria conferência deste bloco
+        const partes = [];
+        if (x.quantidadeAveriguada != null) partes.push(`qtd averiguada ${x.quantidadeAveriguada}`);
+        if (x.observacao) partes.push(x.observacao);
+        add(String(x.nf).trim(), { ms: ms(x.timestamp), origem: `Discrepância ${dt(x.timestamp)}${x.placa && x.placa !== placa ? ' · placa ' + x.placa : ''}`, quem: x.conferenteNome || '', texto: partes.join(' — ') || 'Divergência registrada' });
+      });
+    } catch (e) { console.warn('obsAnteriores/discrepancias:', e.message); }
+    try {
+      const snap = await db.collection('tfa_ocorrencias').where('nf', 'in', lote).get();
+      snap.docs.forEach(d => {
+        const x = d.data();
+        add(String(x.nf).trim(), { ms: ms(x.timestamp), origem: `TFA ${nomeTipo(x.tipoExecucao)} ${dt(x.timestamp)}`, quem: x.conferenteNome || '', texto: x.descricao || '' });
+      });
+    } catch (e) { console.warn('obsAnteriores/tfa:', e.message); }
+  }
+
+  // Mostra na NF e sinaliza a linha da nota e o mini-card do cliente
+  Object.entries(chaveDoIdx).forEach(([idx, nf]) => {
+    const itens = (porNf[nf] || []).sort((a, b) => b.ms - a.ms);
+    if (!itens.length) return;
+    const box = document.getElementById('nf-obs-ant-' + idx);
+    if (box) {
+      box.innerHTML = `<div class="nf-obs-ant-tit">💬 Observações anteriores</div>` + itens.map(it =>
+        `<div class="nf-obs-ant-item"><small>${escConf(it.origem)}${it.quem ? ' · ' + escConf(it.quem) : ''}</small>${escConf(it.texto)}</div>`).join('');
+      box.style.display = 'block';
+    }
+    const flag = document.getElementById('nf-obs-flag-' + idx);
+    if (flag) flag.style.display = '';
+    const card = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`)?.closest('.cli-card');
+    const cflag = card?.querySelector('.cli-obs-flag');
+    if (cflag) cflag.style.display = '';
+  });
 }
 
 function toggleNfDetalhe(idx) {
@@ -1815,6 +1968,9 @@ function marcarTodosOKConfirm() {
 function renderCamposConferencia(vehicles) {
   const container = document.getElementById('campos-conferencia');
   container.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'cli-grid';
+  const gruposCli = new Map();   // cliente → mini-card
   nfCamposCache = {};   // idx do bloco → campos extraídos da planilha (usado pela tela de TFA)
 
   // ── Helpers de leitura de coluna ──
@@ -1931,9 +2087,11 @@ function renderCamposConferencia(vehicles) {
           <div class="nf-linha-tit">${tituloOp}</div>
           <div class="nf-linha-sub">${subLinha || '—'}</div>
         </div>
+        <span class="nf-obs-flag" id="nf-obs-flag-${idx}" style="display:none;" title="Há observações anteriores">💬</span>
         <span class="nf-chev">▼</span>
       </div>
       <div class="nf-detalhe">
+      <div class="nf-obs-ant" id="nf-obs-ant-${idx}" style="display:none;"></div>
       <div class="nf-data-row">
         <div class="nf-fields">
           ${chip('Volume', volVal)}
@@ -1970,8 +2128,31 @@ function renderCamposConferencia(vehicles) {
       ${enderecoHtml}
       </div>`;
 
-    container.appendChild(block);
+    // Agrupa a NF no mini-card do cliente (detalhes já abertos dentro do mini-card)
+    block.classList.add('aberta');
+    const cliNome = ((v._cliente || destVal || tituloOp || 'SEM CLIENTE') + '').trim().toUpperCase();
+    let grupo = gruposCli.get(cliNome);
+    if (!grupo) {
+      grupo = { nome: cliNome, nfs: [], vol: 0, el: document.createElement('div') };
+      grupo.el.className = 'cli-card';
+      grupo.el.innerHTML = `<div class="cli-head" onclick="toggleCliCard(this)"></div><div class="cli-body"></div>`;
+      gruposCli.set(cliNome, grupo);
+      grid.appendChild(grupo.el);
+    }
+    grupo.nfs.push(nfVal || ocVal || mdVal || '—');
+    grupo.vol += _numVolume(volVal);
+    grupo.el.querySelector('.cli-body').appendChild(block);
   });
+
+  // Cabeçalho de cada mini-card: cliente (abreviado), notas, volumes e progresso
+  gruposCli.forEach(g => {
+    const nomeCurto = g.nome.length > 18 ? g.nome.slice(0, 17) + '…' : g.nome;
+    g.el.querySelector('.cli-head').innerHTML = `
+      <div class="cli-l1"><span class="cli-nome" title="${escConf(g.nome)}">${escConf(nomeCurto)}</span><span class="cli-prog">0/${g.nfs.length}</span></div>
+      <div class="cli-nfs">NF ${g.nfs.map(escConf).join(' · ')}</div>
+      <div class="cli-meta"><span>${g.nfs.length} nota${g.nfs.length > 1 ? 's' : ''}${g.vol ? ' · ' + g.vol.toLocaleString('pt-BR') + ' vol' : ''}</span><span class="cli-obs-flag" style="display:none;" title="Há observações anteriores">💬</span><span class="cli-chev">▼</span></div>`;
+  });
+  if (gruposCli.size) container.appendChild(grid);
   if (!container.children.length) {
     container.innerHTML = '<p style="font-size:0.8rem;color:#aaa;text-align:center;padding:8px;">Nenhuma nota deste tipo na planilha.</p>';
   }
@@ -2381,11 +2562,26 @@ function toggleClienteUnico() {
 }
 
 // ── STEPPER GENÉRICO ──
+/** Lê a quantidade de um campo .qty-val (agora é um <input> digitável). */
+function _qtdDe(el) {
+  if (!el) return 0;
+  const v = parseInt(el.value !== undefined ? el.value : el.textContent);
+  return isNaN(v) || v < 0 ? 0 : v;
+}
+/** Quantidade digitada direto no campo (além dos botões − / +). */
+function qtyDigitada(inp) {
+  const limpo = String(inp.value || '').replace(/\D/g, '');
+  if (limpo !== String(inp.value)) inp.value = limpo;
+  _aplicarQtd(inp.closest('.item-card'), _qtdDe(inp), true);
+}
 function changeQty(btn, delta) {
   const card = btn.closest('.item-card');
+  _aplicarQtd(card, Math.max(0, _qtdDe(card.querySelector('.qty-val')) + delta));
+}
+function _aplicarQtd(card, val, digitando) {
+  if (!card) return;
   const valEl = card.querySelector('.qty-val');
-  let val = Math.max(0, (parseInt(valEl.textContent) || 0) + delta);
-  valEl.textContent = val;
+  if (!digitando) valEl.value = val;
   card.classList.toggle('active', val > 0);
 
   // Divergência de retorno de paletes
@@ -2505,7 +2701,7 @@ function renderPaleteCards(retorno) {
       ${saiuHtml}
       <div class="qty-stepper">
         <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
-        <span class="qty-val">${qtdIni}</span>
+        <input type="number" class="qty-val" inputmode="numeric" pattern="[0-9]*" min="0" value="${qtdIni}" onfocus="this.select()" oninput="qtyDigitada(this)"/>
         <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
       </div>
       ${outrosInp}
@@ -2516,7 +2712,7 @@ function renderPaleteCards(retorno) {
   container.querySelectorAll('.palete-card').forEach(card => {
     const qs = card.dataset.qtdSaiu;
     if (qs !== '') {
-      const saiu = parseInt(qs), val = parseInt(card.querySelector('.qty-val').textContent);
+      const saiu = parseInt(qs), val = _qtdDe(card.querySelector('.qty-val'));
       card.classList.toggle('diverge', val !== saiu);
       card.classList.toggle('ok-ret',  val === saiu);
     }
@@ -2575,7 +2771,7 @@ function renderInsumoCards() {
       ${ins.categoria ? `<div class="item-card-sub">${ins.categoria}</div>` : ''}
       <div class="qty-stepper">
         <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
-        <span class="qty-val">0</span>
+        <input type="number" class="qty-val" inputmode="numeric" pattern="[0-9]*" min="0" value="0" onfocus="this.select()" oninput="qtyDigitada(this)"/>
         <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
       </div>
     </div>`).join('');
@@ -3068,7 +3264,7 @@ async function submeterConferencia() {
     const paletes = [];
     document.querySelectorAll('#paletes-list .palete-card').forEach(card => {
       const tipo = card.dataset.tipo;
-      const qtd  = parseInt(card.querySelector('.qty-val')?.textContent) || 0;
+      const qtd  = _qtdDe(card.querySelector('.qty-val')) || 0;
       if (qtd > 0) {
         const tipoCustom = tipo === 'OUTROS' ? (card.querySelector('.outros-custom-inp')?.value || '') : '';
         paletes.push({tipo, tipoCustom, quantidade: qtd});
@@ -3080,7 +3276,7 @@ async function submeterConferencia() {
     // ── Coleta insumos dos cards ──
     const insumosSel = [];
     document.querySelectorAll('#insumos-rows-list .insumo-card').forEach(card => {
-      const qtd = parseInt(card.querySelector('.qty-val')?.textContent) || 0;
+      const qtd = _qtdDe(card.querySelector('.qty-val')) || 0;
       if (qtd > 0) {
         insumosSel.push({
           insumoId:   card.dataset.insumoId,
@@ -3301,7 +3497,7 @@ function renderPaletesAvulso() {
       <div class="item-card-name">${t.nome}</div>
       <div class="qty-stepper">
         <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
-        <span class="qty-val">0</span>
+        <input type="number" class="qty-val" inputmode="numeric" pattern="[0-9]*" min="0" value="0" onfocus="this.select()" oninput="qtyDigitada(this)"/>
         <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
       </div>
       ${t.tipo === 'OUTROS' ? `<input class="outros-custom-inp" type="text" placeholder="Qual tipo?" style="display:none;"/>` : ''}
@@ -3329,7 +3525,7 @@ function renderInsumosAvulso() {
       ${ins.categoria ? `<div class="item-card-sub">${ins.categoria}</div>` : ''}
       <div class="qty-stepper">
         <button class="qty-btn" onclick="changeQty(this,-1)">−</button>
-        <span class="qty-val">0</span>
+        <input type="number" class="qty-val" inputmode="numeric" pattern="[0-9]*" min="0" value="0" onfocus="this.select()" oninput="qtyDigitada(this)"/>
         <button class="qty-btn" onclick="changeQty(this,+1)">+</button>
       </div>
     </div>`).join('');
@@ -3354,13 +3550,13 @@ async function submeterInsumosAvulso() {
   try {
     const insumosSel=[];
     document.querySelectorAll('#ins-av-rows-list .insumo-card').forEach(card=>{
-      const qtd=parseInt(card.querySelector('.qty-val')?.textContent)||0;
+      const qtd=_qtdDe(card.querySelector('.qty-val'))||0;
       if(qtd>0) insumosSel.push({insumoId:card.dataset.insumoId,insumoNome:card.dataset.insumoNome,quantidade:qtd});
     });
     const paletesSel=[];
     document.querySelectorAll('#ins-av-paletes-list .palete-card').forEach(card=>{
       const tipo = card.dataset.tipo;
-      const qtd  = parseInt(card.querySelector('.qty-val')?.textContent)||0;
+      const qtd  = _qtdDe(card.querySelector('.qty-val'))||0;
       if(qtd>0){
         const tipoCustom = tipo === 'OUTROS' ? (card.querySelector('.outros-custom-inp')?.value || '') : '';
         paletesSel.push({tipo, tipoCustom, quantidade:qtd});
@@ -3691,7 +3887,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-1';
+const APP_VERSION = '2026.10.21-2';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
