@@ -479,6 +479,18 @@
   .etq-cli input { width:18px; height:18px; accent-color:var(--navy); }
   .etq-cli span { margin-left:auto; font-size:0.72rem; color:#889; font-weight:700; }
   .etq-prev-wrap { margin-top:12px; }
+  .etq-modo { display:flex; gap:6px; margin-bottom:10px; }
+  .etq-modo-btn { flex:1; border:2px solid #d5deea; background:#f5f8fc; color:var(--navy); border-radius:10px; padding:10px 6px; font-size:0.82rem; font-weight:800; cursor:pointer; }
+  .etq-modo-btn.ativo { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .etq-grupo { border-bottom:1px solid #eef0f4; padding-bottom:4px; margin-bottom:2px; }
+  .etq-grupo .etq-cli { border-bottom:none; }
+  .etq-nf { display:flex; align-items:center; gap:8px; padding:4px 4px 4px 30px; font-size:0.8rem; }
+  .etq-nf-doc { flex:1; min-width:0; font-weight:700; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .etq-nf-vol { font-size:0.7rem; color:#889; white-space:nowrap; }
+  .etq-nf-qtd { display:flex; align-items:center; gap:3px; }
+  .etq-nf-qtd button { width:28px; height:28px; border:1.5px solid #d5deea; background:#fff; border-radius:7px; font-weight:900; color:var(--navy); cursor:pointer; }
+  .etq-nf-qtd input { width:44px; height:28px; text-align:center; border:1px solid #d5deea; border-radius:7px; font-weight:800; font-size:0.85rem; -moz-appearance:textfield; }
+  .etq-nf-qtd input::-webkit-outer-spin-button, .etq-nf-qtd input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .etq-prev-tit { font-size:0.7rem; font-weight:800; color:#889; text-transform:uppercase; margin-bottom:6px; }
   .etq-escala { width:calc(100mm * 0.8); height:calc(70mm * 0.8); overflow:hidden; border:1px dashed #bbb; border-radius:6px; margin:0 auto; }
   .etq-escala .lbl { transform:scale(0.8); transform-origin:top left; }
@@ -2066,32 +2078,58 @@ function _notasPorClienteDoBloco(tipo) {
   return [...mapa.entries()].map(([cliente, notas]) => ({ cliente, notas }));
 }
 
-/** Monta a lista completa de etiquetas com as duas numerações. */
+/**
+ * Quantidade de etiquetas por nota:
+ *  - modo 'NF'  → 1 por nota (padrão)
+ *  - modo 'VOL' → 1 por volume (pega a coluna Volume; mínimo 1)
+ * Em qualquer modo o conferente pode ajustar a quantidade de cada nota na tela.
+ */
+let etqModo = 'NF';
+let etqQtdManual = {};   // `${gi}_${ni}` → quantidade digitada pelo conferente
+
+function _etqQtdPadrao(nota) {
+  return etqModo === 'VOL' ? Math.max(1, Math.round(_numVolume(nota.vol)) || 1) : 1;
+}
+function _etqQtd(gi, ni, nota) {
+  const k = `${gi}_${ni}`;
+  if (etqQtdManual[k] !== undefined) return etqQtdManual[k];
+  return _etqQtdPadrao(nota);
+}
+
+/** Monta a lista completa de etiquetas com as duas numerações (contam etiquetas impressas). */
 function _montarEtiquetas(tipo) {
   const grupos = _notasPorClienteDoBloco(tipo);
-  const total = grupos.reduce((s, g) => s + g.notas.length, 0);
   const op = completedInfo[`${currentPlaca}_${tipo}`];
   const conferente = (op && op.conferenteNome) || (currentUser && (currentUser.nome || currentUser.email)) || '';
   const [y, m, d] = (document.getElementById('sel-date').value || '').split('-');
   const dia = d ? `${d}/${m}/${y}` : '';
+  const qtds = grupos.map((g, gi) => g.notas.map((n, ni) => _etqQtd(gi, ni, n)));
+  const totCli = qtds.map(q => q.reduce((s, x) => s + x, 0));
+  const total = totCli.reduce((s, x) => s + x, 0);
   let seq = 0;
   const lista = [];
   grupos.forEach((g, gi) => {
-    g.notas.forEach((n, i) => {
-      seq++;
-      lista.push({ gi, placa: currentPlaca, tipo, dia, conferente, cliente: g.cliente, doc: n.doc,
-                   nf: n.nf, vol: n.vol, servico: n.servico,
-                   cliSeq: i + 1, cliTot: g.notas.length, veiSeq: seq, veiTot: total });
+    let seqCli = 0;
+    g.notas.forEach((n, ni) => {
+      const q = qtds[gi][ni];
+      for (let c = 1; c <= q; c++) {
+        seq++; seqCli++;
+        lista.push({ gi, placa: currentPlaca, tipo, dia, conferente, cliente: g.cliente, doc: n.doc,
+                     nf: n.nf, vol: n.vol, servico: n.servico,
+                     modo: etqModo, copia: c, copias: q,
+                     cliSeq: seqCli, cliTot: totCli[gi], veiSeq: seq, veiTot: total });
+      }
     });
   });
-  return { grupos, lista, total };
+  return { grupos, lista, total, qtds, totCli };
 }
 
 function abrirEtiquetas() {
   const st = document.getElementById('etq-css-preview');
   if (st && !st.textContent) st.textContent = _ETQ_CSS;
-  const { grupos, total } = _montarEtiquetas(currentTipo);
-  if (!total) { showToast('Nenhuma nota neste bloco para etiquetar.', 'warning'); return; }
+  etqQtdManual = {};
+  const { grupos } = _montarEtiquetas(currentTipo);
+  if (!grupos.length) { showToast('Nenhuma nota neste bloco para etiquetar.', 'warning'); return; }
   let ov = document.getElementById('etq-overlay');
   if (!ov) {
     ov = document.createElement('div');
@@ -2104,32 +2142,87 @@ function abrirEtiquetas() {
     <div class="etq-modal">
       <div class="etq-head">🏷 Etiquetas — ${escConf(currentPlaca)} · ${nomeTipo}<button class="etq-x" onclick="fecharEtiquetas()">✕</button></div>
       <div class="etq-body">
-        <p class="etq-dica">Uma etiqueta por nota · 100 × 70 mm paisagem · total do veículo: <b>${total}</b>. Desmarque um cliente para reimprimir só os outros (a numeração não muda).</p>
-        <label class="etq-cli etq-todos"><input type="checkbox" checked onchange="document.querySelectorAll('.etq-chk').forEach(c=>c.checked=this.checked);_etqContar()"> <b>Todos os clientes</b></label>
-        ${grupos.map((g, gi) => `<label class="etq-cli"><input type="checkbox" class="etq-chk" value="${gi}" checked onchange="_etqContar()"> ${escConf(g.cliente)} <span>${g.notas.length} etiqueta${g.notas.length > 1 ? 's' : ''}</span></label>`).join('')}
+        <div class="etq-modo">
+          <button type="button" class="etq-modo-btn" data-modo="NF" onclick="_etqSetModo('NF')">📄 1 por nota fiscal</button>
+          <button type="button" class="etq-modo-btn" data-modo="VOL" onclick="_etqSetModo('VOL')">📦 1 por volume</button>
+        </div>
+        <p class="etq-dica">100 × 70 mm paisagem. A quantidade de cada nota pode ser ajustada abaixo. Desmarque um cliente para reimprimir só os outros (a numeração não muda).</p>
+        <label class="etq-cli etq-todos"><input type="checkbox" checked onchange="document.querySelectorAll('.etq-chk').forEach(c=>c.checked=this.checked);_etqContar()"> <b>Todos os clientes</b><span>total <b id="etq-total">0</b></span></label>
+        <div id="etq-lista"></div>
         <div class="etq-prev-wrap"><div class="etq-prev-tit">Prévia da 1ª etiqueta</div><div id="etq-prev"></div></div>
       </div>
       <div class="etq-acoes">
-        <button class="etq-btn etq-print" onclick="imprimirEtiquetas()">🖨 Imprimir (<span id="etq-qtd">${total}</span>)</button>
+        <button class="etq-btn etq-print" onclick="imprimirEtiquetas()">🖨 Imprimir (<span id="etq-qtd">0</span>)</button>
         <button class="etq-btn etq-zpl" onclick="baixarZplEtiquetas()">⬇ ZPL</button>
         <button class="etq-btn etq-wpp" onclick="enviarZplWhatsApp()">📲 ZPL WhatsApp</button>
       </div>
     </div>`;
   ov.classList.add('open');
-  _etqContar();
+  _etqSetModo(etqModo);
   _carregarLibQr().then(ok => { if (ok) _etqContar(); else showToast('QR Code indisponível sem internet — etiqueta sai sem o QR na impressão (o ZPL tem QR próprio).', 'warning'); });
 }
 function fecharEtiquetas() { document.getElementById('etq-overlay')?.classList.remove('open'); }
+
+/** Troca o modo (por nota / por volume) — zera os ajustes manuais e redesenha a lista. */
+function _etqSetModo(modo) {
+  etqModo = modo;
+  etqQtdManual = {};
+  document.querySelectorAll('.etq-modo-btn').forEach(b => b.classList.toggle('ativo', b.dataset.modo === modo));
+  _etqRenderLista();
+}
+
+/** Lista de clientes (com checkbox) e, dentro, cada nota com a quantidade de etiquetas editável. */
+function _etqRenderLista() {
+  const marcados = new Set(Array.from(document.querySelectorAll('.etq-chk')).filter(c => c.checked).map(c => c.value));
+  const primeiraVez = !document.querySelector('.etq-chk');
+  const { grupos, qtds, totCli } = _montarEtiquetas(currentTipo);
+  document.getElementById('etq-lista').innerHTML = grupos.map((g, gi) => `
+    <div class="etq-grupo">
+      <label class="etq-cli"><input type="checkbox" class="etq-chk" value="${gi}" ${primeiraVez || marcados.has(String(gi)) ? 'checked' : ''} onchange="_etqContar()"> <b>${escConf(g.cliente)}</b> <span id="etq-totcli-${gi}">${totCli[gi]} etiq.</span></label>
+      ${g.notas.map((n, ni) => `
+        <div class="etq-nf">
+          <span class="etq-nf-doc">${escConf(n.doc)}</span>
+          <span class="etq-nf-vol">${n.vol ? escConf(n.vol) + ' vol' : 'sem vol.'}</span>
+          <div class="etq-nf-qtd">
+            <button type="button" onclick="_etqAjustar(${gi},${ni},-1)">−</button>
+            <input type="number" inputmode="numeric" min="0" id="etq-q-${gi}-${ni}" value="${qtds[gi][ni]}" onfocus="this.select()" oninput="_etqDigitar(${gi},${ni},this)">
+            <button type="button" onclick="_etqAjustar(${gi},${ni},1)">+</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+  _etqContar();
+}
+function _etqDigitar(gi, ni, inp) {
+  const v = parseInt(String(inp.value).replace(/\D/g, ''));
+  etqQtdManual[`${gi}_${ni}`] = isNaN(v) ? 0 : Math.min(v, 999);
+  _etqContar();
+}
+function _etqAjustar(gi, ni, delta) {
+  const inp = document.getElementById(`etq-q-${gi}-${ni}`);
+  const v = Math.max(0, Math.min(999, (parseInt(inp.value) || 0) + delta));
+  inp.value = v;
+  etqQtdManual[`${gi}_${ni}`] = v;
+  _etqContar();
+}
 
 function _etqSelecionadas() {
   const marcados = new Set(Array.from(document.querySelectorAll('.etq-chk:checked')).map(c => parseInt(c.value)));
   return _montarEtiquetas(currentTipo).lista.filter(e => marcados.has(e.gi));
 }
 function _etqContar() {
-  const sel = _etqSelecionadas();
+  const { lista, total, totCli } = _montarEtiquetas(currentTipo);
+  totCli.forEach((t, gi) => { const el = document.getElementById('etq-totcli-' + gi); if (el) el.textContent = `${t} etiq.`; });
+  const tt = document.getElementById('etq-total'); if (tt) tt.textContent = total;
+  const marcados = new Set(Array.from(document.querySelectorAll('.etq-chk:checked')).map(c => parseInt(c.value)));
+  const sel = lista.filter(e => marcados.has(e.gi));
   const q = document.getElementById('etq-qtd'); if (q) q.textContent = sel.length;
   const prev = document.getElementById('etq-prev');
-  if (prev) prev.innerHTML = sel.length ? `<div class="etq-escala">${_htmlEtiqueta(sel[0])}</div>` : '<p style="color:#aaa;font-size:0.8rem;">Nenhum cliente selecionado.</p>';
+  if (prev) prev.innerHTML = sel.length ? `<div class="etq-escala">${_htmlEtiqueta(sel[0])}</div>` : '<p style="color:#aaa;font-size:0.8rem;">Nenhuma etiqueta selecionada.</p>';
+}
+
+/** Confirma antes de gerar muitas etiquetas de uma vez. */
+function _etqConfirmarVolume(n) {
+  return n <= 150 || confirm(`Serão geradas ${n} etiquetas. Confirmar?`);
 }
 
 /**
@@ -2150,7 +2243,16 @@ function _fonteQueCabe(texto, larguraMm, maxMm, espacoMm) {
 /** Conteúdo do QR Code: nota e volumes (ex.: "NF:3003;VOL:5"). */
 function _qrTexto(e) {
   const tipoDoc = (e.doc || '').split(' ')[0] || 'NF';
-  return `${tipoDoc}:${e.nf || ''};VOL:${e.vol || ''}`;
+  // Por volume: VOL = número deste volume / total (ex.: 3/5). Por nota: total de volumes.
+  const vol = (e.modo === 'VOL') ? `${e.copia}/${e.copias}` : (e.vol || '');
+  return `${tipoDoc}:${e.nf || ''};VOL:${vol}`;
+}
+
+/** Texto da linha de volume na etiqueta. */
+function _etqTextoVol(e) {
+  if (e.modo === 'VOL') return `VOLUME ${e.copia}/${e.copias}`;
+  const base = e.vol ? `VOL: ${e.vol}` : '';
+  return e.copias > 1 ? [base, `CÓPIA ${e.copia}/${e.copias}`].filter(Boolean).join(' · ') : base;
 }
 
 /** Carrega a biblioteca de QR Code (só quando abre as etiquetas). */
@@ -2191,7 +2293,8 @@ function _htmlEtiqueta(e) {
   const fDoc   = _fonteQueCabe(e.doc, 70, 10);
   const fPlaca = _fonteQueCabe(e.placa, 89, 8.5, 0.5);
   const qr = _qrSvg(_qrTexto(e));
-  const extras = [e.vol ? `<b>VOL: ${escConf(e.vol)}</b>` : '', e.servico ? `SERVIÇO: ${escConf(e.servico)}` : '']
+  const tv = _etqTextoVol(e);
+  const extras = [tv ? `<b>${escConf(tv)}</b>` : '', e.servico ? `SERVIÇO: ${escConf(e.servico)}` : '']
     .filter(Boolean).join(' &nbsp;·&nbsp; ');
   return `<div class="lbl">
     <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
@@ -2231,7 +2334,8 @@ const _ETQ_CSS = `
 async function imprimirEtiquetas() {
   await _carregarLibQr();
   const sel = _etqSelecionadas();
-  if (!sel.length) { showToast('Selecione ao menos um cliente.', 'warning'); return; }
+  if (!sel.length) { showToast('Selecione ao menos uma etiqueta.', 'warning'); return; }
+  if (!_etqConfirmarVolume(sel.length)) return;
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas ${escConf(currentPlaca)}</title>
     <style>@page { size:100mm 70mm; margin:0; } html,body { margin:0; padding:0; }
     ${_ETQ_CSS}
@@ -2283,7 +2387,7 @@ function _zplEtiqueta(e) {
     // NF / MD — centralizada na área à esquerda do QR, fonte que cabe
     (() => { const f = _zplFonte(e.doc, 570, 80, 72); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
     `^FO20,142^FB580,1,0,C^A0N,36,34^FD${z(e.cliente)}^FS`,
-    `^FO20,186^FB580,1,0,C^A0N,24,22^FD${[e.vol ? 'VOL: ' + z(e.vol) : '', e.servico ? 'SERVICO: ' + z(e.servico) : ''].filter(Boolean).join('  -  ')}^FS`,
+    `^FO20,186^FB580,1,0,C^A0N,24,22^FD${[z(_etqTextoVol(e)).replace('CÓPIA', 'COPIA'), e.servico ? 'SERVICO: ' + z(e.servico) : ''].filter(Boolean).join('  -  ')}^FS`,
     // QR Code (nota e volumes) à direita
     `^FO612,44^BQN,2,5^FDMA,${z(_qrTexto(e))}^FS`,
     // Placa — fundo cinza (grifado) e texto que sempre cabe na faixa
@@ -2302,7 +2406,8 @@ function _zplEtiqueta(e) {
 /** Gera o conteúdo ZPL das etiquetas selecionadas e o nome do arquivo. */
 function _zplArquivo() {
   const sel = _etqSelecionadas();
-  if (!sel.length) { showToast('Selecione ao menos um cliente.', 'warning'); return null; }
+  if (!sel.length) { showToast('Selecione ao menos uma etiqueta.', 'warning'); return null; }
+  if (!_etqConfirmarVolume(sel.length)) return null;
   const dia = (sel[0].dia || '').replace(/\//g, '');
   return {
     sel,
@@ -4331,7 +4436,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.21-6';
+const APP_VERSION = '2026.10.26-1';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
