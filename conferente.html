@@ -77,7 +77,7 @@
   .placa-card.done      { border-color:var(--green); }
   .placa-card.andamento { border-color:var(--amber); }
   .placa-card.parcial   { border-color:var(--red); background:var(--red); }
-  .placa-card.parcial .placa-numero    { color:#000; }
+  .placa-card.parcial .placa-numero    { color:#fff; }
   .placa-card.parcial .placa-motorista { color:#111; }
   .placa-card.parcial .placa-rodape    { background:rgba(0,0,0,0.18); border-top-color:rgba(0,0,0,0.1); }
   .placa-card.parcial .placa-rodape span { color:#111; }
@@ -92,7 +92,8 @@
 
   .placa-numero {
     font-family:'Arial Narrow',Arial,sans-serif; font-weight:900; font-size:1.55rem;
-    letter-spacing:2px; text-align:center; padding:6px 4px 2px; color:#111; line-height:1;
+    letter-spacing:2px; text-align:center; padding:6px 6px 5px; line-height:1.1;
+    background:#000; color:#fff !important; margin:6px 6px 4px; border-radius:6px; word-break:break-word;
   }
   .placa-motorista { font-size:0.65rem; color:#888; text-align:center; padding:0 4px 4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .placa-rodape { display:flex; justify-content:space-between; padding:3px 6px; background:#f8f8f8; border-top:1px solid #eee; }
@@ -1481,7 +1482,7 @@ function buildPlacaCard(group) {
     el.innerHTML = `
       <div class="placa-status-dot ${dotCls}"></div>
       <div class="placa-topo ${topoCls}">${topoTxt}</div>
-      <div class="placa-numero"${String(placa).length > 9 ? ' style="font-size:0.95rem;letter-spacing:0.5px;"' : ''}>${placa}</div>
+      <div class="placa-numero">${String(placa).split('/').map(p => escConf(p.trim())).join('<br>')}</div>
       ${badgeHtml}
       <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
@@ -2542,7 +2543,22 @@ function imprimirRomaneio() {
   const totVol  = linhas.reduce((s, l) => s + _numVolume(l.vol), 0);
   const totPeso = linhas.reduce((s, l) => s + _numBR(l.peso), 0);
   const clientes = new Set(linhas.map(l => (l.dest || '').trim().toUpperCase()).filter(Boolean)).size;
-  const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const _ag = new Date();
+  const agora = `${String(_ag.getDate()).padStart(2,'0')}/${String(_ag.getMonth()+1).padStart(2,'0')}/${_ag.getFullYear()} ${String(_ag.getHours()).padStart(2,'0')}:${String(_ag.getMinutes()).padStart(2,'0')}`;
+  // Observações: só imprime se houver algo escrito (campo do bloco ou o que já foi salvo)
+  const obsTxt = ((document.getElementById('obs-geral')?.value || '').trim()) || ((op && op.observacoes) || '').trim();
+  // Paletes marcados no veículo (o que está lançado na tela; senão o que já foi salvo)
+  const nomePal = p => p.tipo === 'PBR' ? 'PBR' : p.tipo === 'DESCARTAVEL' ? 'Descartável' : (p.tipoCustom || 'Outros');
+  let paletesRom = [];
+  if (document.getElementById('painel-cadastro')?.style.display !== 'none') {
+    document.querySelectorAll('#paletes-list .palete-card').forEach(card => {
+      const q = _qtdDe(card.querySelector('.qty-val'));
+      if (q > 0) paletesRom.push({ tipo: card.dataset.tipo, tipoCustom: card.querySelector('.outros-custom-inp')?.value || '', quantidade: q });
+    });
+    coletarPaletesCliente().forEach(p => paletesRom.push(p));
+  }
+  if (!paletesRom.length && op && op.paletes) paletesRom = op.paletes.filter(p => (parseInt(p.quantidade) || 0) > 0);
+  const totPal = paletesRom.reduce((s, p) => s + (parseInt(p.quantidade) || 0), 0);
   const fmtPeso = n => n ? n.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '';
 
   let destAnterior = null, grupo = 0;
@@ -2567,7 +2583,12 @@ function imprimirRomaneio() {
   const html = `<!doctype html><html><head><meta charset="utf-8">
   <title>Romaneio ${e(currentPlaca)} ${nomeTipo} ${e(dia)}</title>
   <style>
-    @page { size: A4 landscape; margin: 9mm 9mm 11mm; }
+    @page { size: A4 landscape; margin: 0; }   /* margem 0 = o navegador não imprime data/URL */
+    .pg { width: 100%; border-collapse: collapse; }
+    .pg > thead td { height: 9mm; padding: 0; border: none; }
+    .pg > tfoot td { height: 10mm; padding: 0; border: none; }
+    .pg > tbody > tr > td { padding: 0 9mm; border: none; }
+    .pg > tbody > tr { page-break-inside: auto; break-inside: auto; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9pt; }
     .topo { display: flex; align-items: stretch; gap: 3mm; margin-bottom: 3mm; }
@@ -2612,13 +2633,17 @@ function imprimirRomaneio() {
     .assin { display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.8fr; gap: 6mm; margin-top: 9mm; page-break-inside: avoid; break-inside: avoid; }
     .assin div { border-top: 0.4mm solid #000; padding-top: 1.2mm; font-size: 8pt; text-align: center; }
     .assin b { display: block; font-size: 8.5pt; }
-    .obs { margin-top: 5mm; border: 0.3mm solid #777; border-radius: 1.5mm; height: 16mm; padding: 1.2mm 2mm; font-size: 7pt; color: #444; font-weight: 800; page-break-inside: avoid; }
+    .obs { margin-top: 4mm; border: 0.3mm solid #777; border-radius: 1.5mm; padding: 1.5mm 2.5mm; font-size: 9pt; page-break-inside: avoid; }
+    .obs > b { display: block; font-size: 7pt; color: #444; margin-bottom: 1mm; }
+    .pal { margin-top: 4mm; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 2mm 3mm; font-size: 10pt; display: flex; flex-wrap: wrap; gap: 2mm 6mm; align-items: center; page-break-inside: avoid; }
+    .pal span b { font-size: 12pt; }
     .rodape { margin-top: 3mm; font-size: 6.5pt; color: #666; display: flex; justify-content: space-between; }
   </style></head><body>
+   <table class="pg"><thead><tr><td></td></tr></thead><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
     <div class="topo">
       <div class="tit">
         <h1>ROMANEIO DE CARGA</h1>
-        <div class="meta">Data: <b>${e(dia)}</b> &nbsp;·&nbsp; ${linhas.length} nota${linhas.length > 1 ? 's' : ''} &nbsp;·&nbsp; ${clientes} destinatário${clientes > 1 ? 's' : ''}</div>
+        <div class="meta"><b>${e(agora)}</b> &nbsp;·&nbsp; ${linhas.length} nota${linhas.length > 1 ? 's' : ''} &nbsp;·&nbsp; ${clientes} destinatário${clientes > 1 ? 's' : ''}</div>
       </div>
       <div class="placa"><small>PLACA</small><b>${e(currentPlaca)}</b></div>
       <div class="tipo">${tipo === 'ENTRADA' ? '📥' : '📤'} ${nomeTipo}</div>
@@ -2646,14 +2671,16 @@ function imprimirRomaneio() {
           <td colspan="4"></td></tr>
       </tbody>
     </table>
-    <div class="obs">OBSERVAÇÕES / DIVERGÊNCIAS:</div>
+    ${totPal ? `<div class="pal"><b>🪵 PALETES (${totPal}):</b> ${paletesRom.map(p => `<span>${e(nomePal(p))}${p.destino ? ' → ' + e(p.destino) : ''}: <b>${parseInt(p.quantidade) || 0}</b></span>`).join('')}</div>` : ''}
+    ${obsTxt ? `<div class="obs"><b>OBSERVAÇÕES / DIVERGÊNCIAS:</b><div>${e(obsTxt).replace(/\n/g, '<br>')}</div></div>` : ''}
     <div class="assin">
       <div><b>Conferente</b>${e(conferente)}</div>
       <div><b>Motorista</b>${e(motoristas[0] || '')}</div>
       <div><b>Data</b>____/____/________</div>
       <div><b>Horário</b>____:____</div>
     </div>
-    <div class="rodape"><span>Conferência Geral · ${e(currentPlaca)} · ${nomeTipo}</span><span>Impresso em ${e(agora)}</span></div>
+    <div class="rodape"><span>Conferência Geral · ${e(currentPlaca)} · ${nomeTipo}</span><span>${e(agora)}</span></div>
+   </td></tr></tbody></table>
   </body></html>`;
 
   let fr = document.getElementById('romaneio-frame');
@@ -4634,7 +4661,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.06-1';
+const APP_VERSION = '2026.11.06-2';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
