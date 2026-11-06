@@ -2601,7 +2601,7 @@ function imprimirRomaneio() {
   <title>Romaneio ${e(currentPlaca)} ${nomeTipo} ${e(dia)}</title>
   <style>
     @page { size: A4 landscape; margin: 0; }   /* margem 0 = o navegador não imprime data/URL */
-    .pg { width: 100%; border-collapse: collapse; }
+    .pg { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .pg > thead td { height: 9mm; padding: 0; border: none; }
     .pg > tfoot td { height: 10mm; padding: 0; border: none; }
     .pg > tbody > tr > td { padding: 0 9mm; border: none; }
@@ -2609,15 +2609,16 @@ function imprimirRomaneio() {
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9pt; }
     .topo { display: flex; align-items: stretch; gap: 3mm; margin-bottom: 3mm; }
-    .tit { flex: 1; border: 0.6mm solid #000; border-radius: 2mm; padding: 2mm 3mm; display: flex; flex-direction: column; justify-content: center; }
+    .tit { flex: 1; min-width: 0; border: 0.6mm solid #000; border-radius: 2mm; padding: 2mm 3mm; display: flex; flex-direction: column; justify-content: center; }
     .tit h1 { margin: 0; font-size: 17pt; letter-spacing: 0.5pt; }
     .tit .meta { font-size: 8.5pt; margin-top: 1mm; color: #222; }
     .tipo { background: ${corTipo}; color: #fff; border-radius: 2mm; padding: 2mm 6mm; display: flex; align-items: center; justify-content: center; font-size: 22pt; font-weight: 900; letter-spacing: 1pt; }
-    .placa { background: #c4c4c4; border-radius: 2mm; padding: 1mm 6mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 62mm; }
+    .placa { background: #c4c4c4; border-radius: 2mm; padding: 1mm 6mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 62mm; flex-shrink: 0; }
     .placa small { font-size: 7pt; font-weight: 800; letter-spacing: 1pt; }
     .placa b { font-size: ${String(currentPlaca).length > 9 ? 17 : 26}pt; font-weight: 900; letter-spacing: 1pt; white-space: nowrap; }
-    .info { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr; gap: 2mm; margin-bottom: 3mm; }
-    .info div { border: 0.3mm solid #777; border-radius: 1.5mm; padding: 1.2mm 2mm; }
+    .info { display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(5, minmax(0, 1fr)); gap: 2mm; margin-bottom: 3mm; }
+    .info div { border: 0.3mm solid #777; border-radius: 1.5mm; padding: 1.2mm 2mm; min-width: 0; }
+    .info .longo b { font-size: 9pt !important; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; }
     .info small { display: block; font-size: 6.5pt; font-weight: 800; color: #444; text-transform: uppercase; letter-spacing: 0.3pt; }
     .info b { display: block; font-size: 11.5pt; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .info .destaque b { font-size: 14pt; }
@@ -2633,7 +2634,7 @@ function imprimirRomaneio() {
     tr.alt td { background: #f3f3f3; }
     tr.grp td { border-top: 0.6mm solid #000; }
     .c-n { width: 7mm; text-align: center; color: #555; font-weight: 700; }
-    .c-dest { width: 68mm; }
+    .c-dest { width: auto; }
     .c-dest b { font-size: 9pt; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .sub { font-size: 7pt; color: #333; }
     .op { font-size: 6.5pt; color: #666; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -2647,10 +2648,10 @@ function imprimirRomaneio() {
     .c-cbm { width: 17mm; font-size: 7pt; text-align: center; }
     .c-serv { width: 21mm; font-size: 7pt; font-weight: 700; }
     td.c-end { border: 0.4mm solid #000; background: #fff !important; }
-    .c-end { width: auto; }
+    .c-end { width: 28mm; }
     .c-ok { width: 11mm; text-align: center; }
     .box { display: inline-block; width: 5.5mm; height: 5.5mm; border: 0.5mm solid #000; border-radius: 1mm; }
-    th.c-vol, th.c-peso, th.c-nf { font-size: 9pt; }
+    th.c-vol, th.c-peso, th.c-nf { font-size: 8pt; }
     th.c-end { background: #000; text-align: center; }
     .tot td { border-top: 0.7mm solid #000; border-bottom: none; font-weight: 900; padding-top: 2mm; background: #fff !important; }
     .assin { display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.8fr; gap: 6mm; margin-top: 9mm; page-break-inside: avoid; break-inside: avoid; }
@@ -2672,7 +2673,7 @@ function imprimirRomaneio() {
       <div class="tipo">${tipo === 'ENTRADA' ? '📥' : '📤'} ${nomeTipo}</div>
     </div>
     <div class="info">
-      <div class="destaque"><small>Motorista</small><b>${e(motoristas.join(' / ') || '—')}</b></div>
+      <div class="destaque${motoristas.join(' / ').length > 28 ? ' longo' : ''}"><small>Motorista</small><b>${e(motoristas.join(' / ') || '—')}</b></div>
       <div><small>Chegada</small><b>${e(chegada || '______')}</b></div>
       <div><small>Início conferência</small><b>____:____</b></div>
       <div><small>Fim conferência</small><b>____:____</b></div>
@@ -4692,7 +4693,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.06-4';
+const APP_VERSION = '2026.11.06-5';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
