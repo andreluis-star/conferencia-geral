@@ -151,12 +151,18 @@
 
   /* ── FORM SCREEN ── */
   .form-header {
-    background:var(--navy); color:#fff; padding:12px 16px;
-    position:sticky; top:calc(56px + env(safe-area-inset-top,0px)); z-index:40;
-    display:flex; align-items:center; gap:12px;
+    background:var(--navy); color:#fff; padding:10px 16px 12px;
+    position:sticky; top:var(--hdr-h, calc(56px + env(safe-area-inset-top,0px))); z-index:40;
+    display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
   }
-  .back-btn { background:none; border:none; color:#fff; cursor:pointer; padding:4px; font-size:1.1rem; }
-  .form-header-title { font-size:1rem; font-weight:700; }
+  .back-btn {
+    background:var(--amber); color:var(--navy); border:none; cursor:pointer;
+    font-size:1.05rem; font-weight:900; letter-spacing:0.5px;
+    padding:11px 28px; border-radius:26px; min-width:62%;
+    box-shadow:0 2px 8px rgba(0,0,0,0.35); -webkit-tap-highlight-color:transparent;
+  }
+  .back-btn:active { transform:scale(0.97); }
+  .form-header-title { font-size:1.05rem; font-weight:800; }
   .form-header-sub   { font-size:0.75rem; color:var(--amber); }
 
   .form-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
@@ -349,7 +355,7 @@
     display:flex; align-items:center; justify-content:center; padding:0; line-height:1; flex-shrink:0;
   }
   .qty-btn:active { background:#e0e8f5; }
-  .qty-val { width:44px; min-width:0; text-align:center; font-size:0.95rem; font-weight:800; color:var(--navy); border:1px solid #d5deea; border-radius:7px; padding:4px 2px; background:#fff; font-family:inherit; -moz-appearance:textfield; }
+  .qty-val { width:38px; min-width:0; text-align:center; font-size:0.95rem; font-weight:800; color:var(--navy); border:1px solid #d5deea; border-radius:7px; padding:4px 2px; background:#fff; font-family:inherit; -moz-appearance:textfield; }
   .qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .qty-val:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 2px rgba(26,58,92,0.15); }
   .outros-custom-inp {
@@ -629,9 +635,9 @@
      TELA 4: ENDEREÇOS — busca e atualização
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-enderecos">
-  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+  <div style="padding-top:var(--hdr-h, calc(56px + env(safe-area-inset-top,0px)));">
     <div class="form-header">
-      <button class="back-btn" onclick="goBack()">◀</button>
+      <button class="back-btn" onclick="goBack()">◀ VOLTAR</button>
       <div>
         <div class="form-header-title">📍 Endereços</div>
         <div class="form-header-sub">Buscar e atualizar posição no galpão</div>
@@ -651,9 +657,9 @@
      TELA 2: FORMULÁRIO DE CONFERÊNCIA
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-form">
-  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+  <div style="padding-top:var(--hdr-h, calc(56px + env(safe-area-inset-top,0px)));">
     <div class="form-header">
-      <button class="back-btn" onclick="goBack()">◀</button>
+      <button class="back-btn" onclick="goBack()">◀ VOLTAR</button>
       <div>
         <div class="form-header-title" id="form-placa-title">—</div>
         <div class="form-header-sub" id="form-op-sub">—</div>
@@ -778,9 +784,9 @@
      automaticamente da conferência em andamento.
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-tfa">
-  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+  <div style="padding-top:var(--hdr-h, calc(56px + env(safe-area-inset-top,0px)));">
     <div class="form-header">
-      <button class="back-btn" onclick="fecharTFA()">◀</button>
+      <button class="back-btn" onclick="fecharTFA()">◀ VOLTAR</button>
       <div>
         <div class="form-header-title">📋 Termo de Falta e Avaria</div>
         <div class="form-header-sub" id="tfa-header-sub">—</div>
@@ -865,9 +871,9 @@
      TELA 3: INSUMOS AVULSO
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-insumos">
-  <div style="padding-top:calc(56px + env(safe-area-inset-top,0px));">
+  <div style="padding-top:var(--hdr-h, calc(56px + env(safe-area-inset-top,0px)));">
     <div class="form-header">
-      <button class="back-btn" onclick="goBack()">◀</button>
+      <button class="back-btn" onclick="goBack()">◀ VOLTAR</button>
       <div>
         <div class="form-header-title">📦 Conferência de Insumos</div>
         <div class="form-header-sub">Sem vínculo de veículo</div>
@@ -2498,6 +2504,14 @@ function _numBR(s) {
   return isNaN(n) ? 0 : n;
 }
 
+/** Hora vinda da planilha: o gviz às vezes manda "Date(1899,11,30,15,0,0)" — vira "15:00". */
+function _horaPlanilha(v) {
+  const t = String(v || '').trim();
+  const m = t.match(/^Date\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) return `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}`;
+  return /^Date\(/.test(t) ? '' : t;
+}
+
 function _linhasRomaneio(tipo) {
   const linhas = [];
   currentVehicles.forEach((v, idx) => {
@@ -2515,7 +2529,7 @@ function _linhasRomaneio(tipo) {
       cbm:      _colConf(v, 'F', 'Cbm / Medidas', 'Cbm'),
       servico:  d.servico,
       horaProg: _colConf(v, 'I', 'Hora programada'),
-      chegada:  _colConf(v, 'J', 'chegada', 'Chegada'),
+      chegada:  _horaPlanilha(_colConf(v, 'J', 'chegada', 'Chegada')),
       motorista: (v['Motorista'] || v['_CB'] || '').toString().trim()
     });
   });
@@ -2599,7 +2613,7 @@ function imprimirRomaneio() {
     .placa { background: #c4c4c4; border-radius: 2mm; padding: 1mm 6mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 62mm; }
     .placa small { font-size: 7pt; font-weight: 800; letter-spacing: 1pt; }
     .placa b { font-size: ${String(currentPlaca).length > 9 ? 17 : 26}pt; font-weight: 900; letter-spacing: 1pt; white-space: nowrap; }
-    .info { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 2mm; margin-bottom: 3mm; }
+    .info { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr; gap: 2mm; margin-bottom: 3mm; }
     .info div { border: 0.3mm solid #777; border-radius: 1.5mm; padding: 1.2mm 2mm; }
     .info small { display: block; font-size: 6.5pt; font-weight: 800; color: #444; text-transform: uppercase; letter-spacing: 0.3pt; }
     .info b { display: block; font-size: 11.5pt; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2650,7 +2664,6 @@ function imprimirRomaneio() {
     </div>
     <div class="info">
       <div class="destaque"><small>Motorista</small><b>${e(motoristas.join(' / ') || '—')}</b></div>
-      <div class="destaque"><small>Hora programada</small><b>${e(horaProg || '—')}</b></div>
       <div><small>Chegada</small><b>${e(chegada || '______')}</b></div>
       <div><small>Início conferência</small><b>____:____</b></div>
       <div><small>Fim conferência</small><b>____:____</b></div>
@@ -4586,7 +4599,16 @@ async function confirmarNovoSlot(docId) {
 // ═══════════════════════════════════════════════════════
 let screenHistory = ['screen-placas'];
 
+function _medirCabecalho() {
+  const h = document.getElementById('header');
+  if (h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px');
+}
+window.addEventListener('resize', _medirCabecalho);
+window.addEventListener('load', _medirCabecalho);
+setTimeout(_medirCabecalho, 0);
+
 function goTo(screenId) {
+  _medirCabecalho();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
   document.getElementById(screenId).scrollTop=0;
@@ -4661,7 +4683,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.06-2';
+const APP_VERSION = '2026.11.06-3';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
