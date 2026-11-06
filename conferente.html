@@ -93,7 +93,7 @@
   .placa-numero {
     font-family:'Arial Narrow',Arial,sans-serif; font-weight:900; font-size:1.55rem;
     letter-spacing:2px; text-align:center; padding:6px 6px 5px; line-height:1.1;
-    background:#000; color:#fff !important; margin:6px 6px 4px; border-radius:6px; word-break:break-word;
+    background:#000; color:#fff !important; margin:6px 6px 4px; border-radius:6px; overflow-wrap:anywhere;
   }
   .placa-motorista { font-size:0.65rem; color:#888; text-align:center; padding:0 4px 4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .placa-rodape { display:flex; justify-content:space-between; padding:3px 6px; background:#f8f8f8; border-top:1px solid #eee; }
@@ -1210,14 +1210,33 @@ function _linhaVaziaVirtual(v) {
   return !Object.keys(v).some(k => k.startsWith('_C') && (v[k]||'').toString().trim());
 }
 
-/** Índices (na lista de linhas) cuja coluna A contenha algum dos termos buscados */
+/**
+ * Cards "virtuais" montados por marcador de texto na coluna A (não pela coluna Placa).
+ * Cada um vira UM card único no dia, juntando todas as ocorrências do marcador.
+ * A ordem importa só para o nome do card; os termos de todos são usados como corte.
+ */
+const _GRUPOS_VIRTUAIS = [
+  { nome: 'JEM',         termos: ['EMBARQUE JEM'] },
+  { nome: 'GRITSCH',     termos: ['EMBARQUE GRITSCH'] },
+  { nome: 'MF EXPRESSO', termos: ['EMBARQUE MF EXPRESSO', 'EMBARQUE MF EXPRESS', 'EMBARQUE M.F. EXPRESSO', 'EMBARQUE M F EXPRESSO'] },
+  { nome: 'AGENTES',     termos: ['EMBARQUE SETE LAGOAS', 'EMBARQUE SETE LAGOS', 'EMBARQUE 7 LAGOAS', 'EMBARQUE 7 LAGOS'] },
+];
+const _TODOS_TERMOS_MARCADOR = _GRUPOS_VIRTUAIS.flatMap(g => g.termos).map(t => _normVirtual(t));
+
+/** A linha é um cabeçalho/marcador (texto na coluna A, sem dados de nota)? */
+function _linhaEhMarcador(v, termosNorm) {
+  const colA = _colAVirtual(v);
+  if (!termosNorm.some(t => colA.includes(t))) return false;
+  const temNota = ['Destinatário','Destinatario','NF','Volume','Cidade Destino'].some(k => (v[k] || '').toString().trim())
+    || ['_CH','_CM','_CE','_CL'].some(k => (v[k] || '').toString().trim());
+  return !temNota;
+}
+
+/** Índices (na lista de linhas) que são marcadores com algum dos termos buscados */
 function _acharMarcadores(rows, termos) {
   const termosNorm = termos.map(_normVirtual);
   const idxs = [];
-  rows.forEach((v, i) => {
-    const colA = _colAVirtual(v);
-    if (termosNorm.some(t => colA.includes(t))) idxs.push(i);
-  });
+  rows.forEach((v, i) => { if (_linhaEhMarcador(v, termosNorm)) idxs.push(i); });
   return idxs;
 }
 
@@ -1238,10 +1257,14 @@ function _coletarBloco(rows, idxMarcador) {
     // Corte: chegou numa nova seção (ex.: "DEMANDAS TERCEIROS") — o bloco do agente acabou.
     const colA = _colAVirtual(linha);
     if (_CORTE_SECAO.some(t => colA.includes(t))) break;
+    // Corte: começou o bloco de OUTRO agente (ex.: "EMBARQUE MF EXPRESSO" logo abaixo do GRITSCH)
+    if (_linhaEhMarcador(linha, _TODOS_TERMOS_MARCADOR)) break;
     rowIdxAnterior = linha._rowIdx;
     // Linha com PLACA PRÓPRIA é veículo real (inclui terceiros) — não pertence ao
     // grupo de agente: fica de fora do bloco para virar card próprio no agrupamento normal.
     if (extractPlates(linha['Placa'] || linha['_CC'] || '').length) continue;
+    // Linhas só de texto dentro do bloco (ex.: "17horas", "NAO EMBARCADO ONTEM JEM") não são notas
+    if (!groupHasNfData([linha])) continue;
     bloco.push(linha);
   }
   return bloco;
@@ -1262,19 +1285,20 @@ function _montarGrupoVirtual(nomePlaca, vehicles) {
  */
 function extrairGruposVirtuais(rows) {
   const grupos = [];
-
-  // ── JEM ──
-  const veiculosJem = [];
-  _acharMarcadores(rows, ['EMBARQUE JEM']).forEach(idx => veiculosJem.push(..._coletarBloco(rows, idx)));
-  if (veiculosJem.length) grupos.push(_montarGrupoVirtual('JEM', veiculosJem));
-
-  // ── AGENTES (GRITSCH + SETE LAGOAS/LAGOS ou 7 LAGOAS/LAGOS) ──
-  const veiculosAgentes = [];
-  _acharMarcadores(rows, ['EMBARQUE GRITSCH']).forEach(idx => veiculosAgentes.push(..._coletarBloco(rows, idx)));
-  _acharMarcadores(rows, ['EMBARQUE SETE LAGOAS', 'EMBARQUE SETE LAGOS', 'EMBARQUE 7 LAGOAS', 'EMBARQUE 7 LAGOS'])
-    .forEach(idx => veiculosAgentes.push(..._coletarBloco(rows, idx)));
-  if (veiculosAgentes.length) grupos.push(_montarGrupoVirtual('AGENTES', veiculosAgentes));
-
+  // JEM, GRITSCH, MF EXPRESSO e AGENTES (Sete Lagoas): cada um é um card único,
+  // somando todas as vezes que o marcador aparece na planilha do dia.
+  _GRUPOS_VIRTUAIS.forEach(g => {
+    const veiculos = [];
+    const jaUsadas = new Set();
+    _acharMarcadores(rows, g.termos).forEach(idx => {
+      _coletarBloco(rows, idx).forEach(v => {
+        if (jaUsadas.has(v._rowIdx)) return;
+        jaUsadas.add(v._rowIdx);
+        veiculos.push(v);
+      });
+    });
+    if (veiculos.length) grupos.push(_montarGrupoVirtual(g.nome, veiculos));
+  });
   return grupos;
 }
 
@@ -1488,7 +1512,7 @@ function buildPlacaCard(group) {
     el.innerHTML = `
       <div class="placa-status-dot ${dotCls}"></div>
       <div class="placa-topo ${topoCls}">${topoTxt}</div>
-      <div class="placa-numero">${String(placa).split('/').map(p => escConf(p.trim())).join('<br>')}</div>
+      <div class="placa-numero"${/\s/.test(String(placa).trim()) ? ' style="letter-spacing:0.5px;"' : ''}>${String(placa).split('/').map(p => escConf(p.trim())).join('<br>')}</div>
       ${badgeHtml}
       <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
@@ -4693,7 +4717,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.06-5';
+const APP_VERSION = '2026.11.06-6';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
