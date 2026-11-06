@@ -98,6 +98,12 @@
   .placa-rodape { display:flex; justify-content:space-between; padding:3px 6px; background:#f8f8f8; border-top:1px solid #eee; }
   .placa-rodape span { font-size:0.62rem; color:#aaa; }
   /* badge de NFs múltiplas */
+  .placa-qtd { display:flex; gap:4px; padding:2px 6px 5px; justify-content:center; }
+  .placa-qtd-box { flex:1; max-width:50%; border-radius:7px; text-align:center; padding:2px 2px 3px; }
+  .placa-qtd-box b { display:block; font-size:1.35rem; font-weight:900; line-height:1.1; }
+  .placa-qtd-box small { display:block; font-size:0.52rem; font-weight:800; letter-spacing:0.3px; }
+  .placa-qtd-box.ent { background:#e6f4ea; color:#1d6b30; }
+  .placa-qtd-box.sai { background:#fbeaea; color:#8a1f1f; }
   .placa-nfs-badge { font-size:0.6rem; font-weight:700; background:var(--amber); color:var(--navy); border-radius:10px; padding:1px 6px; display:inline-block; margin:0 auto 4px; }
   /* badge PARCIAL */
   .placa-parcial-badge { font-size:0.58rem; font-weight:900; background:var(--amber); color:#111; border-radius:10px; padding:1px 7px; display:inline-block; letter-spacing:0.5px; }
@@ -728,6 +734,7 @@
         <div class="nf-lista-head">
           <h4>📋 Notas do bloco</h4>
           <div style="display:flex;gap:6px;">
+            <button type="button" class="btn-etiquetas" onclick="imprimirRomaneio()">📄 Romaneio</button>
             <button type="button" class="btn-etiquetas" onclick="abrirEtiquetas()">🏷 Etiquetas</button>
             <button type="button" class="btn-todas-ok" id="btn-todas-ok" onclick="marcarTodosOKConfirm()">✔ Todas OK</button>
           </div>
@@ -1447,13 +1454,13 @@ function buildPlacaCard(group) {
     const destinos = [...new Set(vehicles.map(v=>(v['Cidade Destino']||'').trim()).filter(Boolean))];
     const destinoStr = destinos.slice(0,1).join(' / ') + (destinos.length>1?` +${destinos.length-1}`:'');
 
-    // Badge de múltiplas NFs — conta somente linhas com Destinatário preenchido
-    const nfCount = vehicles.filter(v =>
-      !!(v['Destinatário'] || v['Destinatario'] || (v['_CH']||'')).toString().trim()
-    ).length;
-    const badgeHtml = nfCount > 1
-      ? `<div style="text-align:center;padding:2px 0;"><span class="placa-nfs-badge">${nfCount} NFs</span></div>`
-      : '';
+    // Quantidade de notas, separada em ENTRADA e SAÍDA (números grandes)
+    const qE = _resumoBloco(vehicles, 'ENTRADA').nfs;
+    const qS = _resumoBloco(vehicles, 'SAIDA').nfs;
+    const badgeHtml = (qE || qS) ? `<div class="placa-qtd">
+        ${qE ? `<div class="placa-qtd-box ent"><b>${qE}</b><small>📥 ENTRADA</small></div>` : ''}
+        ${qS ? `<div class="placa-qtd-box sai"><b>${qS}</b><small>📤 SAÍDA</small></div>` : ''}
+      </div>` : '';
 
     // Badge de status no rodapé
     let statusBadge = '';
@@ -1474,7 +1481,7 @@ function buildPlacaCard(group) {
     el.innerHTML = `
       <div class="placa-status-dot ${dotCls}"></div>
       <div class="placa-topo ${topoCls}">${topoTxt}</div>
-      <div class="placa-numero">${placa}</div>
+      <div class="placa-numero"${String(placa).length > 9 ? ' style="font-size:0.95rem;letter-spacing:0.5px;"' : ''}>${placa}</div>
       ${badgeHtml}
       <div class="placa-motorista">${clienteStr || motorista || '—'}</div>
       <div class="placa-rodape">
@@ -1512,6 +1519,9 @@ function renderPlacasGrid() {
     else        pendentes.push(group);
   });
 
+  const _porPlaca = (a, b) => String(a.placa).localeCompare(String(b.placa), 'pt-BR', { numeric: true });
+  pendentes.sort(_porPlaca);
+  concluidos.sort(_porPlaca);
   pendentes.forEach(g  => grid.appendChild(buildPlacaCard(g)));
   concluidos.forEach(g => cgrid.appendChild(buildPlacaCard(g)));
 
@@ -2075,7 +2085,8 @@ function _notasPorClienteDoBloco(tipo) {
     const doc = d.nf ? `NF ${d.nf}` : d.md ? `MD ${d.md}` : d.oc ? `OC ${d.oc}` : d.di ? `PROC ${d.di}` : d.tituloOp;
     mapa.get(cli).push({ doc, nf: d.nf || d.md || d.oc || d.di || '', vol: d.vol || '', servico: d.servico || '' });
   });
-  return [...mapa.entries()].map(([cliente, notas]) => ({ cliente, notas }));
+  return [...mapa.entries()].map(([cliente, notas]) => ({ cliente, notas }))
+    .sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
 }
 
 /**
@@ -2472,6 +2483,191 @@ function baixarZplEtiquetas() {
   showToast(`Arquivo ${nome} gerado (${sel.length} etiqueta${sel.length > 1 ? 's' : ''}).`);
 }
 
+// ═══════════════════════════════════════════════════════
+//  ROMANEIO DE CARGA (A4) — por bloco (ENTRADA / SAÍDA)
+//  Folha de apoio para o conferente: cabeçalho com placa,
+//  motorista, horário e tipo; uma linha por nota com NFe,
+//  VOLUME e PESO em destaque, campo ENDEREÇO em branco para
+//  anotar à mão, caixa de conferido e campos de assinatura.
+// ═══════════════════════════════════════════════════════
+function _numBR(s) {
+  const t = String(s || '').replace(/[^\d,.-]/g, '');
+  if (!t) return 0;
+  const n = parseFloat(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+  return isNaN(n) ? 0 : n;
+}
+
+function _linhasRomaneio(tipo) {
+  const linhas = [];
+  currentVehicles.forEach((v, idx) => {
+    if (_tipoLinha(v) !== tipo) return;
+    const d = _dadosLinhaNf(v, idx);
+    if (!d.relevante) return;
+    linhas.push({
+      operacao: d.tituloOp,
+      dest:     d.dest,
+      cidade:   d.cidade,
+      nf:       d.nf,
+      md:       d.md, oc: d.oc, di: d.di,
+      vol:      d.vol,
+      peso:     _colConf(v, 'D', 'Peso'),
+      cbm:      _colConf(v, 'F', 'Cbm / Medidas', 'Cbm'),
+      servico:  d.servico,
+      horaProg: _colConf(v, 'I', 'Hora programada'),
+      chegada:  _colConf(v, 'J', 'chegada', 'Chegada'),
+      motorista: (v['Motorista'] || v['_CB'] || '').toString().trim()
+    });
+  });
+  // Agrupa visualmente por destinatário (ordem alfabética) e depois por NF
+  return linhas.sort((a, b) =>
+    (a.dest || '').localeCompare(b.dest || '', 'pt-BR') ||
+    String(a.nf || '').localeCompare(String(b.nf || ''), 'pt-BR', { numeric: true }));
+}
+
+function imprimirRomaneio() {
+  const tipo = currentTipo;
+  const linhas = _linhasRomaneio(tipo);
+  if (!linhas.length) { showToast('Nenhuma nota neste bloco para o romaneio.', 'warning'); return; }
+
+  const e = escConf;
+  const nomeTipo = tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
+  const corTipo  = tipo === 'ENTRADA' ? '#1d6b30' : '#8a1f1f';
+  const [y, m, dd] = (document.getElementById('sel-date').value || '').split('-');
+  const dia = dd ? `${dd}/${m}/${y}` : '';
+  const motoristas = [...new Set(linhas.map(l => l.motorista).filter(Boolean))];
+  const horaProg = linhas.map(l => l.horaProg).find(Boolean) || '';
+  const chegada  = linhas.map(l => l.chegada).find(Boolean) || '';
+  const op = completedInfo[`${currentPlaca}_${tipo}`];
+  const conferente = (op && op.conferenteNome) || (currentUser && (currentUser.nome || currentUser.email)) || '';
+  const totVol  = linhas.reduce((s, l) => s + _numVolume(l.vol), 0);
+  const totPeso = linhas.reduce((s, l) => s + _numBR(l.peso), 0);
+  const clientes = new Set(linhas.map(l => (l.dest || '').trim().toUpperCase()).filter(Boolean)).size;
+  const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const fmtPeso = n => n ? n.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '';
+
+  let destAnterior = null, grupo = 0;
+  const corpo = linhas.map((l, i) => {
+    const novoGrupo = (l.dest || '') !== destAnterior;
+    if (novoGrupo) { grupo++; destAnterior = l.dest || ''; }
+    const docs = [l.md && `MD ${l.md}`, l.oc && `OC ${l.oc}`, l.di && `DI ${l.di}`].filter(Boolean).join('<br>');
+    return `<tr class="${novoGrupo && i ? 'grp' : ''}${grupo % 2 ? '' : ' alt'}">
+      <td class="c-n">${i + 1}</td>
+      <td class="c-dest"><b>${e(l.dest || '—')}</b><div class="sub">${e(l.cidade || '')}</div><div class="op">${e(l.operacao || '')}</div></td>
+      <td class="c-nf">${e(l.nf || '—')}</td>
+      <td class="c-doc">${docs || '—'}</td>
+      <td class="c-vol">${e(l.vol || '—')}</td>
+      <td class="c-peso">${e(l.peso || '—')}</td>
+      <td class="c-cbm">${e(l.cbm || '')}</td>
+      <td class="c-serv">${e(l.servico || '')}</td>
+      <td class="c-end"></td>
+      <td class="c-ok"><span class="box"></span></td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+  <title>Romaneio ${e(currentPlaca)} ${nomeTipo} ${e(dia)}</title>
+  <style>
+    @page { size: A4 landscape; margin: 9mm 9mm 11mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9pt; }
+    .topo { display: flex; align-items: stretch; gap: 3mm; margin-bottom: 3mm; }
+    .tit { flex: 1; border: 0.6mm solid #000; border-radius: 2mm; padding: 2mm 3mm; display: flex; flex-direction: column; justify-content: center; }
+    .tit h1 { margin: 0; font-size: 17pt; letter-spacing: 0.5pt; }
+    .tit .meta { font-size: 8.5pt; margin-top: 1mm; color: #222; }
+    .tipo { background: ${corTipo}; color: #fff; border-radius: 2mm; padding: 2mm 6mm; display: flex; align-items: center; justify-content: center; font-size: 22pt; font-weight: 900; letter-spacing: 1pt; }
+    .placa { background: #c4c4c4; border-radius: 2mm; padding: 1mm 6mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 62mm; }
+    .placa small { font-size: 7pt; font-weight: 800; letter-spacing: 1pt; }
+    .placa b { font-size: ${String(currentPlaca).length > 9 ? 17 : 26}pt; font-weight: 900; letter-spacing: 1pt; white-space: nowrap; }
+    .info { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 2mm; margin-bottom: 3mm; }
+    .info div { border: 0.3mm solid #777; border-radius: 1.5mm; padding: 1.2mm 2mm; }
+    .info small { display: block; font-size: 6.5pt; font-weight: 800; color: #444; text-transform: uppercase; letter-spacing: 0.3pt; }
+    .info b { display: block; font-size: 11.5pt; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .info .destaque b { font-size: 14pt; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { display: table-header-group; }
+    th { background: #000; color: #fff; font-size: 7.5pt; text-transform: uppercase; padding: 1.6mm 1.2mm; text-align: left; letter-spacing: 0.3pt; }
+    th.hl { background: #333; font-size: 8.5pt; }
+    td { border-bottom: 0.25mm solid #999; padding: 1.4mm 1.2mm; vertical-align: middle; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    tr.alt td { background: #f3f3f3; }
+    tr.grp td { border-top: 0.6mm solid #000; }
+    .c-n { width: 7mm; text-align: center; color: #555; font-weight: 700; }
+    .c-dest { width: 78mm; }
+    .c-dest b { font-size: 9pt; }
+    .sub { font-size: 7pt; color: #333; }
+    .op { font-size: 6.5pt; color: #666; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .c-nf { width: 26mm; font-size: 14pt; font-weight: 900; }
+    .c-doc { width: 26mm; font-size: 7.5pt; }
+    .c-vol { width: 18mm; font-size: 15pt; font-weight: 900; text-align: center; background-clip: padding-box; }
+    .c-peso { width: 24mm; font-size: 13pt; font-weight: 900; text-align: right; }
+    .c-cbm { width: 14mm; font-size: 7.5pt; text-align: center; }
+    .c-serv { width: 22mm; font-size: 7pt; font-weight: 700; }
+    td.c-end { border: 0.4mm solid #000; background: #fff !important; }
+    .c-end { min-width: 42mm; }
+    .c-ok { width: 11mm; text-align: center; }
+    .box { display: inline-block; width: 5.5mm; height: 5.5mm; border: 0.5mm solid #000; border-radius: 1mm; }
+    th.c-vol, th.c-peso, th.c-nf { font-size: 9pt; }
+    th.c-end { background: #000; text-align: center; }
+    .tot td { border-top: 0.7mm solid #000; border-bottom: none; font-weight: 900; padding-top: 2mm; background: #fff !important; }
+    .assin { display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.8fr; gap: 6mm; margin-top: 9mm; page-break-inside: avoid; break-inside: avoid; }
+    .assin div { border-top: 0.4mm solid #000; padding-top: 1.2mm; font-size: 8pt; text-align: center; }
+    .assin b { display: block; font-size: 8.5pt; }
+    .obs { margin-top: 5mm; border: 0.3mm solid #777; border-radius: 1.5mm; height: 16mm; padding: 1.2mm 2mm; font-size: 7pt; color: #444; font-weight: 800; page-break-inside: avoid; }
+    .rodape { margin-top: 3mm; font-size: 6.5pt; color: #666; display: flex; justify-content: space-between; }
+  </style></head><body>
+    <div class="topo">
+      <div class="tit">
+        <h1>ROMANEIO DE CARGA</h1>
+        <div class="meta">Data: <b>${e(dia)}</b> &nbsp;·&nbsp; ${linhas.length} nota${linhas.length > 1 ? 's' : ''} &nbsp;·&nbsp; ${clientes} destinatário${clientes > 1 ? 's' : ''}</div>
+      </div>
+      <div class="placa"><small>PLACA</small><b>${e(currentPlaca)}</b></div>
+      <div class="tipo">${tipo === 'ENTRADA' ? '📥' : '📤'} ${nomeTipo}</div>
+    </div>
+    <div class="info">
+      <div class="destaque"><small>Motorista</small><b>${e(motoristas.join(' / ') || '—')}</b></div>
+      <div class="destaque"><small>Hora programada</small><b>${e(horaProg || '—')}</b></div>
+      <div><small>Chegada</small><b>${e(chegada || '______')}</b></div>
+      <div><small>Início conferência</small><b>____:____</b></div>
+      <div><small>Fim conferência</small><b>____:____</b></div>
+      <div class="destaque"><small>Total volumes</small><b>${totVol ? totVol.toLocaleString('pt-BR') : '—'}</b></div>
+      <div class="destaque"><small>Peso total (kg)</small><b>${fmtPeso(totPeso) || '—'}</b></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th class="c-n">#</th><th class="c-dest">Destinatário / cidade / operação</th>
+        <th class="c-nf hl">NFe</th><th class="c-doc">MD / OC / DI</th>
+        <th class="c-vol hl">Volume</th><th class="c-peso hl">Peso (kg)</th>
+        <th class="c-cbm">Cbm</th><th class="c-serv">Serviço</th>
+        <th class="c-end">Endereço</th><th class="c-ok">OK</th>
+      </tr></thead>
+      <tbody>${corpo}
+        <tr class="tot"><td></td><td>TOTAL</td><td>${linhas.length} NF</td><td></td>
+          <td class="c-vol">${totVol ? totVol.toLocaleString('pt-BR') : ''}</td><td class="c-peso">${fmtPeso(totPeso)}</td>
+          <td colspan="4"></td></tr>
+      </tbody>
+    </table>
+    <div class="obs">OBSERVAÇÕES / DIVERGÊNCIAS:</div>
+    <div class="assin">
+      <div><b>Conferente</b>${e(conferente)}</div>
+      <div><b>Motorista</b>${e(motoristas[0] || '')}</div>
+      <div><b>Data</b>____/____/________</div>
+      <div><b>Horário</b>____:____</div>
+    </div>
+    <div class="rodape"><span>Conferência Geral · ${e(currentPlaca)} · ${nomeTipo}</span><span>Impresso em ${e(agora)}</span></div>
+  </body></html>`;
+
+  let fr = document.getElementById('romaneio-frame');
+  if (fr) fr.remove();
+  fr = document.createElement('iframe');
+  fr.id = 'romaneio-frame';
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  const doc = fr.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  window._ultimoRomaneioHtml = html;   // usado nos testes / reimpressão
+  setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); }, 300);
+}
+
 function toggleNfDetalhe(idx) {
   const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
   if (block) block.classList.toggle('aberta');
@@ -2674,6 +2870,8 @@ function renderCamposConferencia(vehicles) {
       <div class="cli-nfs">NF ${g.nfs.map(escConf).join(' · ')}</div>
       <div class="cli-meta"><span>${g.nfs.length} nota${g.nfs.length > 1 ? 's' : ''}${g.vol ? ' · ' + g.vol.toLocaleString('pt-BR') + ' vol' : ''}</span><span class="cli-obs-flag" style="display:none;" title="Há observações anteriores">💬</span><span class="cli-chev">▼</span></div>`;
   });
+  // Mini-cards de cliente em ordem alfabética
+  [...gruposCli.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach(g => grid.appendChild(g.el));
   if (gruposCli.size) container.appendChild(grid);
   if (!container.children.length) {
     container.innerHTML = '<p style="font-size:0.8rem;color:#aaa;text-align:center;padding:8px;">Nenhuma nota deste tipo na planilha.</p>';
@@ -4436,7 +4634,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.10.26-1';
+const APP_VERSION = '2026.11.06-1';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
