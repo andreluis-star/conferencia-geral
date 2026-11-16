@@ -86,7 +86,25 @@ async function fetchSheetVehicles(tabName) {
 
   console.log(`[Sheet] ID="${SHEET_ID}" aba="${tabName}"`);
 
-  // --- tenta JSON primeiro ---
+  // --- 1º: exportação CSV da aba (valores exatamente como aparecem na planilha) ---
+  // O gviz "adivinha" o tipo de cada coluna pela maioria das células e DESCARTA as que
+  // não batem (ex.: NF "38502 / 26BR0002290205-9" numa coluna de NFs numéricas vira vazio).
+  // A exportação por gid não faz isso. Se algo falhar, cai no gviz (JSON e depois CSV).
+  try {
+    const gid = await _gidDaAba(SHEET_ID, tabName);
+    if (gid !== null) {
+      const resp = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}&_t=${bust}`, { cache: 'no-store' });
+      if (resp.ok) {
+        const text = await resp.text();
+        window._lastSheetRaw  = text.substring(0, 300);
+        window._activeSheetId = SHEET_ID;
+        const result = parseCsv(text);
+        if (result.length > 0) { console.log(`[Sheet] exportação CSV (gid ${gid}): ${result.length} linhas`); return result; }
+      }
+    }
+  } catch(e) { console.warn('exportação CSV falhou, usando gviz:', e.message); }
+
+  // --- tenta JSON (gviz) ---
   try {
     const resp = await fetch(jsonUrl, { cache: 'no-store' });
     const text = await resp.text();
@@ -159,7 +177,81 @@ function parseGvizTable(table) {
   return vehicles;
 }
 
+/**
+ * Descobre o gid (código interno) de uma aba pelo nome, lendo a lista de abas da
+ * página "htmlview" da planilha (pública por link). Guarda em cache por planilha;
+ * se a aba ainda não estiver no cache (aba nova do dia), lê a lista de novo.
+ */
+const _gidCache = {};
+async function _gidDaAba(sheetId, tabName) {
+  const ler = async () => {
+    const resp = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/htmlview?_t=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) return {};
+    const html = await resp.text();
+    const mapa = {};
+    const re = /items\.push\(\{name:\s*"((?:[^"\\]|\\.)*)",\s*pageUrl:\s*"(?:[^"\\]|\\.)*",\s*gid:\s*"(-?\d+)"/g;
+    let m;
+    while ((m = re.exec(html))) {
+      let nome = m[1].replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+      try { nome = JSON.parse('"' + nome + '"'); } catch { nome = nome.replace(/\\\//g, '/'); }
+      mapa[nome.trim()] = m[2];
+    }
+    return mapa;
+  };
+  const alvo = String(tabName).trim();
+  if (!_gidCache[sheetId] || !(alvo in _gidCache[sheetId])) _gidCache[sheetId] = await ler();
+  return (alvo in _gidCache[sheetId]) ? _gidCache[sheetId][alvo] : null;
+}
+
+/** Parser CSV completo: aspas, "" escapadas, vírgulas e quebras de linha dentro de células. */
+function _csvParaLinhas(text) {
+  const linhas = [];
+  let linha = [], cel = '', aspas = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (aspas) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cel += '"'; i++; }
+        else aspas = false;
+      } else cel += ch;
+    } else if (ch === '"') aspas = true;
+    else if (ch === ',') { linha.push(cel); cel = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      linha.push(cel); linhas.push(linha); linha = []; cel = '';
+    } else cel += ch;
+  }
+  if (cel !== '' || linha.length) { linha.push(cel); linhas.push(linha); }
+  return linhas;
+}
+
 function parseCsv(text) {
+  // Parser robusto (células com vírgula, aspas e quebra de linha)
+  const tabela = _csvParaLinhas(text || '');
+  if (tabela.length < 2) return [];
+  const headers  = tabela[0].map(h => (h || '').trim());
+  const placaIdx = headers.findIndex(h => h.toLowerCase() === 'placa');
+  if (placaIdx < 0) return [];
+  const vehicles = [];
+  for (let i = 1; i < tabela.length; i++) {
+    const cells = tabela[i].map(c => (c || '').trim());
+    const obj = { _rowIdx: i };
+    headers.forEach((h, idx) => {
+      const val = cells[idx] || '';
+      if (h) obj[h] = val;
+      obj['_C' + (_COL_LETTERS[idx] || idx)] = val;
+    });
+    obj['Placa'] = (cells[placaIdx] || '').trim();
+    const opInfo = getOperationInfo(obj);
+    obj._operationType = opInfo.tipo;
+    obj._cliente       = opInfo.cliente;
+    vehicles.push(obj);
+  }
+  return vehicles;
+}
+
+/** (antigo) parser CSV simples — mantido só como referência */
+function _parseCsvAntigo(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
   // Parser CSV robusto — respeita campos entre aspas (ex: "R$ 10.300,53")
