@@ -842,7 +842,7 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Motorista</th><th>Telefone</th><th>Status</th><th>Enviado por</th></tr></thead>
+          <thead><tr><th>Data/Hora</th><th>Placa</th><th>Motorista</th><th>Enviado para</th><th>Status</th><th>Enviado por</th></tr></thead>
           <tbody id="not-tbody"></tbody>
         </table>
       </div>
@@ -1090,17 +1090,17 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Mensagem para o Motorista — <span id="whats-placa-title"></span></h5>
+        <h5 class="modal-title">Divergência de Paletes — <span id="whats-placa-title"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2 mb-1">
           <div class="col-7">
-            <label class="form-label" style="font-size:0.78rem;">Nome do motorista</label>
+            <label class="form-label" style="font-size:0.78rem;">Motorista da viagem (vai no texto)</label>
             <input type="text" class="form-control form-control-sm" id="whats-nome" placeholder="Digite o nome"/>
           </div>
           <div class="col-5">
-            <label class="form-label" style="font-size:0.78rem;">Telefone</label>
+            <label class="form-label" style="font-size:0.78rem;">Telefone do motorista</label>
             <div class="input-group input-group-sm">
               <input type="text" class="form-control" id="whats-telefone" placeholder="(11) 91234-5678"/>
               <button class="btn btn-outline-secondary" type="button" onclick="copiarTelefoneModal()" title="Copiar telefone">📋</button>
@@ -1110,6 +1110,19 @@
         <div style="font-size:0.72rem;color:#aaa;margin-bottom:10px;">
           Preencha ou corrija nome e telefone aqui à vontade — isso não depende do cadastro de motoristas.
           <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:0 8px;font-size:0.72rem;" onclick="salvarMotoristaDoModal()">💾 Salvar como motorista desta placa</button>
+        </div>
+
+        <!-- DESTINATÁRIOS: quem recebe o aviso de divergência (contatos fixos + avulso) -->
+        <div class="dest-box">
+          <div class="dest-tit">📲 Enviar para</div>
+          <div id="whats-destinos"></div>
+          <div class="dest-add">
+            <input type="text" class="form-control form-control-sm" id="dest-novo-nome" placeholder="Nome (ex.: João)" style="max-width:160px;">
+            <input type="text" class="form-control form-control-sm" id="dest-novo-tel" placeholder="WhatsApp com DDD" style="max-width:170px;">
+            <label style="font-size:0.74rem;display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="dest-novo-fixo"> salvar como contato fixo</label>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="adicionarDestinoWhats()">+ Adicionar</button>
+          </div>
+          <div style="font-size:0.7rem;color:#999;margin-top:4px;">Cada botão abre o WhatsApp com a mensagem pronta para aquela pessoa — é só conferir e enviar.</div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-2 mb-1 flex-wrap gap-1">
@@ -1122,7 +1135,7 @@
         <textarea class="form-control" id="whats-mensagem" rows="9"></textarea>
 
         <div id="editor-template-box" style="display:none;margin-top:12px;background:#f8faff;border-radius:8px;padding:12px;">
-          <label class="form-label" style="font-size:0.78rem;">Modelo padrão de mensagem (usado para gerar o texto acima)</label>
+          <label class="form-label" style="font-size:0.78rem;">Modelo padrão da mensagem de divergência (usado para gerar o texto acima)</label>
           <textarea class="form-control form-control-sm" id="whats-template" rows="8"></textarea>
           <div style="font-size:0.72rem;color:#888;margin:6px 0;">
             Placeholders disponíveis: <code>{{motorista}}</code> <code>{{placa}}</code> <code>{{telefone}}</code>
@@ -1139,12 +1152,24 @@
       <div class="modal-footer flex-wrap">
         <button class="btn btn-outline-secondary" onclick="copiarMensagemModal()">📋 Copiar mensagem</button>
         <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-        <button class="btn btn-whats" id="whats-confirmar-btn" onclick="confirmarEnvioWhats()">📲 Abrir WhatsApp</button>
       </div>
     </div>
   </div>
 </div>
 
+<style>
+  .dest-box { background:#f3fbf5; border:1px solid #cfe9d6; border-radius:8px; padding:10px 12px; margin:6px 0 4px; }
+  .dest-tit { font-size:0.8rem; font-weight:800; color:#1d6b30; margin-bottom:6px; }
+  .dest-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px dashed #d9eadc; flex-wrap:wrap; }
+  .dest-row:last-child { border-bottom:none; }
+  .dest-nome { font-weight:700; font-size:0.85rem; min-width:110px; }
+  .dest-tel { font-size:0.78rem; color:#555; }
+  .dest-tag { font-size:0.62rem; font-weight:800; border-radius:6px; padding:1px 6px; background:#e6f4ea; color:#1d6b30; }
+  .dest-tag.off { background:#eee; color:#888; }
+  .dest-acoes { margin-left:auto; display:flex; gap:6px; align-items:center; }
+  .dest-enviado { font-size:0.72rem; color:#1d6b30; font-weight:700; }
+  .dest-add { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+</style>
 <div id="toast-container"></div>
 <div id="global-loading"><div class="spin-big"></div></div>
 
@@ -1183,8 +1208,16 @@ auth.onAuthStateChanged(async user => {
 
   try {
     const tplSnap = await db.collection('config').doc('mensagemMotorista').get();
-    if (tplSnap.exists && tplSnap.data().template) mensagemTemplate = tplSnap.data().template;
-  } catch(e) { console.warn('Não foi possível carregar o modelo de mensagem salvo, usando o padrão.', e); }
+    if (tplSnap.exists && tplSnap.data().template) mensagemTemplateMotorista = tplSnap.data().template;
+  } catch(e) { console.warn('Não foi possível carregar o modelo de mensagem do motorista, usando o padrão.', e); }
+  try {
+    const tplInt = await db.collection('config').doc('mensagemPaletesInterno').get();
+    if (tplInt.exists && tplInt.data().template) mensagemTemplate = tplInt.data().template;
+  } catch(e) { console.warn('Não foi possível carregar o modelo de mensagem interna, usando o padrão.', e); }
+  try {
+    const cSnap = await db.collection('config').doc('contatosPaletes').get();
+    if (cSnap.exists && Array.isArray(cSnap.data().contatos) && cSnap.data().contatos.length) contatosPaletes = cSnap.data().contatos;
+  } catch(e) { console.warn('Não foi possível carregar os contatos de divergência de paletes, usando o padrão.', e); }
 
   await loadInsumos();
   await loadConferentes();
@@ -3431,7 +3464,30 @@ Retorno em {{data_retorno}} — visitou: {{clientes_entrada}} — conferido(s) c
 {{itens_faltando}}{{itens_sobra}}
 
 Por favor, prestar contas / regularizar o quanto antes. Qualquer dúvida, procure a conferência.`;
-let mensagemTemplate = DEFAULT_TEMPLATE_MENSAGEM;
+// Modelo da mensagem para o MOTORISTA — mantido (config/mensagemMotorista), mas o envio
+// direto ao motorista ainda NÃO está em uso (pedido do André em 16/11/2026).
+let mensagemTemplateMotorista = DEFAULT_TEMPLATE_MENSAGEM;
+
+// Modelo da mensagem INTERNA de divergência de paletes (vai para a Mirian e outros contatos).
+const DEFAULT_TEMPLATE_INTERNO =
+`⚠ *Divergência de paletes* — veículo placa *{{placa}}*
+Motorista: {{motorista}} {{telefone}}
+
+Saída em {{data_saida}} — visitou: {{clientes_saida}} — retirado(s):
+{{itens_saida}}
+
+Retorno em {{data_retorno}} — visitou: {{clientes_entrada}} — conferido(s) com divergência:
+{{itens_faltando}}{{itens_sobra}}
+
+Favor verificar e tratar a regularização.`;
+let mensagemTemplate = DEFAULT_TEMPLATE_INTERNO;
+
+// Contatos que recebem o aviso de divergência de paletes (config/contatosPaletes).
+// Padrão: Mirian. Outros podem ser adicionados no próprio modal.
+const CONTATOS_PALETES_PADRAO = [{ nome: 'Mirian', telefone: '+555599645438', padrao: true }];
+let contatosPaletes = CONTATOS_PALETES_PADRAO.slice();
+let destinosAvulsos = [];        // adicionados só para este envio (não salvos)
+let destinosEnviados = {};       // telefone → true (enviado neste modal)
 
 // ── HELPERS ───────────────────────────────────────────────────────────
 // Alias para formatPlaca() (firebase-config.js) — mantém os nomes originais
@@ -4109,7 +4165,7 @@ function renderApontamentoList(itensFiltrados) {
     // do próprio modal (não depende do cadastro ter "vinculado" corretamente).
     let acaoHtml = '';
     if (!i.pendente && !i.ok) {
-      acaoHtml = `<button class="btn btn-sm btn-whats" style="margin-left:8px;" onclick="prepararEnvioWhats(${idx})">📲 Preparar Mensagem</button>`;
+      acaoHtml = `<button class="btn btn-sm btn-whats" style="margin-left:8px;" onclick="prepararEnvioWhats(${idx})">📲 Enviar divergência</button>`;
       if (i.notif) {
         acaoHtml += `<span class="badge-info" style="margin-left:6px;">Preparada em ${fmtDate(i.notif.criadoEm)}</span>`;
       }
@@ -4209,7 +4265,123 @@ function prepararEnvioWhats(idx) {
   const vars = montarVarsMensagem(i, nomeInicial, telInicial);
   document.getElementById('whats-mensagem').value = preencherTemplate(mensagemTemplate, vars);
 
+  destinosAvulsos = [];
+  destinosEnviados = {};
+  ['dest-novo-nome','dest-novo-tel'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('dest-novo-fixo').checked = false;
+  renderDestinosWhats();
+
   new bootstrap.Modal(document.getElementById('modal-whats')).show();
+}
+
+// ── DESTINATÁRIOS DO AVISO DE DIVERGÊNCIA ─────────────────────────────
+function renderDestinosWhats() {
+  const box = document.getElementById('whats-destinos');
+  const linha = (c, origem, idx) => {
+    const tel = normalizaTelefoneBR(c.telefone);
+    const enviado = destinosEnviados[tel];
+    const tag = origem === 'fixo' ? (c.padrao ? '<span class="dest-tag">padrão</span>' : '<span class="dest-tag">fixo</span>')
+              : '<span class="dest-tag off">só este envio</span>';
+    const rm = origem === 'fixo'
+      ? `<button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remover dos contatos fixos" onclick="removerContatoPaletes(${idx})">✕</button>`
+      : `<button type="button" class="btn btn-sm btn-link text-danger p-0" title="Remover" onclick="destinosAvulsos.splice(${idx},1);renderDestinosWhats()">✕</button>`;
+    return `<div class="dest-row">
+      <span class="dest-nome">${esc(c.nome || '—')}</span><span class="dest-tel">${esc(tel)}</span>${tag}
+      <span class="dest-acoes">
+        ${enviado ? '<span class="dest-enviado">✔ aberto</span>' : ''}
+        <button type="button" class="btn btn-sm btn-whats" onclick="enviarWhatsPara('${origem}',${idx})">📲 Enviar</button>
+        ${rm}
+      </span>
+    </div>`;
+  };
+  // Motorista: modelo mantido, mas o envio direto ainda não está em uso
+  const motorista = `<div class="dest-row" style="opacity:0.55;">
+      <span class="dest-nome">Motorista</span><span class="dest-tel">${esc(document.getElementById('whats-telefone').value || '')}</span>
+      <span class="dest-tag off">ainda não em uso</span>
+      <span class="dest-acoes"><button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Envio ao motorista ainda não está liberado">📲 Enviar</button></span>
+    </div>`;
+  box.innerHTML = contatosPaletes.map((c, k) => linha(c, 'fixo', k)).join('')
+    + destinosAvulsos.map((c, k) => linha(c, 'avulso', k)).join('')
+    + motorista;
+}
+
+async function adicionarDestinoWhats() {
+  const nome = document.getElementById('dest-novo-nome').value.trim();
+  const telRaw = document.getElementById('dest-novo-tel').value.trim();
+  const fixo = document.getElementById('dest-novo-fixo').checked;
+  const digitos = telRaw.replace(/\D/g, '');
+  if (!nome || digitos.length < 10) { showToast('Informe o nome e o WhatsApp com DDD.', 'warning'); return; }
+  const contato = { nome, telefone: normalizaTelefoneBR(telRaw) };
+  if (fixo) {
+    contatosPaletes = contatosPaletes.concat([contato]);
+    await salvarContatosPaletes('Contato salvo — vai aparecer em todos os próximos envios.');
+  } else {
+    destinosAvulsos.push(contato);
+  }
+  ['dest-novo-nome','dest-novo-tel'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('dest-novo-fixo').checked = false;
+  renderDestinosWhats();
+}
+
+async function removerContatoPaletes(idx) {
+  const c = contatosPaletes[idx];
+  if (!c) return;
+  if (!confirm(`Remover ${c.nome} dos contatos fixos que recebem a divergência de paletes?`)) return;
+  contatosPaletes = contatosPaletes.filter((_, k) => k !== idx);
+  await salvarContatosPaletes('Contato removido.');
+  renderDestinosWhats();
+}
+
+async function salvarContatosPaletes(msgOk) {
+  try {
+    await db.collection('config').doc('contatosPaletes').set({
+      contatos: contatosPaletes,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      atualizadoPor: (window.currentAdminData && (window.currentAdminData.nome || window.currentAdminData.email)) || '—'
+    });
+    showToast(msgOk, 'success');
+  } catch(e) {
+    showToast('Erro ao salvar contatos: ' + e.message, 'error');
+  }
+}
+
+/** Abre o WhatsApp para UM destinatário (Mirian, contato fixo ou avulso) e registra no histórico. */
+async function enviarWhatsPara(origem, idx) {
+  if (!pendingContext) return;
+  const c = origem === 'fixo' ? contatosPaletes[idx] : destinosAvulsos[idx];
+  if (!c) return;
+  const mensagemFinal = document.getElementById('whats-mensagem').value;
+  if (!mensagemFinal.trim()) { showToast('A mensagem está vazia.', 'warning'); return; }
+  const telefoneE164 = normalizaTelefoneBR(c.telefone);
+  const numero = telefoneParaWaMe(telefoneE164);
+  if (!numero) { showToast('Telefone inválido para ' + (c.nome || 'o contato') + '.', 'error'); return; }
+
+  // Abre primeiro (ainda dentro do clique, para o navegador não bloquear a janela)
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagemFinal)}`, '_blank');
+  destinosEnviados[telefoneE164] = true;
+  renderDestinosWhats();
+
+  try {
+    const i = pendingContext.i;
+    await db.collection('notificacoes_whatsapp').add({
+      placa: i.placaOriginal,
+      motoristaId: (i.motorista && i.motorista.id) || null,
+      motoristaNome: document.getElementById('whats-nome').value.trim() || '(não informado)',
+      destinatarioNome: c.nome || '',
+      telefone: telefoneE164,
+      tipoEnvio: 'INTERNO',
+      saidaOpId: i.saida.id,
+      entradaOpId: i.entrada ? i.entrada.id : null,
+      mensagem: mensagemFinal,
+      status: 'ABERTO_WHATSAPP',
+      criadoPor: (auth.currentUser && auth.currentUser.uid) || null,
+      criadoPorNome: (window.currentAdminData && (window.currentAdminData.nome || window.currentAdminData.email)) || '—',
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(`WhatsApp aberto para ${c.nome || numero}.`, 'success');
+  } catch(e) {
+    showToast('WhatsApp aberto, mas não foi possível registrar no histórico: ' + e.message, 'warning');
+  }
 }
 
 // Recalcula a mensagem usando o nome/telefone atuais dos campos e o modelo
@@ -4234,7 +4406,7 @@ async function salvarTemplateMensagem() {
   if (!novoTemplate.trim()) { showToast('O modelo não pode ficar vazio.', 'warning'); return; }
   loading(true);
   try {
-    await db.collection('config').doc('mensagemMotorista').set({
+    await db.collection('config').doc('mensagemPaletesInterno').set({
       template: novoTemplate,
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
       atualizadoPor: (window.currentAdminData && (window.currentAdminData.nome || window.currentAdminData.email)) || '—'
@@ -4250,7 +4422,7 @@ async function salvarTemplateMensagem() {
 }
 
 function restaurarTemplatePadrao() {
-  document.getElementById('whats-template').value = DEFAULT_TEMPLATE_MENSAGEM;
+  document.getElementById('whats-template').value = DEFAULT_TEMPLATE_INTERNO;
   regenerarMensagemModal();
 }
 
@@ -4301,6 +4473,7 @@ async function salvarMotoristaDoModal() {
   }
 }
 
+// [ENVIO AO MOTORISTA — mantido, ainda não em uso: sem botão no modal desde 16/11/2026]
 // Abre o WhatsApp (Web ou app, conforme o dispositivo) já com a mensagem
 // preenchida, para o admin conferir e apertar enviar manualmente. Não há
 // envio automático nem backend/API — é só um link wa.me (o atalho "indireto").
@@ -4311,7 +4484,7 @@ async function confirmarEnvioWhats() {
   const mensagemFinal = document.getElementById('whats-mensagem').value;
   if (!telefoneRaw) { showToast('Informe o telefone do motorista.', 'warning'); return; }
 
-  const btn = document.getElementById('whats-confirmar-btn');
+  const btn = document.getElementById('whats-confirmar-btn') || { disabled: false };
   btn.disabled = true;
   loading(true);
   try {
@@ -4369,7 +4542,7 @@ async function loadNotificacoes() {
         <td>${fmtDate(r.criadoEm)}</td>
         <td><b>${esc(r.placa)}</b></td>
         <td>${esc(r.motoristaNome)}</td>
-        <td>${esc(r.telefone)}</td>
+        <td>${r.destinatarioNome ? `<b>${esc(r.destinatarioNome)}</b> ` : ''}${esc(r.telefone)}</td>
         <td>${r.status==='ABERTO_WHATSAPP' ? '<span class="badge-ok">WhatsApp aberto</span>' : `<span class="badge-pendente">${esc(r.status)||'—'}</span>`}</td>
         <td>${esc(r.criadoPorNome)||'—'}</td>
       </tr>`).join('');
@@ -4381,7 +4554,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.16-1';
+const APP_VERSION = '2026.11.16-2';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
