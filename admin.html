@@ -60,6 +60,16 @@
   .stat-card .label { font-size:0.82rem; color:#888; margin-top:2px; }
   .stat-card .icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
   /* TABLE */
+  /* ── BIPAGEM ── */
+  .bip-aba { background:#fff; border:1px solid #dde3ee; color:#555; font-weight:600; }
+  .bip-aba.on { background:var(--navy); border-color:var(--navy); color:#fff; }
+  .bip-placa { background:#111; color:#fff; border-radius:5px; padding:2px 7px; font-weight:800; font-family:monospace; letter-spacing:.5px; white-space:nowrap; }
+  .bip-bar { height:8px; background:#edf0f5; border-radius:5px; overflow:hidden; min-width:90px; }
+  .bip-bar div { height:100%; background:#E8611A; border-radius:5px; }
+  .bip-bar.full div { background:#1E9E4A; }
+  .bip-res { padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:700; white-space:nowrap; }
+  tr.bip-det td { background:#fafbfd; font-size:0.82rem; }
+  tr.bip-row { cursor:pointer; }
   .table-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden; }
   .table-card .tc-head { padding:16px 20px; border-bottom:1px solid #eef0f6; display:flex; align-items:center; justify-content:space-between; }
   .tc-title { font-size:1rem; font-weight:700; color:var(--navy); }
@@ -206,6 +216,10 @@
       Clientes / Paletes
     </a>
     <div class="sb-section">Acompanhamento</div>
+    <a class="sb-item" data-section="bipagem" onclick="showSection('bipagem')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
+      Bipagem
+    </a>
     <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Operações
@@ -674,6 +688,41 @@
   </div>
 
   <!-- ===== DISCREPÂNCIAS ===== -->
+  <!-- ===== BIPAGEM ===== -->
+  <div class="section" id="sec-bipagem">
+    <div class="table-card mb-3">
+      <div class="tc-head" style="flex-wrap:wrap;gap:10px;">
+        <span class="tc-title">📟 Bipagem de volumes</span>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <label class="small text-muted mb-0">De</label>
+          <input type="date" id="bip-de" class="form-control form-control-sm" style="width:145px;" onchange="loadBipagem()"/>
+          <label class="small text-muted mb-0">até</label>
+          <input type="date" id="bip-ate" class="form-control form-control-sm" style="width:145px;" onchange="loadBipagem()"/>
+          <select id="bip-tipo" class="form-select form-select-sm" style="width:130px;" onchange="renderBipagem()">
+            <option value="SAIDA">Saída</option><option value="ENTRADA">Entrada</option><option value="">Todos</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadBipagem()">↻</button>
+          <a class="btn btn-sm" style="background:#E8611A;color:#fff;font-weight:700;" href="bipador.html" target="_blank">Abrir bipador</a>
+        </div>
+      </div>
+      <div class="px-3 pt-3">
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value" id="bip-k-ok">—</div><div class="label">Volumes bipados</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value" id="bip-k-esp">—</div><div class="label" id="bip-k-esp-l">Esperados (planilha)</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-danger" id="bip-k-al">—</div><div class="label">Alertas do bipador</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value" id="bip-k-conf">—</div><div class="label">Conferentes bipando</div></div></div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap mb-3" id="bip-abas">
+          <button class="btn btn-sm bip-aba on" data-aba="vivo" onclick="bipAba('vivo')">🟢 Ao vivo</button>
+          <button class="btn btn-sm bip-aba" data-aba="div" onclick="bipAba('div')">⚠️ Divergências</button>
+          <button class="btn btn-sm bip-aba" data-aba="hist" onclick="bipAba('hist')">📋 Histórico</button>
+          <button class="btn btn-sm bip-aba" data-aba="rank" onclick="bipAba('rank')">🏆 Ranking</button>
+        </div>
+      </div>
+      <div id="bip-corpo" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
   <div class="section" id="sec-discrepancias">
     <div class="table-card">
       <div class="tc-head">
@@ -1179,6 +1228,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <!-- Storage não utilizado neste plano -->
 <script src="firebase-config.js"></script>
+<script src="programacao.js"></script>
+<script src="bipagem.js"></script>
 <script>
 let chartConf, chartVeic;
 let allInsumos = [];
@@ -1226,6 +1277,165 @@ auth.onAuthStateChanged(async user => {
   await loadDashboard();
 });
 
+// ═══════════════════════════════════════════════════════
+//  BIPAGEM — devolutivas do bipador.html (coleção bipagens)
+// ═══════════════════════════════════════════════════════
+const bipAdm = { aba: 'vivo', lista: [], unsub: null, grupos: [], dia: null, ops: {}, aberta: null };
+const escB = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function loadBipagem() {
+  const deEl = document.getElementById('bip-de'), ateEl = document.getElementById('bip-ate');
+  if (!deEl.value) deEl.value = hojeIso();
+  if (!ateEl.value || ateEl.value < deEl.value) ateEl.value = deEl.value;
+  const de = deEl.value, ate = ateEl.value;
+  if (bipAdm.unsub) { bipAdm.unsub(); bipAdm.unsub = null; }
+  document.getElementById('bip-corpo').innerHTML = '<div class="p-4 text-muted">Carregando…</div>';
+  // Programação e operações do dia "De" (base do Ao vivo e das faltas)
+  if (bipAdm.dia !== de) {
+    bipAdm.dia = de; bipAdm.grupos = []; bipAdm.ops = {};
+    try { bipAdm.grupos = agruparProgramacao(await fetchSheetVehicles(abaDoDia(de))); } catch (e) { console.warn('bipagem planilha:', e.message); }
+    try {
+      const ini = new Date(de + 'T00:00:00'), fim = new Date(de + 'T23:59:59');
+      const snap = await db.collection('operacoes').where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(ini))
+        .where('timestamp', '<=', firebase.firestore.Timestamp.fromDate(fim)).get();
+      snap.docs.forEach(d => { const o = d.data(), k = `${o.placa}_${o.tipoExecucao}`; if (!bipAdm.ops[k] || o.status === 'CONCLUIDA') bipAdm.ops[k] = o.status; });
+    } catch (e) { console.warn('bipagem ops:', e.message); }
+  }
+  if (de === ate) {
+    bipAdm.unsub = bipOuvirDia(de, lista => { bipAdm.lista = lista; renderBipagem(); });
+  } else {
+    try { bipAdm.lista = await bipBuscarPeriodo(de, ate); } catch (e) { bipAdm.lista = []; showToast('Erro ao buscar leituras: ' + e.message, 'error'); }
+    renderBipagem();
+  }
+}
+
+function bipAba(a) {
+  bipAdm.aba = a;
+  document.querySelectorAll('.bip-aba').forEach(b => b.classList.toggle('on', b.dataset.aba === a));
+  renderBipagem();
+}
+
+function _bipTipoSel() { return document.getElementById('bip-tipo').value; }
+function _bipFiltrada() { const t = _bipTipoSel(); return bipAdm.lista.filter(b => !t || b.tipo === t); }
+function _bipDia(b) { const [y, m, d] = (b.dia || '').split('-'); return d ? `${d}/${m}` : ''; }
+function _bipResBadge(r) { const x = BIP_RESULTADOS[r] || { rot: r, cor: '#666' }; return `<span class="bip-res" style="background:${x.cor}1a;color:${x.cor}">${escB(x.rot)}</span>`; }
+
+/** Placas do dia "De" com esperado x bipado (só quando o período é um dia). */
+function _bipPlacasDoDia() {
+  const de = document.getElementById('bip-de').value, ate = document.getElementById('bip-ate').value;
+  if (de !== ate) return null;
+  const tipos = _bipTipoSel() ? [_bipTipoSel()] : ['SAIDA', 'ENTRADA'];
+  const out = [];
+  bipAdm.grupos.forEach(g => tipos.forEach(t => {
+    const ns = notasParaBipagem(g.vehicles, t); if (!ns.length) return;
+    const porK = bipPorNota(bipAdm.lista, g.placa, t);
+    const evts = bipAdm.lista.filter(b => b.placa === g.placa && b.tipo === t && !b.removida);
+    const ok = evts.filter(b => b.resultado === 'OK');
+    const notas = ns.map(n => ({ ...n, q: (porK[n.k] || []).length }));
+    out.push({ placa: g.placa, tipo: t, notas, esp: notas.reduce((s, n) => s + n.esp, 0), q: notas.reduce((s, n) => s + n.q, 0),
+      completas: notas.filter(n => n.esp && n.q >= n.esp).length, alertas: evts.length - ok.length, ult: ok[ok.length - 1], op: bipAdm.ops[`${g.placa}_${t}`] });
+  }));
+  return out;
+}
+
+function renderBipagem() {
+  const lista = _bipFiltrada(), validas = bipValidas(lista);
+  const placas = _bipPlacasDoDia();
+  document.getElementById('bip-k-ok').textContent = validas.length;
+  document.getElementById('bip-k-esp').textContent = placas ? placas.reduce((s, p) => s + p.esp, 0) : '—';
+  document.getElementById('bip-k-esp-l').textContent = placas ? 'Esperados (planilha)' : 'Esperados (só p/ 1 dia)';
+  document.getElementById('bip-k-al').textContent = lista.filter(b => b.resultado !== 'OK' && !b.removida).length;
+  document.getElementById('bip-k-conf').textContent = new Set(lista.map(b => b.conferenteNome).filter(Boolean)).size;
+  const corpo = document.getElementById('bip-corpo');
+  if (bipAdm.aba === 'vivo') corpo.innerHTML = _bipHtmlVivo(placas);
+  else if (bipAdm.aba === 'div') corpo.innerHTML = _bipHtmlDiv(lista, placas);
+  else if (bipAdm.aba === 'hist') corpo.innerHTML = _bipHtmlHist(lista);
+  else corpo.innerHTML = _bipHtmlRank(lista);
+}
+
+function _bipHtmlVivo(placas) {
+  if (!placas) return '<div class="p-4 text-muted">O painel ao vivo mostra um dia: deixe "De" e "até" com a mesma data.</div>';
+  if (!placas.length) return '<div class="p-4 text-muted">Sem programação para este dia.</div>';
+  placas.sort((a, b) => (b.q > 0) - (a.q > 0) || (a.esp && a.q >= a.esp) - (b.esp && b.q >= b.esp) || String(a.placa).localeCompare(String(b.placa), 'pt-BR', { numeric: true }));
+  const linhas = placas.map(p => {
+    const pct = p.esp ? Math.min(100, Math.round(p.q / p.esp * 100)) : 0, full = p.esp && p.q >= p.esp, id = `${p.placa}_${p.tipo}`;
+    const op = p.op === 'CONCLUIDA' ? '<span class="badge-ok">Confirmada</span>' : p.op ? '<span class="badge-pendente">Parcial</span>' : '<span class="text-muted small">—</span>';
+    const det = bipAdm.aberta === id ? `<tr class="bip-det"><td colspan="8"><table class="w-100">${p.notas.map(n =>
+      `<tr><td style="width:40%"><b>${escB(n.rot)}</b> <span class="text-muted">${escB(n.dest)}</span></td><td>${n.q}/${n.esp || '?'}</td>
+       <td>${n.esp && n.q >= n.esp ? '<span class="badge-ok">Completa</span>' : n.esp ? `<span class="badge-naook">Faltam ${n.esp - n.q}</span>` : '<span class="text-muted">sem volume na planilha</span>'}</td></tr>`).join('')}</table></td></tr>` : '';
+    return `<tr class="bip-row" onclick="bipAdm.aberta=bipAdm.aberta==='${id}'?null:'${id}';renderBipagem()">
+      <td><span class="bip-placa">${escB(p.placa)}</span></td><td><span class="${p.tipo === 'SAIDA' ? 'badge-saida' : 'badge-entrada'}">${p.tipo === 'SAIDA' ? 'Saída' : 'Entrada'}</span></td>
+      <td><b>${p.q}</b>/${p.esp || '?'}</td><td><div class="d-flex align-items-center gap-2"><div class="bip-bar ${full ? 'full' : ''}" style="flex:1"><div style="width:${pct}%"></div></div><small>${pct}%</small></div></td>
+      <td>${p.completas}/${p.notas.length}</td><td>${p.alertas ? `<span class="badge-naook">${p.alertas}</span>` : '0'}</td>
+      <td class="small">${p.ult ? `${bipHora(p.ult)} · ${escB((p.ult.conferenteNome || '').split(' ')[0])}` : '—'}</td><td>${op}</td></tr>${det}`;
+  }).join('');
+  return `<table class="tbl"><thead><tr><th>Placa</th><th>Tipo</th><th>Volumes</th><th>Progresso</th><th>NFs completas</th><th>Alertas</th><th>Último bipe</th><th>Conferência</th></tr></thead><tbody>${linhas}</tbody></table>
+    <div class="px-3 py-2 small text-muted">Clique numa placa para ver as notas. Atualiza sozinho enquanto o bipador lê.</div>`;
+}
+
+function _bipHtmlDiv(lista, placas) {
+  const linhas = [];
+  lista.filter(b => b.resultado !== 'OK' && !b.removida).forEach(b => linhas.push({ t: b.tms || 0, dia: _bipDia(b), hora: bipHora(b), placa: b.placa || b.placaCerta || '',
+    nf: b.nf, cod: b.cod, res: _bipResBadge(b.resultado), det: b.motivo || '', por: b.conferenteNome || '' }));
+  if (placas) placas.forEach(p => p.notas.forEach(n => {
+    if (n.esp && n.q > 0 && n.q < n.esp) linhas.push({ t: 9e15, dia: _bipDia({ dia: bipAdm.dia }), hora: '—', placa: p.placa, nf: n.rot, cod: '',
+      res: `<span class="bip-res" style="background:#B453091a;color:#B45309">Falta de volume</span>`, det: `${n.q} de ${n.esp} bipados${p.op === 'CONCLUIDA' ? ' · placa já confirmada' : ''}`, por: '' });
+  }));
+  linhas.sort((a, b) => b.t - a.t);
+  if (!linhas.length) return '<div class="p-4 text-muted">Nenhuma divergência no período. 👍</div>';
+  return `<table class="tbl"><thead><tr><th>Dia</th><th>Hora</th><th>Placa</th><th>NF</th><th>Código</th><th>Divergência</th><th>Detalhe</th><th>Conferente</th></tr></thead><tbody>
+    ${linhas.map(l => `<tr><td>${l.dia}</td><td>${l.hora}</td><td>${l.placa ? `<span class="bip-placa">${escB(l.placa)}</span>` : '—'}</td><td>${escB(l.nf || '—')}</td>
+      <td><code class="small">${escB(l.cod)}</code></td><td>${l.res}</td><td class="small">${escB(l.det)}</td><td class="small">${escB(l.por)}</td></tr>`).join('')}</tbody></table>
+    <div class="px-3 py-2 small text-muted">"Falta de volume" aparece quando o período é um dia: notas com parte dos volumes bipados.</div>`;
+}
+
+function _bipHtmlHist(lista) {
+  const f = (document.getElementById('bip-busca') || {}).value || '';
+  const q = f.trim().toUpperCase();
+  const fil = lista.filter(b => !q || [b.placa, b.nf, b.cod, b.conferenteNome, b.placaCerta].some(x => String(x || '').toUpperCase().includes(q))).slice().reverse();
+  bipAdm.histFiltrada = fil;
+  return `<div class="d-flex gap-2 p-3 pt-0 flex-wrap"><input id="bip-busca" class="form-control form-control-sm" style="max-width:300px" placeholder="Buscar placa, NF, código ou conferente" value="${escB(f)}"
+      oninput="clearTimeout(window._bipBT);window._bipBT=setTimeout(()=>{renderBipagem();const i=document.getElementById('bip-busca');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)">
+    <button class="btn btn-sm btn-success" onclick="bipExportar()">⬇ Exportar Excel (${fil.length})</button></div>
+    <table class="tbl"><thead><tr><th>Dia</th><th>Hora</th><th>Placa</th><th>Tipo</th><th>NF</th><th>Código</th><th>Vol</th><th>Resultado</th><th>Conferente</th></tr></thead><tbody>
+    ${fil.slice(0, 500).map(b => `<tr style="${b.removida ? 'opacity:.45;text-decoration:line-through' : ''}"><td>${_bipDia(b)}</td><td>${bipHora(b)}</td><td>${b.placa ? `<span class="bip-placa">${escB(b.placa)}</span>` : '—'}</td>
+      <td>${b.tipo === 'SAIDA' ? 'Saída' : 'Entrada'}</td><td>${escB(b.nf || '—')}</td><td><code class="small">${escB(b.cod)}</code></td><td>${escB(b.vol || '')}</td>
+      <td>${_bipResBadge(b.resultado)}${b.removida ? ' <small>(removida)</small>' : ''}</td><td class="small">${escB(b.conferenteNome || '')}</td></tr>`).join('')}</tbody></table>
+    ${fil.length > 500 ? `<div class="px-3 py-2 small text-muted">Mostrando 500 de ${fil.length}. A exportação leva todas.</div>` : ''}`;
+}
+
+function bipExportar() {
+  const fil = bipAdm.histFiltrada || _bipFiltrada();
+  const cab = ['Dia', 'Hora', 'Placa', 'Tipo', 'NF', 'Destinatário', 'Código', 'Volume', 'Resultado', 'Detalhe', 'Placa certa', 'Conferente', 'Modo', 'Removida', 'Removida por'];
+  const rows = fil.slice().reverse().map(b => [b.dia, bipHora(b), b.placa, b.tipo === 'SAIDA' ? 'Saída' : 'Entrada', b.nf, b.dest, b.cod, b.vol,
+    (BIP_RESULTADOS[b.resultado] || {}).rot || b.resultado, b.motivo, b.placaCerta, b.conferenteNome, b.modo, b.removida ? 'Sim' : '', b.removidaPor]);
+  const csv = '﻿' + [cab].concat(rows).map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `bipagens_${document.getElementById('bip-de').value}_a_${document.getElementById('bip-ate').value}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function _bipHtmlRank(lista) {
+  const por = {};
+  lista.filter(b => !b.removida).forEach(b => {
+    const n = b.conferenteNome || '—', r = por[n] = por[n] || { nome: n, ok: 0, al: 0, ini: Infinity, fim: 0, placas: new Set(), dias: new Set() };
+    if (b.resultado === 'OK') r.ok++; else r.al++;
+    if (b.tms) { r.ini = Math.min(r.ini, b.tms); r.fim = Math.max(r.fim, b.tms); }
+    if (b.placa) r.placas.add(b.dia + b.placa); r.dias.add(b.dia);
+  });
+  const rs = Object.values(por).sort((a, b) => b.ok - a.ok);
+  if (!rs.length) return '<div class="p-4 text-muted">Nenhuma leitura no período.</div>';
+  const um = document.getElementById('bip-de').value === document.getElementById('bip-ate').value;
+  const fmtH = ms => ms === Infinity || !ms ? '—' : new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `<table class="tbl"><thead><tr><th>#</th><th>Conferente</th><th>Volumes OK</th><th>Alertas</th><th>% alerta</th><th>Veículos</th>${um ? '<th>Início</th><th>Fim</th><th>Vol/hora</th>' : '<th>Dias</th>'}</tr></thead><tbody>
+    ${rs.map((r, i) => { const tot = r.ok + r.al, horas = Math.max(0.25, (r.fim - r.ini) / 36e5);
+      return `<tr><td>${i + 1}</td><td><b>${escB(r.nome)}</b></td><td><b>${r.ok}</b></td><td>${r.al ? `<span class="badge-naook">${r.al}</span>` : '0'}</td>
+        <td>${tot ? Math.round(r.al / tot * 100) : 0}%</td><td>${r.placas.size}</td>
+        ${um ? `<td>${fmtH(r.ini)}</td><td>${fmtH(r.fim)}</td><td>${r.ok ? Math.round(r.ok / horas) : 0}</td>` : `<td>${r.dias.size}</td>`}</tr>`; }).join('')}</tbody></table>
+    <div class="px-3 py-2 small text-muted">Vol/hora = volumes OK entre o primeiro e o último bipe do dia. Alertas = leituras recusadas (duplicado, excedente, carga errada, fora da programação, não reconhecido).</div>`;
+}
+
 function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
 
 function showSection(id) {
@@ -1233,7 +1443,7 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas','clientes-palete':'Clientes / Paletes',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas','clientes-palete':'Clientes / Paletes',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações',bipagem:'Bipagem de volumes'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='consumos')           loadConsumos();
@@ -1249,6 +1459,8 @@ function showSection(id) {
   if (id==='rastreio-enderecos') loadRastreioEnderecos();
   if (id==='tfa')                loadTFA();
   if (id==='config')             loadConfig();
+  if (id==='bipagem')            loadBipagem();
+  else if (bipAdm.unsub)         { bipAdm.unsub(); bipAdm.unsub = null; }
 }
 
 // ── CONFIGURAÇÕES ──────────────────────────────────────────────
@@ -4555,7 +4767,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-2';
+const APP_VERSION = '2026.11.17-3';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');

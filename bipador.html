@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<title>Bipador de Volumes — Conferência Geral</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1A3A6E; --navy-2:#0F2A52; --orange:#E8611A; --orange-bg:#FDEFE7;
+  --bg:#F4F6FA; --card:#FFFFFF; --line:#E3E8EF; --txt:#1B2333; --mut:#6B7385;
+  --ok:#1E9E4A; --ok-bg:#E7F6EC; --err:#D32F2F; --err-bg:#FDECEC; --warn:#B45309; --warn-bg:#FFF4DC;
+  --r:14px; --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif}
+button{font-family:inherit}
+.num{font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.3px}
+
+/* Cabeçalho */
+header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;display:flex;align-items:center;gap:10px}
+.marca{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
+.marca i{width:8px;height:34px;border-radius:4px;background:var(--orange);flex-shrink:0}
+.marca small{display:block;font-size:.66rem;font-weight:800;letter-spacing:2px;color:var(--orange)}
+.marca b{display:block;font-size:1.02rem;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 10px 4px 4px;background:#fff;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--navy);max-width:46%}
+.user-chip span:first-child{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0}
+.user-chip span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
+
+/* Controles */
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:8px 12px;border-radius:7px;font-weight:700;font-size:.8rem;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--navy);color:#fff}
+.seg button.on.saida{background:#8A1F1F}.seg button.on.entrada{background:#1D6B30}
+.data{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:600 .82rem Inter;color:var(--navy);background:#fff}
+
+/* Placa travada */
+.placa-trava{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:10px}
+.placa-tag{background:#111;color:#fff;border-radius:6px;padding:4px 10px;font-size:1.25rem}
+.placa-trava .info{flex:1;min-width:0;font-size:.78rem;color:var(--mut)}
+.placa-trava .info b{color:var(--txt);font-size:.9rem}
+.btn-sec{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:9px;padding:8px 11px;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap}
+.btn-pri{border:0;background:var(--orange);color:#fff;border-radius:9px;padding:10px 14px;font-weight:800;font-size:.85rem;cursor:pointer}
+
+/* Leitura */
+.leitor{position:sticky;top:var(--hh,60px);z-index:15;background:var(--bg);padding:2px 0 10px}
+.leitor label{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--navy);border-radius:var(--r);padding:4px 6px 4px 14px;box-shadow:0 4px 14px rgba(26,58,110,.10)}
+.leitor label:focus-within{border-color:var(--orange);box-shadow:0 0 0 4px rgba(232,97,26,.15)}
+.leitor svg{flex-shrink:0;color:var(--navy)}
+#scan::placeholder{text-transform:none;font-family:Inter,sans-serif;font-weight:500;color:#9AA3B2}
+#scan{flex:1;min-width:0;border:0;outline:0;font:600 1.05rem ui-monospace,Menlo,monospace;padding:12px 0;text-transform:uppercase;background:transparent;color:var(--txt)}
+.leitor .pulso{width:10px;height:10px;border-radius:50%;background:var(--ok);margin-right:8px;box-shadow:0 0 0 0 rgba(30,158,74,.6);animation:pulso 1.8s infinite}
+.leitor label:not(:focus-within) .pulso{background:#C2C8D2;animation:none}
+@keyframes pulso{70%{box-shadow:0 0 0 8px rgba(30,158,74,0)}}
+
+/* Retorno da leitura */
+.retorno{border-radius:var(--r);padding:14px 16px;margin-bottom:12px;background:#fff;border:1px solid var(--line);display:flex;gap:14px;align-items:center;min-height:96px;transition:background .15s}
+.retorno .ic{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:900;flex-shrink:0;background:var(--line);color:var(--mut)}
+.retorno .tx{flex:1;min-width:0}
+.retorno .tit{font-weight:800;font-size:1.02rem;color:var(--navy)}
+.retorno .sub{font-size:.82rem;color:var(--mut);margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.retorno .cont{text-align:right;flex-shrink:0;line-height:1}
+.retorno .cont b{font-size:2.6rem;color:var(--navy)}
+.retorno .cont small{display:block;font-size:.66rem;color:var(--mut);margin-top:4px;font-weight:600}
+.retorno .placa-tag{font-size:1rem;padding:2px 8px;display:inline-block;margin-right:6px}
+.retorno.ok{background:var(--ok-bg);border-color:#BFE6CB}.retorno.ok .ic{background:var(--ok);color:#fff}.retorno.ok .tit{color:#14612E}
+.retorno.err{background:var(--err);border-color:var(--err);color:#fff}.retorno.err .ic{background:#fff;color:var(--err)}.retorno.err .tit,.retorno.err .sub,.retorno.err .cont b,.retorno.err .cont small{color:#fff}
+.retorno.warn{background:var(--warn-bg);border-color:#F3D48F}.retorno.warn .ic{background:var(--warn);color:#fff}.retorno.warn .tit{color:var(--warn)}
+.retorno.flash{animation:flash .5s 2}
+@keyframes flash{50%{transform:scale(1.015)}}
+
+/* Seções */
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin:16px 2px 8px}
+.sec-h h2{margin:0;font-size:.82rem;letter-spacing:1px;text-transform:uppercase;color:var(--mut)}
+.sec-h span{font-size:.78rem;color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.vcard{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px;cursor:pointer;position:relative}
+.vcard:active{transform:scale(.99)}
+.vcard .topo{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.vcard .placa-tag{font-size:1.05rem;padding:2px 8px}
+.vcard .pct{font-size:1.5rem;color:var(--navy)}
+.vcard .meta{font-size:.74rem;color:var(--mut);margin-top:8px;display:flex;justify-content:space-between;gap:6px}
+.barra{height:8px;border-radius:5px;background:#EDF0F5;overflow:hidden;margin-top:8px}
+.barra div{height:100%;background:var(--orange);border-radius:5px;transition:width .25s}
+.full .barra div{background:var(--ok)} .vcard.full{border-color:#BFE6CB}
+.vcard.full .pct{color:var(--ok)}
+.badge{font-size:.62rem;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:6px;text-transform:uppercase}
+.badge.conf{background:var(--ok-bg);color:#14612E}.badge.parc{background:var(--warn-bg);color:var(--warn)}.badge.alerta{background:var(--err-bg);color:var(--err)}
+.nota{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.nota .tx{flex:1;min-width:0}
+.nota .tx b{display:block;color:var(--navy);font-size:.9rem}
+.nota .tx small{display:block;color:var(--mut);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nota .cnt{font-size:1.45rem;color:var(--navy);text-align:right;min-width:62px}
+.nota .cnt small{display:block;font:600 .64rem Inter;color:var(--mut)}
+.nota.full{border-color:#BFE6CB;background:#FAFEFB}.nota.full .cnt{color:var(--ok)}
+.nota.parc .cnt{color:var(--orange)}
+.nota.pisca{animation:pisca .9s}
+@keyframes pisca{0%{background:#DDF3E4}100%{background:#fff}}
+.vazio{text-align:center;color:var(--mut);padding:30px 10px;font-size:.88rem;background:#fff;border:1px dashed var(--line);border-radius:var(--r)}
+
+/* Barra inferior */
+.acoes{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:8px 10px calc(8px + var(--safe-b));display:flex;gap:8px;justify-content:center}
+.acoes button{flex:1;max-width:240px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font-weight:700;font-size:.78rem;color:var(--navy);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.acoes button span{font-size:1.1rem}
+
+/* Janela */
+.modal{position:fixed;inset:0;background:rgba(15,25,45,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.modal{align-items:center}}
+.modal .box{background:#fff;width:100%;max-width:520px;max-height:86vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + var(--safe-b))}
+@media(min-width:640px){.modal .box{border-radius:18px}}
+.modal h3{margin:0 0 4px;color:var(--navy);font-size:1.05rem}
+.modal p{margin:0 0 10px;color:var(--mut);font-size:.84rem}
+.opc{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:12px;margin-top:8px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:.86rem;color:var(--txt)}
+.opc:active{background:#F4F6FA}
+.opc .num{font-size:1.2rem;color:var(--navy);margin-left:auto}
+.lin{display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid #F0F2F6;font-size:.8rem;align-items:center}
+.lin code{font-size:.78rem;word-break:break-all}
+.lin .x{border:0;background:var(--err-bg);color:var(--err);border-radius:7px;padding:5px 8px;font-weight:700;cursor:pointer;font-size:.72rem}
+.carregando{padding:40px;text-align:center;color:var(--mut)}
+.toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:.84rem;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2);max-width:90vw}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <div class="marca"><i></i><div><small>PORTOEX · CONFERÊNCIA GERAL</small><b>Bipador de volumes</b></div></div>
+  <div class="user-chip" onclick="menuUsuario()"><span id="u-ini">··</span><span id="u-nome">Entrando…</span></div>
+</header>
+
+<main>
+  <div class="ctrl">
+    <input type="date" id="dia" class="data" onchange="trocarDia(this.value)">
+    <div class="seg" id="seg-tipo">
+      <button class="on saida" data-v="SAIDA" onclick="trocarTipo('SAIDA')">SAÍDA</button>
+      <button class="entrada" data-v="ENTRADA" onclick="trocarTipo('ENTRADA')">ENTRADA</button>
+    </div>
+    <div class="seg" id="seg-modo">
+      <button class="on" data-v="LIVRE" onclick="trocarModo('LIVRE')">LIVRE</button>
+      <button data-v="PLACA" onclick="trocarModo('PLACA')">POR PLACA</button>
+    </div>
+  </div>
+
+  <div id="placa-trava" class="placa-trava" style="display:none"></div>
+
+  <div class="leitor">
+    <label for="scan">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
+      <input id="scan" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="none" placeholder="Bipe a etiqueta do volume">
+      <span class="pulso" title="Leitor pronto"></span>
+    </label>
+  </div>
+
+  <div id="retorno" class="retorno">
+    <div class="ic">📟</div>
+    <div class="tx"><div class="tit">Pronto para bipar</div><div class="sub">Etiqueta da Conferência Geral (QR), DANFE ou número da NF</div></div>
+  </div>
+
+  <div id="conteudo"><div class="carregando">Carregando programação…</div></div>
+</main>
+
+<div class="acoes">
+  <button onclick="desfazerUltimo()"><span>↩</span>Desfazer</button>
+  <button onclick="verLeituras()"><span>📋</span>Leituras</button>
+  <button onclick="abrirConferencia()"><span>✔</span>Conferência</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="programacao.js"></script>
+<script src="bipagem.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  BIPADOR DE VOLUMES
+//  LIVRE: cada etiqueta vai para a sua placa (mostra em que caminhão vai).
+//  POR PLACA: trava num veículo; volume de outra placa = CARGA ERRADA.
+// ═══════════════════════════════════════════════════════
+const st = {
+  user: null, dia: hojeIso(), tipo: 'SAIDA', modo: 'LIVRE', placa: null,
+  grupos: [], notas: {},          // notas[tipo][placa] = [nota]
+  porNum: {},                     // porNum[tipo] = Map(numero → [{placa, nota}])
+  bips: [], pend: [], vinc: {}, ops: {},
+  unsub: [], ultimoK: null,
+};
+const $ = id => document.getElementById(id);
+const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function aviso(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+// ── Login ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { location.href = 'index.html'; return; }
+  const u = await getCurrentUserData();
+  if (!u || u.ativo === false) { await auth.signOut(); location.href = 'index.html'; return; }
+  st.user = u;
+  const nome = u.nome || u.email || '';
+  $('u-nome').textContent = nome.split(' ')[0];
+  $('u-ini').textContent = nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+  const q = new URLSearchParams(location.search);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(q.get('dia') || '')) st.dia = q.get('dia');
+  if (q.get('tipo') === 'ENTRADA') st.tipo = 'ENTRADA';
+  if (q.get('placa')) { st.modo = 'PLACA'; st.placa = q.get('placa').toUpperCase(); }
+  $('dia').value = st.dia;
+  marcarSegs();
+  await carregarDia();
+});
+function menuUsuario() {
+  abrirModal(`<h3>${escH(st.user ? (st.user.nome || st.user.email) : '')}</h3><p>Bipador de volumes · Conferência Geral</p>
+    <button class="opc" onclick="location.href='conferente.html'">✔ Ir para o Conferência</button>
+    ${st.user && st.user.role === 'admin' ? `<button class="opc" onclick="location.href='admin.html'">📊 Painel do admin</button>` : ''}
+    <button class="opc" onclick="auth.signOut().then(()=>location.href='index.html')">⎋ Sair</button>
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
+}
+
+// ── Carregar o dia: planilha + operações + leituras ao vivo ──
+async function carregarDia() {
+  st.unsub.forEach(f => f()); st.unsub = [];
+  st.bips = []; st.pend = []; st.vinc = {};
+  $('conteudo').innerHTML = '<div class="carregando">Carregando programação…</div>';
+  try {
+    const linhas = await fetchSheetVehicles(abaDoDia(st.dia));
+    st.grupos = agruparProgramacao(linhas);
+  } catch (e) {
+    st.grupos = [];
+    $('conteudo').innerHTML = `<div class="vazio">Não consegui ler a planilha do dia ${escH(abaDoDia(st.dia))}.<br><small>${escH(e.message)}</small></div>`;
+  }
+  indexar();
+  carregarOps();
+  st.unsub.push(bipOuvirDia(st.dia, lista => { st.bips = lista; const ids = new Set(lista.map(b => b.cid)); st.pend = st.pend.filter(p => !ids.has(p.cid)); render(); }));
+  st.unsub.push(bipOuvirVinculos(st.dia, m => { st.vinc = m; }));
+  render();
+  setTimeout(foco, 200);
+}
+function indexar() {
+  st.notas = { SAIDA: {}, ENTRADA: {} }; st.porNum = { SAIDA: new Map(), ENTRADA: new Map() };
+  st.grupos.forEach(g => ['SAIDA', 'ENTRADA'].forEach(t => {
+    const ns = notasParaBipagem(g.vehicles, t);
+    if (!ns.length) return;
+    st.notas[t][g.placa] = ns;
+    ns.forEach(n => n.docs.forEach(d => {
+      const m = st.porNum[t]; if (!m.has(d)) m.set(d, []); m.get(d).push({ placa: g.placa, nota: n });
+    }));
+  }));
+}
+async function carregarOps() {
+  st.ops = {};
+  try {
+    const ini = new Date(st.dia + 'T00:00:00'), fim = new Date(st.dia + 'T23:59:59');
+    const snap = await db.collection('operacoes')
+      .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(ini))
+      .where('timestamp', '<=', firebase.firestore.Timestamp.fromDate(fim)).get();
+    snap.docs.forEach(d => { const o = d.data(), k = `${o.placa}_${o.tipoExecucao}`;
+      if (!st.ops[k] || o.status === 'CONCLUIDA') st.ops[k] = o.status; });
+  } catch (e) { console.warn('ops:', e.message); }
+  render();
+}
+
+// ── Contagem ──
+function todasLeituras() { return st.bips.concat(st.pend); }
+function validasDe(placa, k) { return bipValidas(todasLeituras()).filter(b => b.placa === placa && b.tipo === st.tipo && b.k === k); }
+function resumoPlaca(placa) {
+  const ns = st.notas[st.tipo][placa] || [];
+  let esp = 0, lid = 0, completas = 0;
+  ns.forEach(n => { const c = validasDe(placa, n.k).length; esp += n.esp; lid += c; if (n.esp && c >= n.esp) completas++; });
+  const alertas = todasLeituras().filter(b => b.placa === placa && b.tipo === st.tipo && b.resultado !== 'OK' && !b.removida).length;
+  return { ns, esp, lid, completas, alertas };
+}
+
+// ── Leitura ──
+function processar(raw) {
+  const i = interpretarCodigo(raw);
+  if (!i.cod || i.cod.length < 3) return;
+  if (!st.grupos.length) return retorno('warn', '⚠', 'Programação do dia não carregada', 'Confira a data e a planilha', null);
+  if (fecharModal._aberto) return;
+
+  if (i.tipo !== 'OUTRO') {
+    let cands = st.porNum[st.tipo].get(i.num) || [];
+    if (!cands.length) {
+      const outro = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA';
+      const noOutro = st.porNum[outro].get(i.num);
+      if (i.tipo === 'NUMERO' && !noOutro) return codigoDesconhecido(i);
+      const motivo = noOutro ? `NF ${i.num} está na ${outro === 'SAIDA' ? 'SAÍDA' : 'ENTRADA'} da placa ${noOutro[0].placa}` : `NF ${i.num} não está na programação de ${abaDoDia(st.dia)}`;
+      return recusar('FORA_PROGRAMACAO', i, { nf: 'NF ' + i.num, motivo, placa: st.placa || '' }, '✖ FORA DA PROGRAMAÇÃO', motivo);
+    }
+    let alvo;
+    if (st.modo === 'PLACA') {
+      if (!st.placa) { st.placa = cands[0].placa; render(); }
+      alvo = cands.find(c => c.placa === st.placa);
+      if (!alvo) return recusar('CARGA_ERRADA', i, { nf: cands[0].nota.rot, k: cands[0].nota.k, placa: st.placa, placaCerta: cands[0].placa,
+        motivo: `Volume da placa ${cands[0].placa}` }, '✖ CARGA ERRADA', `${cands[0].nota.rot} — este volume vai nesta placa`, cands[0].placa);
+    } else {
+      alvo = cands.find(c => { const n = c.nota; return !n.esp || validasDe(c.placa, n.k).length < n.esp; }) || cands[0];
+    }
+    return contar(alvo.placa, alvo.nota, i);
+  }
+  return codigoDesconhecido(i);
+}
+
+function codigoDesconhecido(i) {
+  const v = st.vinc[i.cod];
+  if (v && v.tipo === st.tipo) {
+    const nota = (st.notas[st.tipo][v.placa] || []).find(n => n.k === v.k);
+    if (nota) {
+      if (st.modo === 'PLACA' && st.placa && v.placa !== st.placa)
+        return recusar('CARGA_ERRADA', i, { nf: nota.rot, k: nota.k, placa: st.placa, placaCerta: v.placa, motivo: `Código ligado à placa ${v.placa}` },
+          '✖ CARGA ERRADA', `${nota.rot} — este volume vai nesta placa`, v.placa);
+      return contar(v.placa, nota, i);
+    }
+  }
+  if (st.modo === 'PLACA' && st.placa) return escolherNota(i);
+  return recusar('NAO_RECONHECIDO', i, { placa: '', motivo: 'Código sem NF' }, '⚠ CÓDIGO NÃO RECONHECIDO',
+    'Use o modo POR PLACA para ligar este código a uma NF', null, 'warn');
+}
+
+function contar(placa, nota, i) {
+  const lidas = validasDe(placa, nota.k);
+  const volTxt = i.tipo === 'QR' && i.vol ? (i.de ? `${i.vol}/${i.de}` : i.vol) : '';
+  if (i.tipo === 'QR' && i.de) {
+    const ja = bipValidas(todasLeituras()).find(b => b.cod === i.cod && b.tipo === st.tipo);
+    if (ja) return recusar('DUPLICADO', i, { nf: nota.rot, k: nota.k, placa, vol: volTxt, motivo: `Já bipado às ${bipHora(ja)} por ${(ja.conferenteNome || '').split(' ')[0]}` },
+      '✖ VOLUME JÁ BIPADO', `${nota.rot} · VOL ${volTxt} — às ${bipHora(ja)}`, placa);
+  }
+  if (nota.esp && lidas.length >= nota.esp)
+    return recusar('EXCEDENTE', i, { nf: nota.rot, k: nota.k, placa, vol: volTxt, motivo: `Já tinha ${lidas.length}/${nota.esp}` },
+      '✖ VOLUME EXCEDENTE', `${nota.rot} já tem ${lidas.length}/${nota.esp} volumes`, placa);
+
+  const evt = { dia: st.dia, placa, tipo: st.tipo, k: nota.k, nf: nota.rot, dest: nota.dest, cod: i.cod, vol: volTxt,
+    resultado: 'OK', motivo: '', modo: st.modo, cid: Math.random().toString(36).slice(2, 10) };
+  st.pend.push({ ...evt, tms: Date.now(), conferenteNome: st.user.nome || st.user.email, conferenteId: st.user.uid });
+  bipRegistrar(evt, st.user).catch(e => { st.pend = st.pend.filter(p => p.cid !== evt.cid); render();
+    retorno('err', '✖', 'Leitura NÃO gravada', e.message, null); bipSom('erro'); });
+  const n = lidas.length + 1, completa = nota.esp && n >= nota.esp;
+  bipSom(completa ? 'completa' : 'ok');
+  const conf = st.ops[`${placa}_${st.tipo}`] === 'CONCLUIDA' ? ' · placa já confirmada no Conferência' : '';
+  retorno('ok', completa ? '✔' : '✓', completa ? `${nota.rot} COMPLETA` : nota.rot,
+    `${nota.dest || ''}${volTxt ? ' · VOL ' + volTxt : ''}${conf}`, placa, `${n}<span style="font-size:1.3rem;opacity:.6">/${nota.esp || '?'}</span>`);
+  st.ultimoK = nota.k;
+  render();
+}
+
+function recusar(resultado, i, extra, titulo, sub, placaMostrar, cls) {
+  const evt = { dia: st.dia, tipo: st.tipo, cod: i.cod, resultado, k: '', nf: '', placa: '', vol: '', modo: st.modo, cid: Math.random().toString(36).slice(2, 10), ...extra };
+  bipRegistrar(evt, st.user).catch(() => {});
+  bipSom(cls === 'warn' ? 'aviso' : 'erro');
+  retorno(cls || 'err', cls === 'warn' ? '!' : '✖', titulo, sub, placaMostrar);
+}
+
+function retorno(cls, ic, tit, sub, placa, cont) {
+  const r = $('retorno');
+  r.className = 'retorno ' + cls;
+  r.innerHTML = `<div class="ic">${ic}</div><div class="tx"><div class="tit">${escH(tit)}</div>
+    <div class="sub">${placa ? `<span class="placa-tag num">${escH(placa)}</span>` : ''}${escH(sub || '')}</div></div>
+    ${cont ? `<div class="cont"><b class="num">${cont}</b><small>volumes da nota</small></div>` : ''}`;
+  void r.offsetWidth; r.classList.add('flash');
+}
+
+// ── Código do cliente: escolher a NF (modo POR PLACA) ──
+function escolherNota(i) {
+  bipSom('aviso');
+  retorno('warn', '?', 'De qual NF é esta caixa?', 'Código de cliente ainda não ligado a uma NF', st.placa);
+  const ns = st.notas[st.tipo][st.placa] || [];
+  const ops = ns.map((n, x) => { const c = validasDe(st.placa, n.k).length;
+    return `<button class="opc" onclick="escolheu(${x})"><div><b>${escH(n.rot)}</b><br><small style="color:var(--mut)">${escH(n.dest)}</small></div><span class="num">${c}/${n.esp || '?'}</span></button>`; }).join('');
+  abrirModal(`<h3>De qual NF é esta caixa?</h3><p>Lido: <code>${escH(i.cod)}</code><br>As próximas caixas com este mesmo código contam nesta NF sozinhas.</p>${ops}
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Cancelar</button>`);
+  escolherNota._i = i;
+}
+function escolheu(x) {
+  const i = escolherNota._i, nota = (st.notas[st.tipo][st.placa] || [])[x];
+  fecharModal();
+  if (!i || !nota) return;
+  st.vinc[i.cod] = { cod: i.cod, placa: st.placa, tipo: st.tipo, k: nota.k };
+  bipVincular(st.dia, i.cod, nota, st.placa, st.tipo, st.user).catch(e => aviso('Vínculo não gravado: ' + e.message));
+  contar(st.placa, nota, i);
+}
+
+// ── Ações ──
+function desfazerUltimo() {
+  const minhas = bipValidas(st.bips).filter(b => b.conferenteId === st.user.uid && b.tipo === st.tipo);
+  const u = minhas[minhas.length - 1];
+  if (!u) return aviso('Nenhuma leitura sua para desfazer.');
+  abrirModal(`<h3>Desfazer a última leitura?</h3><p><span class="placa-tag num" style="font-size:.95rem;padding:1px 7px">${escH(u.placa)}</span>
+    ${escH(u.nf)} · <code>${escH(u.cod)}</code> · ${bipHora(u)}</p>
+    <button class="btn-pri" style="width:100%" onclick="fecharModal();bipRemover('${u.id}',st.user).then(()=>aviso('Leitura desfeita')).catch(e=>aviso(e.message))">Desfazer</button>
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Cancelar</button>`);
+}
+function verLeituras() {
+  const lista = todasLeituras().filter(b => b.tipo === st.tipo && (!st.placa || st.modo !== 'PLACA' || b.placa === st.placa || b.placaCerta === st.placa))
+    .slice().reverse().slice(0, 200);
+  const linhas = lista.map(b => {
+    const r = BIP_RESULTADOS[b.resultado] || { rot: b.resultado, cor: '#666' };
+    return `<div class="lin" style="${b.removida ? 'opacity:.45;text-decoration:line-through' : ''}"><div><b style="color:${r.cor}">${escH(r.rot)}</b>
+      ${b.placa ? `<span class="placa-tag num" style="font-size:.8rem;padding:0 5px">${escH(b.placa)}</span>` : ''} ${escH(b.nf || '')}<br>
+      <code>${escH(b.cod)}</code>${b.vol ? ' · VOL ' + escH(b.vol) : ''}<br><small style="color:var(--mut)">${bipHora(b)} · ${escH((b.conferenteNome || '').split(' ')[0])}${b.motivo ? ' · ' + escH(b.motivo) : ''}</small></div>
+      ${b.resultado === 'OK' && !b.removida && b.id ? `<button class="x" onclick="removerLeitura('${b.id}')">Remover</button>` : ''}</div>`;
+  }).join('') || '<p>Nenhuma leitura ainda.</p>';
+  abrirModal(`<h3>Leituras ${st.modo === 'PLACA' && st.placa ? 'da placa ' + escH(st.placa) : 'do dia'}</h3><p>${st.tipo === 'SAIDA' ? 'Saída' : 'Entrada'} · ${abaDoDia(st.dia)} · últimas 200</p>${linhas}
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
+}
+function removerLeitura(id) {
+  bipRemover(id, st.user).then(() => { aviso('Leitura removida'); fecharModal(); verLeituras(); }).catch(e => aviso(e.message));
+}
+function abrirConferencia() {
+  const p = st.modo === 'PLACA' && st.placa ? `?placa=${encodeURIComponent(st.placa)}&tipo=${st.tipo}&dia=${st.dia}` : '';
+  location.href = 'conferente.html' + p;
+}
+
+// ── Troca de dia / tipo / modo / placa ──
+function marcarSegs() {
+  document.querySelectorAll('#seg-tipo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.tipo));
+  document.querySelectorAll('#seg-modo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.modo));
+}
+function trocarDia(v) { if (!v) return; st.dia = v; carregarDia(); carregarOps(); }
+function trocarTipo(t) { st.tipo = t; marcarSegs(); if (st.placa && !st.notas[t][st.placa]) st.placa = null; render(); foco(); }
+function trocarModo(m) { st.modo = m; if (m === 'LIVRE') st.placa = null; marcarSegs(); render(); if (m === 'PLACA' && !st.placa) escolherPlaca(); else foco(); }
+function travar(placa) { st.modo = 'PLACA'; st.placa = placa; marcarSegs(); fecharModal(); render(); foco(); scrollTo({ top: 0, behavior: 'smooth' }); }
+function escolherPlaca() {
+  const placas = Object.keys(st.notas[st.tipo]).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  const ops = placas.map(p => { const r = resumoPlaca(p);
+    return `<button class="opc" onclick="travar('${escH(p)}')"><span class="placa-tag num" style="font-size:1rem;padding:2px 8px">${escH(p)}</span>
+      <small style="color:var(--mut)">${r.ns.length} NF${r.ns.length > 1 ? 's' : ''}</small><span class="num">${r.lid}/${r.esp || '?'}</span></button>`; }).join('')
+    || '<p>Nenhum veículo com notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + ' neste dia.</p>';
+  abrirModal(`<h3>Escolha o veículo</h3><p>Ou bipe uma etiqueta: o bipador trava na placa dela.</p>${ops}
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
+}
+
+// ── Desenho da tela ──
+function render() {
+  // placa travada
+  const pt = $('placa-trava');
+  if (st.modo === 'PLACA') {
+    pt.style.display = 'flex';
+    if (st.placa) {
+      const r = resumoPlaca(st.placa), conf = st.ops[`${st.placa}_${st.tipo}`];
+      pt.innerHTML = `<span class="placa-tag num">${escH(st.placa)}</span><div class="info"><b class="num" style="font-size:1.25rem">${r.lid}/${r.esp || '?'}</b> volumes ·
+        ${r.completas}/${r.ns.length} NFs completas${conf ? ` · <span class="badge ${conf === 'CONCLUIDA' ? 'conf' : 'parc'}">${conf === 'CONCLUIDA' ? 'Confirmada' : 'Parcial'}</span>` : ''}</div>
+        <button class="btn-sec" onclick="escolherPlaca()">Trocar</button>`;
+    } else pt.innerHTML = `<div class="info"><b>Nenhum veículo travado</b><br>Bipe uma etiqueta ou escolha a placa</div><button class="btn-pri" onclick="escolherPlaca()">Escolher placa</button>`;
+  } else pt.style.display = 'none';
+
+  const c = $('conteudo');
+  if (!st.grupos.length) { if (!c.querySelector('.vazio')) c.innerHTML = '<div class="vazio">Sem programação para este dia.</div>'; return; }
+
+  if (st.modo === 'PLACA' && st.placa) {
+    const r = resumoPlaca(st.placa);
+    const ordem = r.ns.slice().sort((a, b) => {
+      const fa = a.esp && validasDe(st.placa, a.k).length >= a.esp, fb = b.esp && validasDe(st.placa, b.k).length >= b.esp;
+      return fa - fb;
+    });
+    c.innerHTML = `<div class="sec-h"><h2>Notas do veículo</h2><span>${r.alertas ? `<span class="badge alerta">${r.alertas} alerta${r.alertas > 1 ? 's' : ''}</span>` : ''}</span></div>` +
+      (ordem.map(n => { const q = validasDe(st.placa, n.k).length, full = n.esp && q >= n.esp;
+        return `<div class="nota ${full ? 'full' : q ? 'parc' : ''}" data-k="${n.k}"><div class="tx"><b>${full ? '✔ ' : ''}${escH(n.rot)}</b><small>${escH([n.dest, n.cidade].filter(Boolean).join(' · ') || '—')}</small>
+          <div class="barra"><div style="width:${n.esp ? Math.min(100, q / n.esp * 100) : 0}%"></div></div></div>
+          <div class="cnt num">${q}/${n.esp || '?'}<small>${full ? 'completa' : n.esp ? `faltam ${n.esp - q}` : 'sem volume na planilha'}</small></div></div>`; }).join('')
+        || '<div class="vazio">Esta placa não tem notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + '.</div>');
+    if (st.ultimoK) { const el = c.querySelector(`.nota[data-k="${st.ultimoK}"]`); if (el) { el.classList.add('pisca'); st.ultimoK = null; } }
+    return;
+  }
+
+  const placas = Object.keys(st.notas[st.tipo]);
+  const cards = placas.map(p => ({ p, r: resumoPlaca(p) }))
+    .sort((a, b) => (b.r.lid > 0) - (a.r.lid > 0) || ((a.r.esp && a.r.lid >= a.r.esp) - (b.r.esp && b.r.lid >= b.r.esp)) || a.p.localeCompare(b.p, 'pt-BR', { numeric: true }));
+  const tot = cards.reduce((s, x) => ({ e: s.e + x.r.esp, l: s.l + x.r.lid }), { e: 0, l: 0 });
+  c.innerHTML = `<div class="sec-h"><h2>Veículos · ${st.tipo === 'SAIDA' ? 'saída' : 'entrada'}</h2><span><b class="num" style="font-size:1rem;color:var(--navy)">${tot.l}/${tot.e}</b> volumes</span></div>` +
+    (cards.length ? '<div class="grid">' + cards.map(({ p, r }) => {
+      const pct = r.esp ? Math.min(100, Math.round(r.lid / r.esp * 100)) : 0, full = r.esp && r.lid >= r.esp, conf = st.ops[`${p}_${st.tipo}`];
+      return `<div class="vcard ${full ? 'full' : ''}" onclick="travar('${escH(p)}')"><div class="topo"><span class="placa-tag num">${escH(p)}</span><span class="pct num">${pct}%</span></div>
+        <div class="barra"><div style="width:${pct}%"></div></div>
+        <div class="meta"><span><b>${r.lid}/${r.esp || '?'}</b> vol · ${r.completas}/${r.ns.length} NFs</span>
+        <span>${r.alertas ? `<span class="badge alerta">${r.alertas} ⚠</span> ` : ''}${conf === 'CONCLUIDA' ? '<span class="badge conf">Confirmada</span>' : conf ? '<span class="badge parc">Parcial</span>' : ''}</span></div></div>`;
+    }).join('') + '</div>' : '<div class="vazio">Nenhum veículo com notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + ' neste dia.</div>');
+}
+
+// ── Janela ──
+function abrirModal(html) {
+  fecharModal();
+  const m = document.createElement('div'); m.className = 'modal'; m.id = 'modal';
+  m.innerHTML = `<div class="box">${html}</div>`;
+  m.addEventListener('click', e => { if (e.target === m) fecharModal(); });
+  document.body.appendChild(m); fecharModal._aberto = true;
+}
+function fecharModal() { const m = $('modal'); if (m) m.remove(); fecharModal._aberto = false; setTimeout(foco, 50); }
+
+// ── Leitor: campo + captura global (leitor funciona como teclado) ──
+function foco() {
+  if (fecharModal._aberto) return;
+  const ae = document.activeElement;
+  if (ae && ae !== document.body && ae.id !== 'scan' && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
+  $('scan').focus({ preventScroll: true });
+}
+$('scan').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); const v = e.target.value; e.target.value = ''; processar(v); }
+});
+let _buf = '', _bufT = 0;
+document.addEventListener('keydown', e => {
+  const ae = document.activeElement;
+  if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
+  if (fecharModal._aberto) return;
+  const agora = Date.now(); if (agora - _bufT > 300) _buf = ''; _bufT = agora;
+  if (e.key === 'Enter') { const v = _buf; _buf = ''; if (v.length >= 3) { e.preventDefault(); processar(v); } }
+  else if (e.key.length === 1) _buf += e.key;
+});
+document.addEventListener('click', e => { if (!e.target.closest('input,select,button,.modal')) foco(); });
+const _hh = () => document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px');
+if (window.ResizeObserver) new ResizeObserver(_hh).observe($('hdr')); else { _hh(); addEventListener('resize', _hh); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
