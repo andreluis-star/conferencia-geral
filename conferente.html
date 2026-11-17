@@ -965,6 +965,7 @@
 <script src="firebase-config.js"></script>
 <script src="programacao.js"></script>
 <script src="bipagem.js"></script>
+<script src="inventario.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  COMPRESSÃO DE IMAGEM
@@ -2366,10 +2367,20 @@ function _ordemCarregamento(linhas) {
   return porEntrega.sort((a, b) => (a.ordemCarga - b.ordemCarga) || (b.rowIdx - a.rowIdx));
 }
 
-function imprimirRomaneio() {
+async function imprimirRomaneio() {
   const tipo = currentTipo;
   const linhas = _linhasRomaneio(tipo);
   if (!linhas.length) { showToast('Nenhuma nota neste bloco para o romaneio.', 'warning'); return; }
+
+  // Endereço de cada nota vindo do INVENTÁRIO (leitura mais recente da NF). Sem resposta em 8s, sai em branco.
+  loading(true);
+  let invMap = new Map();
+  try {
+    const r = await Promise.race([invMapaSeguro(60), new Promise(res => setTimeout(() => res({ mapa: new Map(), erro: 'tempo' }), 8000))]);
+    invMap = r.mapa || new Map();
+    if (r.erro) showToast('Endereços do inventário não carregaram — o campo sai em branco.', 'warning');
+  } finally { loading(false); }
+  linhas.forEach(l => { l.endInv = invEnderecoDe(invMap, [l.nf, l.md, l.oc, l.di].flatMap(invTokens)); });
 
   const e = escConf;
   const nomeTipo = tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
@@ -2419,7 +2430,7 @@ function imprimirRomaneio() {
       <td class="c-peso">${l.peso ? e(fmtPeso(_numBR(l.peso)) || l.peso) : '—'}</td>
       <td class="c-cbm">${e(l.cbm || '')}</td>
       <td class="c-serv">${e(l.servico || '')}</td>
-      <td class="c-end"></td>
+      <td class="c-end">${l.endInv ? `<b>${e(l.endInv.end || '')}</b><small>${e(invQuando(l.endInv.ts))}${l.endInv.operador ? ' · ' + e(String(l.endInv.operador).split(' ')[0]) : ''}</small>` : ''}</td>
       <td class="c-ok"><span class="box"></span></td>
     </tr>`;
   }).join('');
@@ -2480,7 +2491,9 @@ function imprimirRomaneio() {
     .c-cbm { width: 17mm; font-size: 7pt; text-align: center; }
     .c-serv { width: 21mm; font-size: 7pt; font-weight: 700; }
     td.c-end { border: 0.4mm solid #000; background: #fff !important; }
-    .c-end { width: 28mm; }
+    .c-end { width: 28mm; text-align: center; }
+    td.c-end b { display: block; font-size: 8.5pt; line-height: 1.1; }
+    td.c-end small { display: block; font-size: 6pt; color: #555; margin-top: 1px; }
     .c-ok { width: 11mm; text-align: center; }
     .box { display: inline-block; width: 5.5mm; height: 5.5mm; border: 0.5mm solid #000; border-radius: 1mm; }
     th.c-vol, th.c-peso, th.c-nf { font-size: 8pt; }
@@ -4664,7 +4677,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-7';
+const APP_VERSION = '2026.11.17-8';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');

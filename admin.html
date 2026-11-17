@@ -220,6 +220,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
       Bipagem
     </a>
+    <a class="sb-item" data-section="enderecados" onclick="showSection('enderecados')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Itens endereçados
+    </a>
     <a class="sb-item" data-section="operacoes" onclick="showSection('operacoes')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Operações
@@ -688,6 +692,35 @@
   </div>
 
   <!-- ===== DISCREPÂNCIAS ===== -->
+  <!-- ===== ITENS ENDEREÇADOS (Inventário + Conferência) ===== -->
+  <div class="section" id="sec-enderecados">
+    <div class="table-card mb-3">
+      <div class="tc-head" style="flex-wrap:wrap;gap:10px;">
+        <span class="tc-title">📍 Itens endereçados</span>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <input id="end-busca" class="form-control form-control-sm" style="width:220px" placeholder="Buscar NF, cliente, endereço" oninput="clearTimeout(window._endBT);window._endBT=setTimeout(renderEnderecados,250)">
+          <select id="end-filtro-end" class="form-select form-select-sm" style="width:150px" onchange="renderEnderecados()"><option value="">Todos os endereços</option></select>
+          <select id="end-filtro-sit" class="form-select form-select-sm" style="width:190px" onchange="renderEnderecados()">
+            <option value="ARMAZEM">No armazém (sem saída)</option><option value="PROG">Programada p/ sair hoje</option><option value="SAIU">Já saiu (bipada)</option><option value="">Todas</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadEnderecados(true)">↻ Sincronizar inventário</button>
+          <button class="btn btn-sm btn-success" onclick="exportarEnderecados()">⬇ Excel</button>
+        </div>
+      </div>
+      <div class="px-3 pt-3">
+        <div id="end-sync" class="small text-muted mb-2"></div>
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value" id="end-k-arm">—</div><div class="label">Notas no armazém</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-warning" id="end-k-prog">—</div><div class="label">Programadas p/ sair hoje</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-danger" id="end-k-par">—</div><div class="label">Paradas há +3 dias</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-success" id="end-k-saiu">—</div><div class="label">Saíram (bipadas, 30 dias)</div></div></div>
+        </div>
+        <div id="end-por-endereco" class="d-flex flex-wrap gap-2 mb-3"></div>
+      </div>
+      <div id="end-corpo" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
   <!-- ===== BIPAGEM ===== -->
   <div class="section" id="sec-bipagem">
     <div class="table-card mb-3">
@@ -1231,6 +1264,7 @@
 <script src="firebase-config.js"></script>
 <script src="programacao.js"></script>
 <script src="bipagem.js"></script>
+<script src="inventario.js"></script>
 <script>
 let chartConf, chartVeic;
 let allInsumos = [];
@@ -1464,6 +1498,115 @@ function _bipHtmlRank(lista) {
     <div class="px-3 py-2 small text-muted">Vol/hora = volumes OK entre o primeiro e o último bipe do dia. Alertas = leituras recusadas (duplicado, excedente, carga errada, fora da programação, não reconhecido).</div>`;
 }
 
+// ═══════════════════════════════════════════════════════
+//  ITENS ENDEREÇADOS — Inventário PORTOEX (índice leve) +
+//  Endereçamento da Conferência, com a situação de saída.
+// ═══════════════════════════════════════════════════════
+const endAdm = { linhas: [], progHoje: new Map(), saidas: new Map() };
+
+async function loadEnderecados(forcarSync) {
+  const sync = document.getElementById('end-sync');
+  document.getElementById('end-corpo').innerHTML = '<div class="p-4 text-muted">Carregando…</div>';
+  // 1) Sincroniza o índice do inventário (só itens novos; a 1ª vez leva alguns minutos)
+  try {
+    sync.textContent = 'Sincronizando com o Inventário…';
+    const r = await invSincronizar({ limite: forcarSync ? null : 300, onProgresso: (f, t) => { sync.textContent = `Sincronizando com o Inventário… ${f}/${t}`; } });
+    sync.innerHTML = r.novas > r.lidas
+      ? `⚠ Faltam ${r.novas - r.lidas} leituras antigas do inventário para sincronizar. <a href="#" onclick="loadEnderecados(true);return false">Sincronizar tudo</a> (pode levar alguns minutos na 1ª vez).`
+      : `Inventário sincronizado agora (${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}).`;
+  } catch (e) { sync.textContent = 'Não consegui sincronizar o inventário: ' + e.message + ' — mostrando o que já estava no índice.'; }
+
+  const hoje = hojeIso(), de30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const [itens, endConf, bips, prog] = await Promise.all([
+    invItens().catch(() => []),
+    db.collection('enderecamentos').where('ativo', '==', true).get().then(s => s.docs.map(d => d.data())).catch(() => []),
+    bipBuscarPeriodo(de30, hoje).catch(() => []),
+    fetchSheetVehicles(abaDoDia(hoje)).then(agruparProgramacao).catch(() => []),
+  ]);
+  // Saídas bipadas (por número da NF)
+  endAdm.saidas = new Map();
+  bipValidas(bips).filter(b => b.tipo === 'SAIDA').forEach(b => {
+    [b.lote, ...invTokens(String(b.nf || '').replace(/^NF\s+/, ''))].filter(Boolean).forEach(t => {
+      const a = endAdm.saidas.get(t); if (!a || b.tms > a.tms) endAdm.saidas.set(t, b);
+    });
+  });
+  // Programação de saída de hoje
+  endAdm.progHoje = new Map();
+  prog.forEach(g => notasParaBipagem(g.vehicles, 'SAIDA').forEach(n => n.docs.forEach(d => endAdm.progHoje.set(d, g.placa))));
+
+  // Uma linha por nota: a leitura mais recente do inventário
+  const porNf = new Map();
+  itens.forEach(it => {
+    const chave = invTokens(it.nf).join('/') || String(it.nf);
+    const a = porNf.get(chave); if (!a || (it.ts || 0) > (a.ts || 0)) porNf.set(chave, it);
+  });
+  const linhas = [...porNf.values()].map(it => ({ nf: it.nf, tokens: invTokens(it.nf), cliente: it.cliente || '', end: it.end || '', ts: it.ts || 0,
+    por: it.operador || '', vol: it.vol || '', origem: /BIPADOR/i.test(it.obs || '') ? 'Bipador' : 'Inventário' }));
+  // Endereçamento da Conferência (entrada) que não está no inventário
+  const ja = new Set(linhas.flatMap(l => l.tokens));
+  endConf.forEach(d => {
+    const tk = invTokens(d.nf || d.ident);
+    if (!tk.length || tk.some(t => ja.has(t))) return;
+    const atuais = (d.enderecos || []).map(s => (s.historico || []).slice(-1)[0]).filter(Boolean);
+    const ts = d.atualizadoEm && d.atualizadoEm.toMillis ? d.atualizadoEm.toMillis() : (d.criadoEm && d.criadoEm.toMillis ? d.criadoEm.toMillis() : 0);
+    linhas.push({ nf: d.nf || d.ident, tokens: tk, cliente: d.destinatario || '', end: atuais.join(', '), ts, por: d.atualizadoPor || d.criadoPor || '', vol: '', origem: 'Conferência', placa: d.placa });
+  });
+  linhas.forEach(l => {
+    const s = l.tokens.map(t => endAdm.saidas.get(t)).filter(Boolean).sort((a, b) => b.tms - a.tms)[0];
+    const p = l.tokens.map(t => endAdm.progHoje.get(t)).find(Boolean);
+    l.saida = s && s.tms > l.ts ? s : null;
+    l.progPlaca = p || '';
+    l.sit = l.saida ? 'SAIU' : p ? 'PROG' : 'ARMAZEM';
+    l.dias = l.ts ? Math.floor((Date.now() - l.ts) / 864e5) : null;
+  });
+  linhas.sort((a, b) => b.ts - a.ts);
+  endAdm.linhas = linhas;
+  const sel = document.getElementById('end-filtro-end'), v = sel.value;
+  sel.innerHTML = '<option value="">Todos os endereços</option>' + [...new Set(linhas.map(l => l.end).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+    .map(e => `<option ${e === v ? 'selected' : ''}>${escB(e)}</option>`).join('');
+  renderEnderecados();
+}
+
+function _endFiltradas() {
+  const q = (document.getElementById('end-busca').value || '').trim().toUpperCase();
+  const fe = document.getElementById('end-filtro-end').value, fs = document.getElementById('end-filtro-sit').value;
+  return endAdm.linhas.filter(l => (!fe || l.end === fe) && (!fs || l.sit === fs) &&
+    (!q || [l.nf, l.cliente, l.end, l.por, l.progPlaca].some(x => String(x || '').toUpperCase().includes(q))));
+}
+
+function renderEnderecados() {
+  const L = endAdm.linhas, arm = L.filter(l => l.sit !== 'SAIU');
+  document.getElementById('end-k-arm').textContent = arm.length;
+  document.getElementById('end-k-prog').textContent = L.filter(l => l.sit === 'PROG').length;
+  document.getElementById('end-k-par').textContent = L.filter(l => l.sit === 'ARMAZEM' && l.dias != null && l.dias >= 3).length;
+  document.getElementById('end-k-saiu').textContent = L.filter(l => l.sit === 'SAIU').length;
+  const porEnd = {}; arm.forEach(l => { const e = l.end || '—'; porEnd[e] = (porEnd[e] || 0) + 1; });
+  document.getElementById('end-por-endereco').innerHTML = Object.entries(porEnd).sort((a, b) => b[1] - a[1]).map(([e, n]) =>
+    `<span class="bip-res" style="background:#eef1f6;color:#1a3a5c;cursor:pointer" onclick="document.getElementById('end-filtro-end').value='${escB(e)}';renderEnderecados()">${escB(e)} <b>${n}</b></span>`).join('');
+  const fil = _endFiltradas();
+  const sit = l => l.sit === 'SAIU' ? `<span class="badge-ok">Saiu ${_bipDia(l.saida)}${l.saida.placa ? ' · ' + escB(l.saida.placa) : ''}</span>`
+    : l.sit === 'PROG' ? `<span class="badge-saida">Sai hoje · ${escB(l.progPlaca)}</span>`
+    : `<span class="${l.dias >= 3 ? 'badge-naook' : 'badge-pendente'}">No armazém${l.dias ? ' · ' + l.dias + 'd' : ''}</span>`;
+  document.getElementById('end-corpo').innerHTML = fil.length ? `<table class="tbl"><thead><tr><th>NF</th><th>Cliente</th><th>Endereço</th><th>Desde</th><th>Por</th><th>Vol</th><th>Origem</th><th>Situação</th></tr></thead><tbody>
+    ${fil.slice(0, 800).map(l => `<tr><td><b>${escB(l.nf)}</b></td><td class="small">${escB(l.cliente)}</td><td><b>${escB(l.end || '—')}</b></td>
+      <td class="small">${escB(invQuando(l.ts))}</td><td class="small">${escB(String(l.por).split(' ')[0])}</td><td>${escB(l.vol)}</td>
+      <td class="small">${escB(l.origem)}</td><td>${sit(l)}</td></tr>`).join('')}</tbody></table>
+    ${fil.length > 800 ? `<div class="px-3 py-2 small text-muted">Mostrando 800 de ${fil.length}. A exportação leva todas.</div>` : ''}`
+    : '<div class="p-4 text-muted">Nenhum item com esse filtro.</div>';
+}
+
+function exportarEnderecados() {
+  const fil = _endFiltradas();
+  const cab = ['NF', 'Cliente', 'Endereço', 'Desde', 'Por', 'Volumes', 'Origem', 'Situação', 'Dias parado', 'Placa (saída)'];
+  const rows = fil.map(l => [l.nf, l.cliente, l.end, l.ts ? new Date(l.ts).toLocaleString('pt-BR') : '', l.por, l.vol, l.origem,
+    l.sit === 'SAIU' ? 'Saiu ' + (l.saida.dia || '') : l.sit === 'PROG' ? 'Sai hoje' : 'No armazém', l.sit === 'SAIU' ? '' : l.dias, l.saida ? l.saida.placa : l.progPlaca]);
+  const csv = '﻿' + [cab].concat(rows).map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `itens_enderecados_${hojeIso()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 function logout() { auth.signOut().then(()=>window.location.href='index.html'); }
 
 function showSection(id) {
@@ -1471,7 +1614,7 @@ function showSection(id) {
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelector(`.sb-item[data-section="${id}"]`).classList.add('active');
-  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas','clientes-palete':'Clientes / Paletes',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações',bipagem:'Bipagem de volumes'};
+  const titles = {dashboard:'Dashboard',conferentes:'Conferentes',insumos:'Insumos / Estoque',consumos:'Consumos — Gestão de Movimentações',enderecos:'Endereços',motoristas:'Motoristas','clientes-palete':'Clientes / Paletes',operacoes:'Operações',discrepancias:'Discrepâncias',paletes:'Paletes',apontamento:'Apontamento por Veículo',notificacoes:'Notificações WhatsApp','apontamento-erro':'Apontamento de Erro','rastreio-enderecos':'Endereçamento',tfa:'TFA — Termo de Falta e Avaria',config:'Configurações',bipagem:'Bipagem de volumes',enderecados:'Itens endereçados'};
   document.getElementById('page-title').textContent = titles[id]||id;
   if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
   if (id==='consumos')           loadConsumos();
@@ -1487,6 +1630,7 @@ function showSection(id) {
   if (id==='rastreio-enderecos') loadRastreioEnderecos();
   if (id==='tfa')                loadTFA();
   if (id==='config')             loadConfig();
+  if (id==='enderecados')        loadEnderecados();
   if (id==='bipagem')            loadBipagem();
   else { if (bipAdm.unsub) { bipAdm.unsub(); bipAdm.unsub = null; } if (bipAdm.unsubL) { bipAdm.unsubL(); bipAdm.unsubL = null; } }
 }
@@ -4795,7 +4939,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-7';
+const APP_VERSION = '2026.11.17-8';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');

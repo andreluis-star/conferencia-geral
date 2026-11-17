@@ -224,6 +224,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 <script src="firebase-config.js"></script>
 <script src="programacao.js"></script>
 <script src="bipagem.js"></script>
+<script src="inventario.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  BIPADOR DE VOLUMES
@@ -239,7 +240,7 @@ const st = {
   bips: [], pend: [], vinc: {}, ops: {},
   unsub: [], ultimoK: null, ultimoVol: null,
   finalidade: (() => { try { return localStorage.getItem('bipFinalidade') || 'CONFERENCIA'; } catch (e) { return 'CONFERENCIA'; } })(),
-  lotesInfo: {}, catalogo: null,
+  lotesInfo: {}, catalogo: null, inv: new Map(), invItens: [],
 };
 const $ = id => document.getElementById(id);
 const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -302,6 +303,7 @@ async function carregarDia() {
   }
   indexar();
   carregarOps();
+  carregarInventario();
   st.unsub.push(bipOuvirDia(st.dia, lista => { st.bips = lista; const ids = new Set(lista.map(b => b.cid)); st.pend = st.pend.filter(p => !ids.has(p.cid)); render(); }));
   st.unsub.push(bipOuvirVinculos(st.dia, m => { st.vinc = m; }));
   st.unsub.push(bipOuvirLotes(st.dia, m => { st.lotesInfo = m; render(); }));
@@ -319,6 +321,15 @@ function indexar() {
     }));
   }));
 }
+/** Endereços do inventário (índice leve), sem travar a tela. */
+async function carregarInventario() {
+  const r = await invMapaSeguro(60);
+  st.inv = r.mapa;
+  try { st.invItens = await invItens(); } catch (e) { st.invItens = []; }
+  render();
+}
+function invDaNota(l) { return l ? invEnderecoDe(st.inv, [l.num, ...invTokens(String(l.rot || '').replace(/^NF\s+/, ''))]) : null; }
+
 async function carregarOps() {
   st.ops = {};
   try {
@@ -700,11 +711,14 @@ async function enderecarLote(auto) {
   const sel = new Set(infoLote(l).enderecos || []);
   enderecarLote._sel = sel;
   const grupos = {};
-  cat.forEach(e => { (grupos[e.categoria || 'Outros'] = grupos[e.categoria || 'Outros'] || []).push(e.codigo); });
+  const usados = invEnderecosUsados(st.invItens || []);
+  if (usados.length) grupos['Endereços do inventário'] = usados;
+  cat.forEach(e => { const g = 'Catálogo · ' + (e.categoria || 'Outros'); if (!usados.includes(e.codigo)) (grupos[g] = grupos[g] || []).push(e.codigo); });
+  const atualInv = invDaNota(l);
   const html = Object.entries(grupos).map(([g, cods]) => `<div class="cat-h">${escH(g)}</div><div class="chips-end">${cods.map(c =>
     `<button class="${sel.has(c) ? 'on' : ''}" data-c="${escH(c)}" onclick="toggleEnd(this)">${escH(c)}</button>`).join('')}</div>`).join('');
   abrirModal(`<h3>${auto ? 'Nota completa — ' : ''}Endereço da ${escH(l.rot)}</h3>
-    <p>${escH(l.dest || '')}. Toque no(s) endereço(s) ou bipe a etiqueta do endereço.</p>
+    <p>${escH(l.dest || '')}. Toque no(s) endereço(s) ou bipe a etiqueta do endereço.${atualInv ? `<br>No inventário hoje: <b>${escH(atualInv.end)}</b> (${escH(invQuando(atualInv.ts))})` : ''}<br>O endereço escolhido também é gravado no Inventário.</p>
     ${html || '<p>Nenhum endereço cadastrado no catálogo (admin → Endereços).</p>'}
     <button class="btn-pri" style="width:100%;margin-top:12px" onclick="salvarEndereco()">Salvar endereço</button>
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">${auto ? 'Depois' : 'Fechar'}</button>`);
@@ -724,6 +738,11 @@ async function salvarEndereco() {
   try {
     await bipSalvarLote(st.dia, st.tipo, l.num, { nf: l.rot, dest: l.dest || '', finalidade: st.finalidade, enderecos: codigos, enderecoPor: quem, enderecoEm: Date.now() });
     await gravarEnderecamento(l, codigos, quem);
+    // Inventário PORTOEX: uma leitura por endereço escolhido (aparece no inventário e no romaneio)
+    const q = lidasLote(l.num).length;
+    for (const end of codigos) await invRegistrar({ nf: String(l.rot || '').replace(/^NF\s+/, ''), cliente: l.dest || '', vol: q || '', end,
+      operador: (st.user.nome || st.user.email || '').split(' ')[0], obs: 'BIPADOR ' + (st.tipo === 'SAIDA' ? 'SAÍDA' : 'ENTRADA') });
+    carregarInventario();
     bipSom('ok'); aviso(codigos.length ? `${l.rot} endereçada: ${codigos.join(', ')}` : 'Endereço removido');
   } catch (e) { bipSom('erro'); aviso('Endereço não gravado: ' + e.message); }
 }
@@ -780,7 +799,8 @@ function renderNota(c) {
     }
     const placas = l.placas.length ? `Programada: ${l.placas.join(', ')}` : 'Fora da programação do dia';
     html += `<div class="lote ${full ? 'full' : ''}"><div class="cab"><div class="tx"><div class="cli">${escH(l.dest || 'Cliente não informado')}</div>
-      <h3>${full ? '✔ ' : ''}${escH(l.rot)}</h3><div class="info">${escH([l.cidade, placas].filter(Boolean).join(' · '))}</div></div>
+      <h3>${full ? '✔ ' : ''}${escH(l.rot)}</h3><div class="info">${escH([l.cidade, placas].filter(Boolean).join(' · '))}</div>
+      ${(() => { const it = invDaNota(l); return it ? `<div class="info" style="margin-top:3px;color:var(--navy)">📦 Inventário: <b>${escH(it.end || '—')}</b> · ${escH(invQuando(it.ts))}${it.operador ? ' · ' + escH(String(it.operador).split(' ')[0]) : ''}</div>` : ''; })()}</div>
       <div class="big"><b class="num">${q}</b><b class="num" style="font-size:1.3rem;opacity:.55">/${l.esp || '?'}</b><small>${full ? 'nota completa' : l.esp ? `faltam ${l.esp - q}` : 'total desconhecido'}</small></div></div>
       <div class="barra"><div style="width:${l.esp ? Math.min(100, q / l.esp * 100) : 0}%"></div></div>
       ${chips ? `<div class="vols">${chips}</div>` : ''}
