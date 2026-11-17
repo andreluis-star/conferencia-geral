@@ -427,6 +427,7 @@
 
   /* ══ BLOCOS ENTRADA / SAÍDA (tela da placa) ══ */
   .op-bloco { --bl-cor:#1d6b30; --bl-fundo:#e6f4ea; --bl-borda:#bfe0c8; background:var(--bl-fundo); border-radius:var(--radius); margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.10); overflow:hidden; border:2px solid var(--bl-borda); }
+  .op-bloco.aberto { overflow:clip; }
   .op-bloco.saida { --bl-cor:#8a1f1f; --bl-fundo:#fbeaea; --bl-borda:#efc4c4; }
   .op-bloco-head { padding:14px 14px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; background:var(--bl-cor); color:#fff; }
   .op-bloco-l1 { display:flex; align-items:center; gap:8px; }
@@ -516,6 +517,32 @@
 
   /* Lista de NFs recolhida (toca para abrir os detalhes) */
   .nf-block { padding:0; overflow:hidden; }
+  /* ── BIPAGEM ── */
+  #bip-bar { position:sticky; top:var(--hdr-h,0px); z-index:30; background:#0f2a4d; color:#fff; border-radius:12px; padding:10px 12px; margin-bottom:12px; box-shadow:0 3px 12px rgba(0,0,0,.18); }
+  #bip-bar .bip-top { display:flex; align-items:center; gap:10px; }
+  #bip-input { flex:1; min-width:0; font-size:1.05rem; font-family:monospace; padding:11px 12px; border-radius:8px; border:2px solid #E8611A; text-transform:uppercase; background:#fff; color:#111; }
+  #bip-input:focus { outline:none; border-color:#ffb27a; box-shadow:0 0 0 3px rgba(232,97,26,.35); }
+  .bip-tot { text-align:center; min-width:74px; line-height:1; }
+  .bip-tot b { font-family:'Barlow Condensed',sans-serif; font-size:1.9rem; }
+  .bip-tot small { display:block; font-size:.62rem; opacity:.75; margin-top:2px; }
+  .bip-msg { margin-top:8px; padding:9px 10px; border-radius:8px; font-weight:800; font-size:.92rem; text-align:center; display:none; }
+  .bip-msg.ok { display:block; background:#1e9e4a; } .bip-msg.err { display:block; background:#d32f2f; } .bip-msg.warn { display:block; background:#f0a500; color:#222; }
+  .bip-acoes { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .bip-acoes button { flex:1; min-width:110px; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:8px; font-weight:700; font-size:.78rem; cursor:pointer; }
+  .bip-acoes button.on { background:#E8611A; border-color:#E8611A; }
+  .bip-cnt { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:1rem; padding:2px 8px; border-radius:10px; background:#e3e8ef; color:#4a5568; flex-shrink:0; }
+  .bip-cnt.parc { background:#fff1d6; color:#9a5b00; } .bip-cnt.full { background:#d8f3e2; color:#1e7a3f; }
+  .nf-block.bip-flash { animation:bipFlash .9s; }
+  @keyframes bipFlash { 0%{background:#d8f3e2} 100%{background:transparent} }
+  body.bip-erro #screen-form, body.bip-erro #screen-placas { animation:bipErro .45s 2; }
+  @keyframes bipErro { 50%{background:#ffb4b4} }
+  .bip-modal { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; display:flex; align-items:center; justify-content:center; padding:14px; }
+  .bip-modal-box { background:#fff; border-radius:12px; padding:16px; width:100%; max-width:480px; max-height:85vh; overflow:auto; }
+  .bip-modal-box h3 { margin:0 0 6px; color:#1a3a5c; font-size:1.05rem; }
+  .bip-opt { display:block; width:100%; text-align:left; padding:12px; margin-top:8px; border-radius:8px; border:1.5px solid #dde5f0; background:#f5f8fc; font-size:.9rem; cursor:pointer; }
+  .bip-opt b { color:#1a3a5c; }
+  .bip-lista { font-family:monospace; font-size:.8rem; max-height:40vh; overflow:auto; border:1px solid #eee; border-radius:8px; margin-top:8px; }
+  .bip-lista div { padding:6px 8px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; gap:8px; }
   .nf-linha { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .nf-pill { width:24px; height:24px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:900; background:#e3e8ef; color:#8a94a6; }
   .nf-pill.ok { background:var(--green); color:#fff; }
@@ -681,6 +708,19 @@
       <!-- PAINEL DO BLOCO ABERTO: é movido para dentro do bloco ativo -->
       <div id="painel-bloco-holder" style="display:none;">
       <div id="painel-bloco">
+      <!-- BIPAGEM: leitura de volumes do bloco aberto -->
+      <div id="bip-bar">
+        <div class="bip-top">
+          <input id="bip-input" autocomplete="off" autocapitalize="characters" inputmode="none" placeholder="📟 Bipe o volume / DANFE / etiqueta"/>
+          <div class="bip-tot"><b id="bip-tot-n">0</b><b style="font-size:1.1rem;opacity:.7;">/<span id="bip-tot-t">0</span></b><small>volumes bipados</small></div>
+        </div>
+        <div class="bip-msg" id="bip-msg"></div>
+        <div class="bip-acoes">
+          <button type="button" id="bip-btn-ativa" onclick="bipEscolherNfAtiva()">🎯 NF ativa: —</button>
+          <button type="button" onclick="bipDesfazer()">↩ Desfazer último</button>
+          <button type="button" onclick="bipVerLeituras()">📋 Leituras</button>
+        </div>
+      </div>
       <div class="form-card" id="bloco-concluido-info" style="display:none;"></div>
 
       <div id="painel-cadastro">
@@ -1824,6 +1864,7 @@ async function abrirBloco(tipo, forcar) {
     info.style.display = done ? 'block' : 'none';
     info.innerHTML = done ? _htmlBlocoLancado(op) : '';
     document.getElementById('btn-todas-ok').style.display = done ? 'none' : '';
+    bipInit();
   } finally {
     loading(false);
   }
@@ -4035,6 +4076,9 @@ async function submeterConferencia() {
       }
     }
 
+    // ── Bipagem: NFs bipadas pela metade podem virar NÃO OK com a quantidade lida ──
+    loading(false); bipPrepararEnvio(); loading(true);
+
     // ── Coleta status por bloco de NF ──
     const nfsData = [];
     document.querySelectorAll('#campos-conferencia .nf-block').forEach(block=>{
@@ -4082,7 +4126,8 @@ async function submeterConferencia() {
         quantidadeAveriguada: qtdDiv ? parseInt(qtdDiv) : null,
         observacao:           obsText,
         enderecoIdent:        block.dataset.enderecoIdent || '',
-        codigosEndereco
+        codigosEndereco,
+        ...bipDadosNf(idx)
       });
     });
 
@@ -4129,7 +4174,8 @@ async function submeterConferencia() {
         : '';
       loading(false);
       const ok = confirm(`${faltam > 0 ? 'Salvar' : 'Confirmar'} ${nomeTipo} da placa ${placa}?\n\n` +
-        `🪵 Paletes: ${totPal}\n📦 Insumos: ${totIns}\n📋 NFs marcadas: ${marcadasNf} de ${nfsData.length}` + aviso);
+        `🪵 Paletes: ${totPal}\n📦 Insumos: ${totIns}\n📋 NFs marcadas: ${marcadasNf} de ${nfsData.length}` +
+        (nfsData.some(n => n.volumesBipados) ? `\n📟 Volumes bipados: ${nfsData.reduce((t, n) => t + (n.volumesBipados || 0), 0)} de ${nfsData.reduce((t, n) => t + (n.volumesEsperados || 0), 0)}` : '') + aviso);
       if (!ok) { btn.disabled = false; return; }
       loading(true);
     }
@@ -4164,6 +4210,8 @@ async function submeterConferencia() {
       dataRef, cliente, clienteUnico, transferencia,
       nfs:nfsData,
       totalNfs:nfsData.length,
+      volumesEsperados: nfsData.reduce((t, n) => t + (n.volumesEsperados || 0), 0),
+      volumesBipados:   nfsData.reduce((t, n) => t + (n.volumesBipados || 0), 0),
       paletes,
       paletesEsperados: paletesUltimaSaida,   // o que saiu na operação anterior
       insumos:insumosSel,
@@ -4673,6 +4721,364 @@ window.addEventListener('resize', _medirCabecalho);
 window.addEventListener('load', _medirCabecalho);
 setTimeout(_medirCabecalho, 0);
 
+// ═══════════════════════════════════════════════════════
+//  BIPAGEM DE VOLUMES (leitor de código de barras / QR)
+//  Cada leitura é ligada a uma NF do bloco aberto e contada
+//  até o Volume da planilha (col E). Ao completar, a NF fica
+//  OK sozinha. Leituras ficam em nf_status_live (campos
+//  bip_AAAAMMDD) para os outros conferentes e para reabrir.
+//  Como o código vira NF:
+//   1) QR da etiqueta do sistema  NF:x;VOL:i/n  → volume único
+//   2) chave da DANFE (44 dígitos) → número da NF
+//   3) número da NF / MD / OC puro
+//   4) código já vinculado (ex.: etiqueta do cliente igual em
+//      todas as caixas) → mesma NF
+//   5) desconhecido → NF ativa, ou o conferente escolhe a NF
+// ═══════════════════════════════════════════════════════
+let bip = null;            // { tipo, placa, chaves:{k→idx}, info:{idx→{k,esp,docs}}, lidos:{k→[]}, vinc:{cod→k}, ativa:k|null, ocorr:[] }
+let bipUnsub = null;
+let _bipAc = null;
+
+function _bipSom(ok) {
+  try {
+    _bipAc = _bipAc || new (window.AudioContext || window.webkitAudioContext)();
+    const tons = ok ? [[1500, .08]] : [[320, .17], [220, .17], [320, .24]];
+    let t = _bipAc.currentTime;
+    tons.forEach(([f, d]) => { const o = _bipAc.createOscillator(), g = _bipAc.createGain();
+      o.type = ok ? 'sine' : 'square'; o.frequency.value = f; g.gain.value = .25;
+      o.connect(g); g.connect(_bipAc.destination); o.start(t); o.stop(t + d); t += d + .04; });
+  } catch (e) {}
+  if (!ok && navigator.vibrate) navigator.vibrate([220, 80, 220]);
+}
+function _bipMsg(cls, html) {
+  const m = document.getElementById('bip-msg'); if (!m) return;
+  m.className = 'bip-msg ' + cls; m.innerHTML = html;
+  if (cls === 'err') { document.body.classList.remove('bip-erro'); void document.body.offsetWidth; document.body.classList.add('bip-erro'); }
+}
+function _bipDataKey() { return (document.getElementById('sel-date').value || '').replace(/-/g, ''); }
+function _bipDocId() { return liveStatusDocId(currentPlaca, currentTipo); }
+/** Tokens numéricos de um campo (NF "38502 / 26BR0002290205-9" → ["38502"]; "7686 / 2422" → ["7686","2422"]). */
+function _bipTokens(s) {
+  return String(s || '').toUpperCase().split(/[\s\/;,|-]+/).map(t => t.trim()).filter(Boolean)
+    .map(t => /^\d+$/.test(t) ? String(+t) : t);
+}
+function _bipNorm(c) { return /^\d+$/.test(c) ? String(+c) : c; }
+/** Chave estável da NF (não muda se a planilha ganhar linhas novas). */
+function _bipChaveNf(d) {
+  const base = [d.nf, d.md, d.oc, d.di, d.dest, d.tituloOp].join('|').toUpperCase();
+  let h = 0; for (let i = 0; i < base.length; i++) h = (h * 31 + base.charCodeAt(i)) | 0;
+  return 'k' + (h >>> 0).toString(36);
+}
+function _bipDvChave(ch) { let p = 2, s = 0; for (let i = 42; i >= 0; i--) { s += +ch[i] * p; p = p === 9 ? 2 : p + 1; } const r = s % 11; return (r < 2 ? 0 : 11 - r) === +ch[43]; }
+function _bipLidos(k) { return (bip && bip.lidos[k]) || []; }
+
+/** Monta o estado da bipagem para o bloco aberto (chamado no fim de abrirBloco). */
+function bipInit() {
+  if (bipUnsub) { bipUnsub(); bipUnsub = null; }
+  bip = { tipo: currentTipo, placa: currentPlaca, chaves: {}, info: {}, lidos: {}, vinc: {}, ativa: null, ocorr: [] };
+  currentVehicles.forEach((v, idx) => {
+    if (_tipoLinha(v) !== currentTipo) return;
+    const d = _dadosLinhaNf(v, idx);
+    if (!d.relevante) return;
+    const k = _bipChaveNf(d);
+    const docs = [...new Set([d.nf, d.md, d.oc, d.di].flatMap(_bipTokens).filter(t => /\d/.test(t)))];
+    bip.chaves[k] = idx;
+    bip.info[idx] = { k, esp: Math.round(_numVolume(d.vol)) || 0, docs, rot: d.nf ? `NF ${d.nf}` : d.md ? `MD ${d.md}` : d.oc ? `OC ${d.oc}` : d.tituloOp, dest: d.dest || '' };
+    bip.lidos[k] = [];
+    // contador na linha da NF
+    const linha = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"] .nf-linha`);
+    if (linha && !linha.querySelector('.bip-cnt')) {
+      const sp = document.createElement('span'); sp.className = 'bip-cnt'; sp.id = 'bip-cnt-' + idx;
+      linha.insertBefore(sp, linha.querySelector('.nf-obs-flag'));
+    }
+  });
+  // posição fixa da barra logo abaixo do cabeçalho
+  const fh = document.querySelector('#screen-form .form-header');
+  const hdr = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-h')) || 56;
+  document.getElementById('bip-bar').style.top = (hdr + (fh ? fh.offsetHeight : 0)) + 'px';
+  document.getElementById('bip-msg').className = 'bip-msg';
+  bipRender();
+  // leituras já feitas hoje (por mim ou por outro conferente) — em tempo real
+  const chaveDia = 'bip_' + _bipDataKey(), placa = currentPlaca, tipo = currentTipo;
+  bipUnsub = db.collection('nf_status_live').doc(_bipDocId()).onSnapshot(snap => {
+    if (!bip || bip.placa !== placa || bip.tipo !== tipo) return;
+    const data = (snap.exists && snap.data()) || {};
+    const dia = data[chaveDia] || {};
+    const antes = {}; Object.keys(bip.lidos).forEach(k => antes[k] = bip.lidos[k].length);
+    Object.keys(bip.lidos).forEach(k => { bip.lidos[k] = (dia['l_' + k] || []).slice().sort((a, b) => a.t - b.t); });
+    bip.vinc = {}; (dia.vinc || []).forEach(x => { if (x && x.cod) bip.vinc[x.cod] = x.k; });
+    bipRender();
+    Object.keys(bip.lidos).forEach(k => { if (bip.lidos[k].length !== antes[k]) _bipAutoStatus(k); });
+    // limpa leituras de dias anteriores deste documento
+    const velhos = Object.keys(data).filter(f => f.startsWith('bip_') && f !== chaveDia);
+    if (velhos.length) { const up = {}; velhos.forEach(f => up[f] = firebase.firestore.FieldValue.delete()); snap.ref.update(up).catch(() => {}); }
+  }, e => console.warn('bip listener:', e.message));
+  setTimeout(_bipFoco, 300);
+}
+
+function bipRender() {
+  if (!bip) return;
+  let tot = 0, esp = 0;
+  Object.entries(bip.info).forEach(([idx, inf]) => {
+    const n = _bipLidos(inf.k).length; tot += n; esp += inf.esp;
+    const el = document.getElementById('bip-cnt-' + idx); if (!el) return;
+    el.textContent = `${n}/${inf.esp || '?'}`;
+    el.className = 'bip-cnt' + (inf.esp && n >= inf.esp ? ' full' : n ? ' parc' : '');
+  });
+  document.getElementById('bip-tot-n').textContent = tot;
+  document.getElementById('bip-tot-t').textContent = esp || '?';
+  const a = bip.ativa && bip.info[bip.chaves[bip.ativa]];
+  const b = document.getElementById('bip-btn-ativa');
+  b.textContent = '🎯 NF ativa: ' + (a ? a.rot : '—'); b.classList.toggle('on', !!a);
+}
+
+/** Marca OK sozinho quando a NF completa; desfaz o OK automático se uma leitura for removida. */
+function _bipAutoStatus(k) {
+  const idx = bip.chaves[k], inf = bip.info[idx]; if (!inf || !inf.esp) return;
+  const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`); if (!block) return;
+  const btns = block.querySelectorAll('.toggle-bar .toggle-btn'); if (!btns.length) return;
+  const n = _bipLidos(k).length, temOk = btns[0].classList.contains('ok-active'), temNok = btns[1]?.classList.contains('naook-active');
+  if (n >= inf.esp && !temOk) {
+    btns.forEach(b => b.classList.remove('ok-active', 'naook-active')); btns[0].classList.add('ok-active');
+    document.getElementById('nf-obs-' + idx)?.classList.remove('show');
+    block.dataset.bipAuto = '1'; atualizarPillNf(idx);
+  } else if (n < inf.esp && temOk && block.dataset.bipAuto === '1') {
+    btns[0].classList.remove('ok-active'); delete block.dataset.bipAuto; atualizarPillNf(idx);
+  }
+  if (temNok && n >= inf.esp) { /* NÃO OK manual é respeitado */ }
+}
+
+/** Descobre a NF (chave k) de um código lido. Retorna {k, unico} ou {fora:{placa,tipo,rot}} ou null. */
+function _bipResolver(cod) {
+  const achar = num => Object.values(bip.info).find(i => i.docs.includes(_bipNorm(num)));
+  // 1) QR do sistema: NF:123;VOL:2/5
+  const qr = cod.match(/^(NF|MD|OC|PROC|DI|NFE)\s*:\s*([^;]*);\s*VOL\s*:\s*(\d*)(?:\/(\d+))?/);
+  if (qr) {
+    const tok = _bipTokens(qr[2]).find(t => /\d/.test(t)) || qr[2].trim();
+    const inf = achar(tok);
+    if (inf) return { k: inf.k, unico: qr[4] ? `VOL ${qr[3]}/${qr[4]}` : null, num: tok };
+    return { naoAchou: tok };
+  }
+  const dig = cod.replace(/\D/g, '');
+  // 2) chave da DANFE
+  if (dig.length === 44 && cod.replace(/[\s.]/g, '').length === 44 && _bipDvChave(dig)) {
+    const num = String(+dig.substr(25, 9)); const inf = achar(num);
+    return inf ? { k: inf.k, num } : { naoAchou: num };
+  }
+  // 3) número puro de NF / MD / OC
+  if (/^\d{3,9}$/.test(cod)) { const inf = achar(cod); if (inf) return { k: inf.k, num: cod }; if (_bipOndeEsta(cod)) return { naoAchou: cod }; }
+  // 4) código já vinculado
+  if (bip.vinc[cod]) return { k: bip.vinc[cod], vinculado: true };
+  return null;
+}
+/** Procura um número de NF nas outras placas / no outro bloco do dia. */
+function _bipOndeEsta(num) {
+  num = _bipNorm(num);
+  for (const g of groupedByPlate) {
+    for (let i = 0; i < g.vehicles.length; i++) {
+      const v = g.vehicles[i], d = _dadosLinhaNf(v, i);
+      if ([d.nf, d.md, d.oc, d.di].flatMap(_bipTokens).includes(num))
+        return { placa: g.placa, tipo: _tipoLinha(v), group: g };
+    }
+  }
+  return null;
+}
+
+function _bipSalvar(k, leitura, vincular) {
+  const up = { ['bip_' + _bipDataKey()]: { ['l_' + k]: firebase.firestore.FieldValue.arrayUnion(leitura) } };
+  if (vincular) up['bip_' + _bipDataKey()].vinc = firebase.firestore.FieldValue.arrayUnion({ cod: vincular, k });
+  // aplica já na tela (o listener confirma depois)
+  bip.lidos[k] = [...(bip.lidos[k] || []), leitura];
+  if (vincular) bip.vinc[vincular] = k;
+  db.collection('nf_status_live').doc(_bipDocId()).set(up, { merge: true })
+    .catch(e => { _bipMsg('err', '✖ Falha ao gravar a leitura: ' + escConf(e.message)); _bipSom(false); });
+}
+
+/** Processa um código lido dentro do bloco aberto. */
+function bipLer(raw) {
+  const cod = String(raw || '').replace(/[\x00-\x1F]/g, '').trim().toUpperCase();
+  if (!cod) return;
+  if (!bip || bip.placa !== currentPlaca || bip.tipo !== currentTipo) return;
+  const op = completedInfo[`${currentPlaca}_${currentTipo}`];
+  if (op && op.status === 'CONCLUIDA') { _bipSom(false); _bipMsg('warn', 'Este bloco já foi conferido.'); return; }
+  const r = _bipResolver(cod);
+  if (r && r.naoAchou) {
+    const onde = _bipOndeEsta(r.naoAchou);
+    _bipSom(false);
+    bip.ocorr.push({ cod, motivo: onde ? `NF de outra carga (${onde.placa} ${onde.tipo})` : 'NF fora da programação', t: Date.now() });
+    return _bipMsg('err', onde
+      ? `✖ CARGA ERRADA — NF ${escConf(r.naoAchou)} é da placa <u>${escConf(onde.placa)}</u> (${onde.tipo === 'SAIDA' ? 'SAÍDA' : 'ENTRADA'})`
+      : `✖ NF ${escConf(r.naoAchou)} não está na programação deste veículo`);
+  }
+  if (!r) {
+    if (bip.ativa) return _bipContar(bip.ativa, cod, null, cod);
+    return bipEscolherNfAtiva(cod);
+  }
+  _bipContar(r.k, cod, r.unico, null);
+}
+
+function _bipContar(k, cod, unico, vincular) {
+  const idx = bip.chaves[k], inf = bip.info[idx], lidos = _bipLidos(k);
+  if (unico && lidos.some(l => l.cod === cod)) {
+    _bipSom(false); bip.ocorr.push({ cod, motivo: 'Volume duplicado', t: Date.now() });
+    return _bipMsg('err', `✖ VOLUME JÁ BIPADO — ${escConf(inf.rot)} ${escConf(unico)}`);
+  }
+  if (inf.esp && lidos.length >= inf.esp) {
+    _bipSom(false); bip.ocorr.push({ cod, motivo: `Excedente em ${inf.rot}`, t: Date.now() });
+    return _bipMsg('err', `✖ EXCEDENTE — ${escConf(inf.rot)} já tem ${lidos.length}/${inf.esp} volumes`);
+  }
+  const leitura = { cod, t: Date.now(), por: (currentUser && (currentUser.nome || currentUser.email)) || '', id: Math.random().toString(36).slice(2, 9) };
+  if (unico) leitura.vol = unico;
+  _bipSalvar(k, leitura, vincular);
+  const n = lidos.length + 1;
+  _bipSom(true);
+  _bipMsg('ok', `✔ ${escConf(inf.rot)} — ${n}/${inf.esp || '?'}${unico ? ' · ' + escConf(unico) : ''}${inf.esp && n >= inf.esp ? ' · COMPLETA ✔' : ''}`);
+  bipRender(); _bipAutoStatus(k);
+  // mostra a NF: abre o cliente e pisca a linha
+  const block = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+  if (block) {
+    const card = block.closest('.cli-card');
+    if (card && !card.classList.contains('aberto')) {
+      card.parentElement.querySelectorAll('.cli-card.aberto').forEach(c => c.classList.remove('aberto'));
+      card.classList.add('aberto');
+    }
+    block.classList.remove('bip-flash'); void block.offsetWidth; block.classList.add('bip-flash');
+  }
+}
+
+/** Escolhe a NF que recebe códigos não reconhecidos (e vincula o código, se houver). */
+function bipEscolherNfAtiva(codPendente) {
+  if (!bip) return;
+  if (codPendente) _bipSom(false);
+  const ops = Object.entries(bip.info).map(([idx, inf]) => {
+    const n = _bipLidos(inf.k).length;
+    return `<button class="bip-opt" onclick="_bipEscolheu('${inf.k}')"><b>${escConf(inf.rot)}</b> — ${n}/${inf.esp || '?'} vol<br><small>${escConf(inf.dest)}</small></button>`;
+  }).join('');
+  const w = document.createElement('div'); w.className = 'bip-modal'; w.id = 'bip-modal';
+  w.innerHTML = `<div class="bip-modal-box">
+    <h3>${codPendente ? 'Código não reconhecido' : '🎯 NF ativa'}</h3>
+    <div style="font-size:.85rem;color:#555;">${codPendente
+      ? `Lido: <b style="font-family:monospace">${escConf(codPendente)}</b><br>Toque na NF desta caixa. As próximas caixas com este mesmo código contam nessa NF sozinhas.`
+      : 'Códigos não reconhecidos (etiqueta do cliente, EAN…) passam a contar nesta NF.'}</div>
+    ${ops}
+    ${!codPendente && bip.ativa ? `<button class="bip-opt" style="text-align:center" onclick="_bipEscolheu('')">Sem NF ativa</button>` : ''}
+    <button class="bip-opt" style="text-align:center;background:#eee" onclick="document.getElementById('bip-modal').remove();_bipFoco()">Cancelar</button></div>`;
+  w._cod = codPendente || null;
+  document.getElementById('bip-modal')?.remove();
+  document.body.appendChild(w);
+  if (codPendente) _bipMsg('warn', 'Escolha a NF desta caixa');
+}
+function _bipEscolheu(k) {
+  const w = document.getElementById('bip-modal'), cod = w && w._cod; w?.remove();
+  if (cod) { _bipContar(k, cod, null, cod); }
+  else { bip.ativa = k || null; bipRender(); }
+  _bipFoco();
+}
+
+function bipDesfazer() {
+  if (!bip) return;
+  let ult = null, kUlt = null;
+  Object.entries(bip.lidos).forEach(([k, arr]) => arr.forEach(l => { if (!ult || l.t > ult.t) { ult = l; kUlt = k; } }));
+  if (!ult) return showToast('Nenhuma leitura para desfazer.', 'warning');
+  const inf = bip.info[bip.chaves[kUlt]];
+  if (!confirm(`Remover a última leitura?\n\n${inf.rot} — ${ult.cod}`)) return _bipFoco();
+  bip.lidos[kUlt] = bip.lidos[kUlt].filter(l => l !== ult);
+  db.collection('nf_status_live').doc(_bipDocId()).set(
+    { ['bip_' + _bipDataKey()]: { ['l_' + kUlt]: firebase.firestore.FieldValue.arrayRemove(ult) } }, { merge: true }).catch(() => {});
+  bipRender(); _bipAutoStatus(kUlt); _bipMsg('warn', `↩ Leitura removida — ${escConf(inf.rot)}`); _bipFoco();
+}
+
+function bipVerLeituras() {
+  if (!bip) return;
+  const linhas = Object.values(bip.info).map(inf => {
+    const l = _bipLidos(inf.k);
+    return `<div style="background:#f5f8fc;font-weight:700"><span>${escConf(inf.rot)}</span><span>${l.length}/${inf.esp || '?'}</span></div>` +
+      l.map(x => `<div><span>${escConf(x.cod)}${x.vol ? ' · ' + escConf(x.vol) : ''}</span><span>${new Date(x.t).toLocaleTimeString('pt-BR')} ${escConf((x.por || '').split(' ')[0])}</span></div>`).join('');
+  }).join('');
+  const oc = bip.ocorr.map(o => `<div><span>${escConf(o.cod)}</span><span style="color:#d32f2f">${escConf(o.motivo)}</span></div>`).join('');
+  const w = document.createElement('div'); w.className = 'bip-modal'; w.id = 'bip-modal';
+  w.innerHTML = `<div class="bip-modal-box"><h3>📋 Leituras do bloco</h3><div class="bip-lista">${linhas || '<div>Nenhuma NF</div>'}</div>
+    ${oc ? `<h3 style="margin-top:12px">⚠ Ocorrências (este aparelho)</h3><div class="bip-lista">${oc}</div>` : ''}
+    <button class="bip-opt" style="text-align:center;background:#eee" onclick="document.getElementById('bip-modal').remove();_bipFoco()">Fechar</button></div>`;
+  document.getElementById('bip-modal')?.remove(); document.body.appendChild(w);
+}
+
+/** Antes de confirmar: NFs bipadas pela metade viram NÃO OK com a quantidade lida. */
+function bipPrepararEnvio() {
+  if (!bip) return;
+  const parciais = Object.entries(bip.info).filter(([idx, inf]) => {
+    const n = _bipLidos(inf.k).length;
+    const b = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+    const marcada = b && b.querySelector('.toggle-bar .ok-active, .toggle-bar .naook-active');
+    return n > 0 && inf.esp && n < inf.esp && !marcada;
+  });
+  if (!parciais.length) return;
+  const lista = parciais.map(([i, inf]) => `• ${inf.rot}: ${_bipLidos(inf.k).length} de ${inf.esp}`).join('\n');
+  if (!confirm(`Volumes faltando na bipagem:\n\n${lista}\n\nMarcar estas NFs como NÃO OK com a quantidade bipada?`)) return;
+  parciais.forEach(([idx, inf]) => {
+    const b = document.querySelector(`#campos-conferencia .nf-block[data-idx="${idx}"]`);
+    const btns = b.querySelectorAll('.toggle-bar .toggle-btn');
+    btns.forEach(x => x.classList.remove('ok-active', 'naook-active')); btns[1]?.classList.add('naook-active');
+    const row = document.getElementById('nf-obs-' + idx); row?.classList.add('show');
+    const ins = row ? row.querySelectorAll('input') : [];
+    if (ins[0]) ins[0].value = _bipLidos(inf.k).length;
+    if (ins[1] && !ins[1].value) ins[1].value = `Bipagem: ${_bipLidos(inf.k).length} de ${inf.esp} volumes`;
+    atualizarPillNf(idx); publicarStatusLive(idx, 'NAO_OK');
+  });
+}
+/** Dados da bipagem de uma NF para gravar na operação. */
+function bipDadosNf(idx) {
+  const inf = bip && bip.info[idx]; if (!inf) return {};
+  const l = _bipLidos(inf.k);
+  return { volumesEsperados: inf.esp || null, volumesBipados: l.length,
+           leituras: l.map(x => ({ cod: x.cod, vol: x.vol || '', t: x.t, por: x.por || '' })) };
+}
+
+// ── Entrada do leitor: campo da barra + captura global (leitor como teclado) ──
+function _bipFoco() {
+  const inp = document.getElementById('bip-input');
+  if (!inp || !document.getElementById('screen-form').classList.contains('active') || document.getElementById('bip-modal')) return;
+  const ae = document.activeElement;
+  if (ae && ae !== document.body && ae !== inp && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return;
+  inp.focus({ preventScroll: true });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('bip-input');
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); const v = inp.value; inp.value = ''; bipLer(v); } });
+});
+let _bipBuf = '', _bipBufT = 0;
+document.addEventListener('keydown', e => {
+  const ae = document.activeElement;
+  if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return;   // digitando num campo: não interfere
+  if (document.getElementById('bip-modal')) return;
+  const agora = Date.now();
+  if (agora - _bipBufT > 300) _bipBuf = '';
+  _bipBufT = agora;
+  if (e.key === 'Enter') {
+    const v = _bipBuf; _bipBuf = '';
+    if (v.length < 3) return;
+    e.preventDefault();
+    if (document.getElementById('screen-form').classList.contains('active')) bipLer(v);
+    else if (document.getElementById('screen-placas').classList.contains('active')) bipAbrirPelaLeitura(v);
+  } else if (e.key.length === 1) _bipBuf += e.key;
+});
+
+/** Na tela de placas: bipar uma etiqueta/DANFE abre direto o veículo e já conta a leitura. */
+async function bipAbrirPelaLeitura(raw) {
+  const cod = String(raw || '').trim().toUpperCase();
+  let num = null;
+  const qr = cod.match(/^(NF|MD|OC|PROC|DI|NFE)\s*:\s*([^;]*);/);
+  const dig = cod.replace(/\D/g, '');
+  if (qr) num = _bipTokens(qr[2]).find(t => /\d/.test(t));
+  else if (dig.length === 44 && _bipDvChave(dig)) num = String(+dig.substr(25, 9));
+  else if (/^\d{3,9}$/.test(cod)) num = String(+cod);
+  const onde = num && _bipOndeEsta(num);
+  if (!onde) { _bipSom(false); return showToast(num ? `NF ${num} não está na programação do dia.` : 'Bipe a etiqueta da Portoex ou a DANFE para abrir o veículo.', 'warning'); }
+  _bipSom(true);
+  await openConferencia(onde.group, onde.tipo);
+  if (currentTipo === onde.tipo) bipLer(cod);
+}
+
 function goTo(screenId) {
   _medirCabecalho();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -4749,7 +5155,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.16-2';
+const APP_VERSION = '2026.11.17-1';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
