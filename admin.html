@@ -61,6 +61,7 @@
   .stat-card .icon  { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
   /* TABLE */
   /* ── BIPAGEM ── */
+  .end-st { display:inline-block; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:700; white-space:nowrap; border:1px solid; }
   .bip-aba { background:#fff; border:1px solid #dde3ee; color:#555; font-weight:600; }
   .bip-aba.on { background:var(--navy); border-color:var(--navy); color:#fff; }
   .bip-placa { background:#111; color:#fff; border-radius:5px; padding:2px 7px; font-weight:800; font-family:monospace; letter-spacing:.5px; white-space:nowrap; }
@@ -701,7 +702,7 @@
           <input id="end-busca" class="form-control form-control-sm" style="width:220px" placeholder="Buscar NF, cliente, endereço" oninput="clearTimeout(window._endBT);window._endBT=setTimeout(renderEnderecados,250)">
           <select id="end-filtro-end" class="form-select form-select-sm" style="width:150px" onchange="renderEnderecados()"><option value="">Todos os endereços</option></select>
           <select id="end-filtro-sit" class="form-select form-select-sm" style="width:190px" onchange="renderEnderecados()">
-            <option value="ARMAZEM">No armazém (sem saída)</option><option value="PROG">Programada p/ sair hoje</option><option value="SAIU">Já saiu (bipada)</option><option value="">Todas</option>
+            <option value="ARMAZEM">No armazém (sem saída)</option><option value="PROG">Programada p/ sair hoje</option><option value="PARADA">Parada há +3 dias</option><option value="SAIU">Já saiu (bipada)</option><option value="">Todas</option>
           </select>
           <button class="btn btn-sm btn-outline-secondary" onclick="loadEnderecados(true)">↻ Sincronizar inventário</button>
           <button class="btn btn-sm btn-success" onclick="exportarEnderecados()">⬇ Excel</button>
@@ -710,10 +711,10 @@
       <div class="px-3 pt-3">
         <div id="end-sync" class="small text-muted mb-2"></div>
         <div class="row g-3 mb-3">
-          <div class="col-6 col-md-3"><div class="stat-card"><div class="value" id="end-k-arm">—</div><div class="label">Notas no armazém</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-warning" id="end-k-prog">—</div><div class="label">Programadas p/ sair hoje</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-danger" id="end-k-par">—</div><div class="label">Paradas há +3 dias</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card"><div class="value text-success" id="end-k-saiu">—</div><div class="label">Saíram (bipadas, 30 dias)</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('ARMAZEM')"><div class="value" id="end-k-arm">—</div><div class="label">Notas no armazém</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PROG')"><div class="value text-warning" id="end-k-prog">—</div><div class="label">Programadas p/ sair hoje</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PARADA')"><div class="value text-danger" id="end-k-par">—</div><div class="label">Paradas há +3 dias</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('SAIU')"><div class="value text-success" id="end-k-saiu">—</div><div class="label">Saíram (bipadas, 30 dias)</div></div></div>
         </div>
         <div id="end-por-endereco" class="d-flex flex-wrap gap-2 mb-3"></div>
       </div>
@@ -1567,10 +1568,22 @@ async function loadEnderecados(forcarSync) {
   renderEnderecados();
 }
 
+const _endParada = l => l.sit === 'ARMAZEM' && l.dias != null && l.dias >= 3;
+/** Status da linha, com os mesmos nomes dos indicadores do topo. */
+function _endStatus(l) {
+  if (l.sit === 'SAIU') return { rot: 'Já saiu', det: `${_bipDia(l.saida)}${l.saida.placa ? ' · ' + l.saida.placa : ''}`, cor: '#1e7a3f', fundo: '#e6f9ee' };
+  if (l.sit === 'PROG') return { rot: 'Programada p/ sair hoje', det: l.progPlaca, cor: '#b35900', fundo: '#fff3e0' };
+  if (_endParada(l)) return { rot: 'Parada há +3 dias', det: `${l.dias} dias`, cor: '#c0392b', fundo: '#fff0f0' };
+  return { rot: 'No armazém', det: l.dias != null ? (l.dias ? `${l.dias} dia${l.dias > 1 ? 's' : ''}` : 'hoje') : '', cor: '#1a3a5c', fundo: '#eef1f6' };
+}
+/** Toque num indicador do topo filtra a lista por aquele status. */
+function endFiltrarStatus(v) { document.getElementById('end-filtro-sit').value = v; renderEnderecados(); }
+
 function _endFiltradas() {
   const q = (document.getElementById('end-busca').value || '').trim().toUpperCase();
   const fe = document.getElementById('end-filtro-end').value, fs = document.getElementById('end-filtro-sit').value;
-  return endAdm.linhas.filter(l => (!fe || l.end === fe) && (!fs || l.sit === fs) &&
+  const okSit = l => !fs || (fs === 'ARMAZEM' ? l.sit !== 'SAIU' : fs === 'PARADA' ? _endParada(l) : l.sit === fs);
+  return endAdm.linhas.filter(l => (!fe || l.end === fe) && okSit(l) &&
     (!q || [l.nf, l.cliente, l.end, l.por, l.progPlaca].some(x => String(x || '').toUpperCase().includes(q))));
 }
 
@@ -1578,28 +1591,27 @@ function renderEnderecados() {
   const L = endAdm.linhas, arm = L.filter(l => l.sit !== 'SAIU');
   document.getElementById('end-k-arm').textContent = arm.length;
   document.getElementById('end-k-prog').textContent = L.filter(l => l.sit === 'PROG').length;
-  document.getElementById('end-k-par').textContent = L.filter(l => l.sit === 'ARMAZEM' && l.dias != null && l.dias >= 3).length;
+  document.getElementById('end-k-par').textContent = L.filter(_endParada).length;
   document.getElementById('end-k-saiu').textContent = L.filter(l => l.sit === 'SAIU').length;
   const porEnd = {}; arm.forEach(l => { const e = l.end || '—'; porEnd[e] = (porEnd[e] || 0) + 1; });
   document.getElementById('end-por-endereco').innerHTML = Object.entries(porEnd).sort((a, b) => b[1] - a[1]).map(([e, n]) =>
     `<span class="bip-res" style="background:#eef1f6;color:#1a3a5c;cursor:pointer" onclick="document.getElementById('end-filtro-end').value='${escB(e)}';renderEnderecados()">${escB(e)} <b>${n}</b></span>`).join('');
   const fil = _endFiltradas();
-  const sit = l => l.sit === 'SAIU' ? `<span class="badge-ok">Saiu ${_bipDia(l.saida)}${l.saida.placa ? ' · ' + escB(l.saida.placa) : ''}</span>`
-    : l.sit === 'PROG' ? `<span class="badge-saida">Sai hoje · ${escB(l.progPlaca)}</span>`
-    : `<span class="${l.dias >= 3 ? 'badge-naook' : 'badge-pendente'}">No armazém${l.dias ? ' · ' + l.dias + 'd' : ''}</span>`;
-  document.getElementById('end-corpo').innerHTML = fil.length ? `<table class="tbl"><thead><tr><th>NF</th><th>Cliente</th><th>Endereço</th><th>Desde</th><th>Por</th><th>Vol</th><th>Origem</th><th>Situação</th></tr></thead><tbody>
-    ${fil.slice(0, 800).map(l => `<tr><td><b>${escB(l.nf)}</b></td><td class="small">${escB(l.cliente)}</td><td><b>${escB(l.end || '—')}</b></td>
+  const stHtml = l => { const x = _endStatus(l);
+    return `<span class="end-st" style="background:${x.fundo};color:${x.cor};border-color:${x.cor}55">${escB(x.rot)}</span>${x.det ? `<small class="d-block text-muted mt-1">${escB(x.det)}</small>` : ''}`; };
+  document.getElementById('end-corpo').innerHTML = fil.length ? `<table class="tbl"><thead><tr><th>Status</th><th>NF</th><th>Cliente</th><th>Endereço</th><th>Desde</th><th>Por</th><th>Vol</th><th>Origem</th></tr></thead><tbody>
+    ${fil.slice(0, 800).map(l => `<tr style="box-shadow:inset 4px 0 0 ${_endStatus(l).cor}"><td>${stHtml(l)}</td><td><b>${escB(l.nf)}</b></td><td class="small">${escB(l.cliente)}</td><td><b>${escB(l.end || '—')}</b></td>
       <td class="small">${escB(invQuando(l.ts))}</td><td class="small">${escB(String(l.por).split(' ')[0])}</td><td>${escB(l.vol)}</td>
-      <td class="small">${escB(l.origem)}</td><td>${sit(l)}</td></tr>`).join('')}</tbody></table>
+      <td class="small">${escB(l.origem)}</td></tr>`).join('')}</tbody></table>
     ${fil.length > 800 ? `<div class="px-3 py-2 small text-muted">Mostrando 800 de ${fil.length}. A exportação leva todas.</div>` : ''}`
     : '<div class="p-4 text-muted">Nenhum item com esse filtro.</div>';
 }
 
 function exportarEnderecados() {
   const fil = _endFiltradas();
-  const cab = ['NF', 'Cliente', 'Endereço', 'Desde', 'Por', 'Volumes', 'Origem', 'Situação', 'Dias parado', 'Placa (saída)'];
-  const rows = fil.map(l => [l.nf, l.cliente, l.end, l.ts ? new Date(l.ts).toLocaleString('pt-BR') : '', l.por, l.vol, l.origem,
-    l.sit === 'SAIU' ? 'Saiu ' + (l.saida.dia || '') : l.sit === 'PROG' ? 'Sai hoje' : 'No armazém', l.sit === 'SAIU' ? '' : l.dias, l.saida ? l.saida.placa : l.progPlaca]);
+  const cab = ['Status', 'Detalhe', 'NF', 'Cliente', 'Endereço', 'Desde', 'Por', 'Volumes', 'Origem', 'Dias parado', 'Placa (saída)'];
+  const rows = fil.map(l => { const x = _endStatus(l); return [x.rot, x.det, l.nf, l.cliente, l.end, l.ts ? new Date(l.ts).toLocaleString('pt-BR') : '', l.por, l.vol, l.origem,
+    l.sit === 'SAIU' ? '' : (l.dias ?? ''), l.saida ? l.saida.placa : l.progPlaca]; });
   const csv = '﻿' + [cab].concat(rows).map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -4939,7 +4951,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-8';
+const APP_VERSION = '2026.11.17-9';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
