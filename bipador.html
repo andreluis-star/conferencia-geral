@@ -328,7 +328,7 @@ function processarNota(i) {
     if (v && v.tipo === st.tipo && v.lote) return contarLote(abrirLote(v.lote, null), i);
     if (st.lote) return confirmarVinculo(i);
     return recusar('NAO_RECONHECIDO', i, { motivo: 'Código sem NF' }, '⚠ CÓDIGO NÃO RECONHECIDO',
-      'Bipe primeiro a etiqueta da nota (QR) ou a DANFE', null, 'warn');
+      `Lido: "${i.cod.slice(0, 60)}" — bipe a etiqueta da nota (QR) ou a DANFE`, null, 'warn');
   }
   const outro = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA';
   if (!st.porNum[st.tipo].get(i.num) && st.porNum[outro].get(i.num)) {
@@ -336,10 +336,47 @@ function processarNota(i) {
     return recusar('FORA_PROGRAMACAO', i, { lote: i.num, nf: c.nota.rot, motivo: `NF está na ${nomeTipo(outro).toUpperCase()} (placa ${c.placa})` },
       '⚠ NOTA DE ' + nomeTipo(outro).toUpperCase(), `${c.nota.rot} está programada como ${nomeTipo(outro)} — troque o tipo no topo`, c.placa, 'warn');
   }
+  if (!st.porNum[st.tipo].get(i.num) && !st.porNum[outro].get(i.num) && !processarNota._outroDia) {
+    // Não está no dia aberto: procura na programação de amanhã e de ontem (etiqueta impressa para outro dia)
+    retorno('warn', '…', `Procurando NF ${i.num}…`, 'Não está na programação de ' + abaDoDia(st.dia) + ', olhando os dias vizinhos', null);
+    return procurarOutrosDias(i.num).then(dia => {
+      if (dia) {
+        bipSom('aviso');
+        abrirModal(`<h3>NF ${escH(i.num)} está programada para ${abaDoDia(dia)}</h3><p>O bipador está no dia ${abaDoDia(st.dia)}. Abrir ${abaDoDia(dia)} e contar esta etiqueta lá?</p>
+          <button class="btn-pri" style="width:100%" onclick="irParaDia('${dia}')">Abrir ${abaDoDia(dia)}</button>
+          <button class="opc" style="justify-content:center" onclick="fecharModal();processarNota._outroDia=true;processarNota(processarNota._pend);processarNota._outroDia=false">Contar em ${abaDoDia(st.dia)} mesmo assim</button>`);
+        processarNota._pend = i;
+      } else { processarNota._outroDia = true; processarNota(i); processarNota._outroDia = false; }
+    });
+  }
   if (!st.porNum[st.tipo].get(i.num) && !i.de)
     return recusar('FORA_PROGRAMACAO', i, { lote: i.num, nf: 'NF ' + i.num, motivo: `Não está na programação de ${abaDoDia(st.dia)}` },
       '✖ FORA DA PROGRAMAÇÃO', `NF ${i.num} não está na programação de ${abaDoDia(st.dia)}`);
   contarLote(abrirLote(i.num, i.de), i);
+}
+
+/** Procura o número da NF na programação do dia seguinte e do anterior. Devolve o dia (AAAA-MM-DD) ou null. */
+const _cacheDias = {};
+async function procurarOutrosDias(num) {
+  const base = new Date(st.dia + 'T12:00:00');
+  for (const delta of [1, -1, 2]) {
+    const d = new Date(base.getTime() + delta * 864e5).toISOString().slice(0, 10);
+    if (!(d in _cacheDias)) {
+      try {
+        const nums = new Set();
+        agruparProgramacao(await fetchSheetVehicles(abaDoDia(d))).forEach(g => notasParaBipagem(g.vehicles, st.tipo).forEach(n => n.docs.forEach(x => nums.add(x))));
+        _cacheDias[d] = nums;
+      } catch (e) { _cacheDias[d] = new Set(); }
+    }
+    if (_cacheDias[d].has(num)) return d;
+  }
+  return null;
+}
+async function irParaDia(dia) {
+  const i = processarNota._pend; fecharModal();
+  st.dia = dia; $('dia').value = dia;
+  await carregarDia();
+  if (i) processar(i.bruto || i.cod);
 }
 
 /** Abre o lote da NF; se o anterior ficou incompleto, guarda o aviso. */

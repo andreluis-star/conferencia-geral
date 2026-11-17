@@ -317,10 +317,14 @@ function chaveNfeValida(ch) {
  */
 function interpretarCodigo(raw) {
   const cod = String(raw || '').replace(/[\x00-\x1F]/g, '').trim().toUpperCase();
-  const qr = cod.match(/^(NF|MD|OC|PROC|DI|NFE)\s*:\s*([^;]*);\s*VOL\s*:\s*(\d*)(?:\/(\d+))?/);
+  // Etiqueta do sistema: NF:<doc>;VOL:<i>/<n>. Aceita também o texto que chega com o
+  // leitor em outro layout de teclado (ex.: ":" vira "Ç", ";" vira "ç", "/" vira ";").
+  const qr = cod.match(/^(NF|MD|OC|PROC|DI|NFE)[\s:Ç?]*(.+?)[\s;Ç]+VOL[\s:Ç?]*(\d*)(?:\s*[\/;\-Q]\s*(\d+))?\s*$/);
   if (qr) {
     const num = tokensDoc(qr[2]).find(t => /\d/.test(t)) || qr[2].trim();
-    return { cod, tipo: 'QR', num, vol: qr[3] || '', de: qr[4] || null };
+    const vol = qr[3] || '', de = qr[4] || null;
+    // código padronizado: a mesma etiqueta vira o mesmo texto em qualquer leitor
+    return { cod: `${qr[1]}:${num};VOL:${vol}${de ? '/' + de : ''}`, bruto: cod, tipo: 'QR', num, vol, de };
   }
   const dig = cod.replace(/\D/g, '');
   if (dig.length === 44 && cod.replace(/[\s.]/g, '').length === 44 && chaveNfeValida(dig))
