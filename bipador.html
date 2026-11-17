@@ -42,7 +42,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 
 /* Placa travada */
 .placa-trava{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:10px}
-.placa-tag{background:#111;color:#fff;border-radius:6px;padding:4px 10px;font-size:1.25rem}
+.placa-tag{background:#111;color:#fff!important;border-radius:6px;padding:4px 10px;font-size:1.25rem}
 .placa-trava .info{flex:1;min-width:0;font-size:.78rem;color:var(--mut)}
 .placa-trava .info b{color:var(--txt);font-size:.9rem}
 .btn-sec{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:9px;padding:8px 11px;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap}
@@ -128,6 +128,22 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 .mini.full{border-color:#BFE6CB}.mini.full .num{color:var(--ok)}.mini.parc .num{color:var(--orange)}
 .mini.atual{outline:2px solid var(--orange)}
 
+.voltar{border:0;background:var(--navy);color:#fff;border-radius:10px;padding:9px 11px;font-weight:800;font-size:.78rem;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.fin{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.fin button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 4px;font-weight:700;font-size:.72rem;color:var(--mut);cursor:pointer;line-height:1.2}
+.fin button span{display:block;font-size:1.05rem;margin-bottom:2px}
+.fin button.on{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
+.lote-acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.lote-acoes button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 8px;font-weight:700;font-size:.8rem;color:var(--navy);cursor:pointer;text-align:left;line-height:1.25}
+.lote-acoes button small{display:block;font-weight:600;color:var(--mut);font-size:.7rem;margin-top:2px}
+.lote-acoes button.feito{border-color:#BFE6CB;background:var(--ok-bg)}
+.lote-acoes button.pede{border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,97,26,.15)}
+.tagz{display:inline-block;font-size:.66rem;font-weight:800;padding:2px 6px;border-radius:5px;margin-left:4px;background:#EEF1F6;color:var(--navy);vertical-align:middle}
+.chips-end{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.chips-end button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 10px;font:700 .85rem Inter;color:var(--navy);cursor:pointer}
+.chips-end button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.cat-h{font-size:.68rem;font-weight:800;letter-spacing:1px;color:var(--mut);margin-top:10px;text-transform:uppercase}
+.inp{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font:600 1rem Inter;text-transform:uppercase;margin-top:6px}
 /* Barra inferior */
 .acoes{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:8px 10px calc(8px + var(--safe-b));display:flex;gap:8px;justify-content:center}
 .acoes button{flex:1;max-width:240px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font-weight:700;font-size:.78rem;color:var(--navy);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -143,6 +159,8 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 .opc{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:12px;margin-top:8px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:.86rem;color:var(--txt)}
 .opc:active{background:#F4F6FA}
 .opc .num{font-size:1.2rem;color:var(--navy);margin-left:auto}
+.opc .placa-tag{margin-left:0;font-size:1rem}
+@media(max-width:430px){.marca small{display:none}.marca b{font-size:.95rem}}
 .lin{display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid #F0F2F6;font-size:.8rem;align-items:center}
 .lin code{font-size:.78rem;word-break:break-all}
 .lin .x{border:0;background:var(--err-bg);color:var(--err);border-radius:7px;padding:5px 8px;font-weight:700;cursor:pointer;font-size:.72rem}
@@ -152,6 +170,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 </head>
 <body>
 <header id="hdr">
+  <button class="voltar" onclick="voltarConferencia()" title="Voltar para a Conferência">◀ Conferência</button>
   <div class="marca"><i></i><div><small>PORTOEX · CONFERÊNCIA GERAL</small><b>Bipador de volumes</b></div></div>
   <div class="user-chip" onclick="menuUsuario()"><span id="u-ini">··</span><span id="u-nome">Entrando…</span></div>
 </header>
@@ -167,6 +186,12 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
       <button class="on" data-v="NOTA" onclick="trocarModo('NOTA')">POR NOTA</button>
       <button data-v="PLACA" onclick="trocarModo('PLACA')">POR PLACA</button>
     </div>
+  </div>
+
+  <div class="fin" id="seg-fin">
+    <button data-v="CONFERENCIA" onclick="trocarFinalidade('CONFERENCIA')"><span>✔</span>Simples conferência</button>
+    <button data-v="CARREGAMENTO" onclick="trocarFinalidade('CARREGAMENTO')"><span>🚚</span>Carregamento</button>
+    <button data-v="ENTRADA" onclick="trocarFinalidade('ENTRADA')"><span>📍</span>Entrada (endereço)</button>
   </div>
 
   <div id="placa-trava" class="placa-trava" style="display:none"></div>
@@ -213,6 +238,8 @@ const st = {
   porNum: {},                     // porNum[tipo] = Map(numero → [{placa, nota}])
   bips: [], pend: [], vinc: {}, ops: {},
   unsub: [], ultimoK: null, ultimoVol: null,
+  finalidade: (() => { try { return localStorage.getItem('bipFinalidade') || 'CONFERENCIA'; } catch (e) { return 'CONFERENCIA'; } })(),
+  lotesInfo: {}, catalogo: null,
 };
 const $ = id => document.getElementById(id);
 const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -259,6 +286,7 @@ async function carregarDia() {
   carregarOps();
   st.unsub.push(bipOuvirDia(st.dia, lista => { st.bips = lista; const ids = new Set(lista.map(b => b.cid)); st.pend = st.pend.filter(p => !ids.has(p.cid)); render(); }));
   st.unsub.push(bipOuvirVinculos(st.dia, m => { st.vinc = m; }));
+  st.unsub.push(bipOuvirLotes(st.dia, m => { st.lotesInfo = m; render(); }));
   render();
   setTimeout(foco, 200);
 }
@@ -391,7 +419,7 @@ function abrirLote(num, deQr) {
 function contarLote(lote, i) {
   const lidas = lidasLote(lote.num);
   const volTxt = i.tipo === 'QR' && i.vol ? (i.de ? `${i.vol}/${i.de}` : i.vol) : '';
-  const base = { cod: i.cod, lote: lote.num, nf: lote.rot, dest: lote.dest, placa: lote.placa, k: lote.k, esp: lote.esp || null, vol: volTxt };
+  const base = { cod: i.cod, lote: lote.num, nf: lote.rot, dest: lote.dest, placa: lote.placa, k: lote.k, esp: lote.esp || null, vol: volTxt, finalidade: st.finalidade };
   if (i.tipo === 'QR' && i.de && lidas.some(b => b.cod === i.cod))
     return recusar('DUPLICADO', i, { ...base, motivo: 'Volume já bipado' }, '✖ VOLUME JÁ BIPADO', `${lote.rot} · VOL ${volTxt}`, null);
   if (lote.esp && lidas.length >= lote.esp)
@@ -400,6 +428,8 @@ function contarLote(lote, i) {
   const n = lidas.length + 1, completa = lote.esp && n >= lote.esp;
   bipSom(completa ? 'completa' : 'ok');
   st.ultimoVol = i.tipo === 'QR' ? i.vol : null;
+  if (lidas.length === 0) marcarFinalidadeLote(lote);
+  if (completa) setTimeout(() => posNotaCompleta(lote), 700);
   retorno('ok', completa ? '✔' : '✓', completa ? `${lote.rot} COMPLETA` : lote.rot,
     [lote.dest, volTxt ? 'VOL ' + volTxt : '', lote.naProgramacao ? '' : 'fora da programação'].filter(Boolean).join(' · '),
     null, `${n}<span style="font-size:1.3rem;opacity:.6">/${lote.esp || '?'}</span>`);
@@ -459,7 +489,7 @@ function contarPlaca(placa, nota, i) {
   const lidas = lidasNotaPlaca(placa, nota);
   const volTxt = i.tipo === 'QR' && i.vol ? (i.de ? `${i.vol}/${i.de}` : i.vol) : '';
   const lote = nota.docs.find(d => /^\d+$/.test(d)) || '';
-  const base = { cod: i.cod, lote, nf: nota.rot, k: nota.k, placa, dest: nota.dest, esp: nota.esp || null, vol: volTxt };
+  const base = { cod: i.cod, lote, nf: nota.rot, k: nota.k, placa, dest: nota.dest, esp: nota.esp || null, vol: volTxt, finalidade: st.finalidade };
   if (i.tipo === 'QR' && i.de) {
     const ja = bipValidas(todas()).find(b => b.cod === i.cod && b.tipo === st.tipo);
     if (ja) return recusar('DUPLICADO', i, { ...base, motivo: `Já bipado às ${bipHora(ja)} por ${(ja.conferenteNome || '').split(' ')[0]}` },
@@ -558,6 +588,7 @@ function abrirLoteManual(num) { abrirLote(num, null); st.lote.avisoAnterior = ''
 function marcarSegs() {
   document.querySelectorAll('#seg-tipo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.tipo));
   document.querySelectorAll('#seg-modo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.modo));
+  document.querySelectorAll('#seg-fin button').forEach(b => b.classList.toggle('on', b.dataset.v === st.finalidade));
   $('bt-3').innerHTML = st.modo === 'NOTA' ? '<span>＋</span>Nova nota' : '<span>✔</span>Conferência';
 }
 function trocarDia(v) { if (!v) return; st.dia = v; carregarDia(); }
@@ -574,11 +605,145 @@ function escolherPlaca() {
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
 }
 
+// ── Finalidade, veículo e endereço da nota ──
+function trocarFinalidade(f) {
+  st.finalidade = f; try { localStorage.setItem('bipFinalidade', f); } catch (e) {}
+  if (f === 'ENTRADA' && st.tipo !== 'ENTRADA') trocarTipo('ENTRADA');
+  else if (f === 'CARREGAMENTO' && st.tipo !== 'SAIDA') trocarTipo('SAIDA');
+  marcarSegs(); render(); foco();
+}
+function infoLote(l) { return st.lotesInfo[bipLoteId(st.dia, st.tipo, l.num)] || {}; }
+function marcarFinalidadeLote(l) {
+  const inf = infoLote(l);
+  if (inf.finalidade === st.finalidade && inf.nf) return;
+  bipSalvarLote(st.dia, st.tipo, l.num, { nf: l.rot, dest: l.dest || '', finalidade: st.finalidade, placaProgramada: l.placas.join(', ') })
+    .catch(e => console.warn('lote:', e.message));
+}
+function htmlAcoesLote(l, full) {
+  const inf = infoLote(l);
+  const pedeVeic = st.finalidade === 'CARREGAMENTO' && !inf.placa, pedeEnd = st.finalidade === 'ENTRADA' && !(inf.enderecos || []).length;
+  const fin = BIP_FINALIDADES[inf.finalidade || st.finalidade] || {};
+  return `<div class="lote-acoes">
+    <button class="${inf.placa ? 'feito' : pedeVeic ? 'pede' : ''}" onclick="vincularVeiculo()">🚚 ${inf.placa ? escH(inf.placa) : 'Vincular veículo'}
+      <small>${inf.placa ? 'por ' + escH((inf.placaPor || '').split(' ')[0]) + ' · trocar' : l.placas.length ? 'programada: ' + escH(l.placas.join(', ')) : 'opcional'}</small></button>
+    <button class="${(inf.enderecos || []).length ? 'feito' : pedeEnd ? 'pede' : ''}" onclick="enderecarLote()">📍 ${(inf.enderecos || []).length ? escH(inf.enderecos.join(', ')) : 'Endereçar'}
+      <small>${(inf.enderecos || []).length ? 'por ' + escH((inf.enderecoPor || '').split(' ')[0]) + ' · trocar' : 'endereço no armazém'}</small></button>
+  </div><div class="info" style="margin-top:8px">Finalidade: <b>${escH(fin.rot || '—')}</b></div>`;
+}
+function posNotaCompleta(l) {
+  if (!st.lote || st.lote.num !== l.num || fecharModal._aberto) return;
+  const inf = infoLote(l);
+  if (st.finalidade === 'CARREGAMENTO' && !inf.placa) vincularVeiculo(true);
+  else if (st.finalidade === 'ENTRADA' && !(inf.enderecos || []).length) enderecarLote(true);
+}
+
+function vincularVeiculo(auto) {
+  const l = st.lote; if (!l) return;
+  const inf = infoLote(l);
+  const todas = [...new Set([...Object.keys(st.notas.SAIDA), ...Object.keys(st.notas.ENTRADA)])].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  const prog = l.placas.filter(p => todas.includes(p));
+  const ordem = prog.concat(todas.filter(p => !prog.includes(p)));
+  const ops = ordem.map(p => `<button class="opc" onclick="salvarVeiculo('${escH(p)}')"><span class="placa-tag num" style="font-size:1rem;padding:2px 8px">${escH(p)}</span>
+      <small style="color:var(--mut)">${prog.includes(p) ? 'programada para esta nota' : ''}</small>${inf.placa === p ? '<span class="num" style="color:var(--ok)">✔</span>' : ''}</button>`).join('');
+  abrirModal(`<h3>${auto ? 'Nota completa — ' : ''}Vincular veículo à ${escH(l.rot)}</h3>
+    <p>${escH(l.dest || '')} · ${lidasLote(l.num).length}/${l.esp || '?'} volumes. Pode bipar a placa, tocar numa da lista ou digitar.</p>
+    ${ops || '<p>Nenhum veículo na programação do dia.</p>'}
+    <div class="cat-h">Outra placa</div>
+    <div style="display:flex;gap:6px"><input id="placa-livre" class="inp" maxlength="8" placeholder="ABC1D23" autocomplete="off" onkeydown="if(event.key==='Enter')salvarVeiculo(this.value)">
+    <button class="btn-pri" style="margin-top:6px" onclick="salvarVeiculo(document.getElementById('placa-livre').value)">OK</button></div>
+    ${inf.placa ? `<button class="opc" style="justify-content:center;color:var(--err)" onclick="salvarVeiculo('')">Desvincular ${escH(inf.placa)}</button>` : ''}
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">${auto ? 'Depois' : 'Fechar'}</button>`);
+  fecharModal._onScan = v => salvarVeiculo(v);
+}
+function salvarVeiculo(raw) {
+  const l = st.lote; if (!l) return fecharModal();
+  const p = formatPlaca(String(raw || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase());
+  if (raw && !isValidPlate(p)) { bipSom('erro'); return aviso('Placa inválida: ' + raw); }
+  fecharModal();
+  const quem = st.user.nome || st.user.email || '';
+  bipSalvarLote(st.dia, st.tipo, l.num, { nf: l.rot, dest: l.dest || '', finalidade: st.finalidade, placa: p || '', placaPor: p ? quem : '', placaEm: p ? Date.now() : null })
+    .then(() => { bipSom('ok'); aviso(p ? `${l.rot} vinculada ao veículo ${p}` : 'Veículo desvinculado'); })
+    .catch(e => aviso('Não gravado: ' + e.message));
+  st.lotesInfo[bipLoteId(st.dia, st.tipo, l.num)] = { ...infoLote(l), placa: p, placaPor: quem };
+  render();
+}
+
+async function carregarCatalogo() {
+  if (st.catalogo) return st.catalogo;
+  try {
+    const snap = await db.collection('enderecos_catalogo').orderBy('codigo').get();
+    st.catalogo = snap.docs.map(d => d.data()).filter(e => e.ativo !== false);
+  } catch (e) { st.catalogo = []; aviso('Catálogo de endereços não carregou: ' + e.message); }
+  return st.catalogo;
+}
+async function enderecarLote(auto) {
+  const l = st.lote; if (!l) return;
+  const cat = await carregarCatalogo();
+  const sel = new Set(infoLote(l).enderecos || []);
+  enderecarLote._sel = sel;
+  const grupos = {};
+  cat.forEach(e => { (grupos[e.categoria || 'Outros'] = grupos[e.categoria || 'Outros'] || []).push(e.codigo); });
+  const html = Object.entries(grupos).map(([g, cods]) => `<div class="cat-h">${escH(g)}</div><div class="chips-end">${cods.map(c =>
+    `<button class="${sel.has(c) ? 'on' : ''}" data-c="${escH(c)}" onclick="toggleEnd(this)">${escH(c)}</button>`).join('')}</div>`).join('');
+  abrirModal(`<h3>${auto ? 'Nota completa — ' : ''}Endereço da ${escH(l.rot)}</h3>
+    <p>${escH(l.dest || '')}. Toque no(s) endereço(s) ou bipe a etiqueta do endereço.</p>
+    ${html || '<p>Nenhum endereço cadastrado no catálogo (admin → Endereços).</p>'}
+    <button class="btn-pri" style="width:100%;margin-top:12px" onclick="salvarEndereco()">Salvar endereço</button>
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">${auto ? 'Depois' : 'Fechar'}</button>`);
+  fecharModal._onScan = v => {
+    const c = String(v).trim().toUpperCase(), b = [...document.querySelectorAll('.chips-end button')].find(x => x.dataset.c.toUpperCase() === c);
+    if (!b) { bipSom('erro'); return aviso('Endereço não encontrado: ' + c); }
+    if (!b.classList.contains('on')) toggleEnd(b); bipSom('ok');
+  };
+}
+function toggleEnd(b) { const s = enderecarLote._sel, c = b.dataset.c; if (s.has(c)) { s.delete(c); b.classList.remove('on'); } else { s.add(c); b.classList.add('on'); } }
+async function salvarEndereco() {
+  const l = st.lote, codigos = [...(enderecarLote._sel || [])];
+  fecharModal(); if (!l) return;
+  const quem = st.user.nome || st.user.email || '';
+  st.lotesInfo[bipLoteId(st.dia, st.tipo, l.num)] = { ...infoLote(l), enderecos: codigos, enderecoPor: quem };
+  render();
+  try {
+    await bipSalvarLote(st.dia, st.tipo, l.num, { nf: l.rot, dest: l.dest || '', finalidade: st.finalidade, enderecos: codigos, enderecoPor: quem, enderecoEm: Date.now() });
+    await gravarEnderecamento(l, codigos, quem);
+    bipSom('ok'); aviso(codigos.length ? `${l.rot} endereçada: ${codigos.join(', ')}` : 'Endereço removido');
+  } catch (e) { bipSom('erro'); aviso('Endereço não gravado: ' + e.message); }
+}
+/** Leva o endereço para o Endereçamento da Conferência Geral (mesma coleção e chave placa__nota). */
+async function gravarEnderecamento(l, codigos, quem) {
+  if (!codigos.length) return;
+  const placa = infoLote(l).placa || l.placa || (l.placas[0] || '');
+  const ident = (l.rot || '').replace(/^NF\s+/, '').trim();
+  const chave = `${(placa || '').toUpperCase()}__${ident.toUpperCase()}`;
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  const snap = await db.collection('enderecamentos').where('chave', '==', chave).where('ativo', '==', true).limit(1).get();
+  let id;
+  if (snap.empty) {
+    const ref = await db.collection('enderecamentos').add({ chave, placa, ident, tituloOp: l.rot, destinatario: l.dest || '', cidadeDestino: l.cidade || '',
+      nf: ident, oc: '', md: '', di: '', enderecos: codigos.map(c => ({ historico: [c] })), ativo: true, operacaoId: null, dataEntrada: abaDoDia(st.dia),
+      origem: 'BIPADOR', criadoEm: ts, criadoPor: quem, atualizadoEm: ts, atualizadoPor: quem });
+    id = ref.id;
+  } else {
+    const d = snap.docs[0], slots = (d.data().enderecos || []).map(s => ({ historico: [...(s.historico || [])] }));
+    const atuais = slots.map(s => s.historico[s.historico.length - 1]);
+    codigos.filter(c => !atuais.includes(c)).forEach(c => slots.push({ historico: [c] }));
+    await d.ref.update({ enderecos: slots, atualizadoEm: ts, atualizadoPor: quem });
+    id = d.id;
+  }
+  for (const c of codigos) await db.collection('enderecamentos_log').add({ enderecamentoId: id, placa, ident, acao: 'CRIADO', slotIdx: null,
+    codigoAnterior: null, codigoNovo: c, origem: 'BIPADOR', autor: quem, timestamp: ts }).catch(() => {});
+}
+function voltarConferencia() {
+  const p = st.modo === 'PLACA' && st.placa ? `?placa=${encodeURIComponent(st.placa)}&tipo=${st.tipo}&dia=${st.dia}` : `?dia=${st.dia}`;
+  location.href = 'conferente.html' + p;
+}
+
 // ── Desenho da tela ──
 function htmlMini(num, rot, sub, q, esp, atual) {
-  const full = esp && q >= esp;
+  const full = esp && q >= esp, inf = st.lotesInfo[bipLoteId(st.dia, st.tipo, num)] || {};
+  const tags = (inf.placa ? `<span class="tagz">🚚 ${escH(inf.placa)}</span>` : '') + ((inf.enderecos || []).length ? `<span class="tagz">📍 ${escH(inf.enderecos.join(', '))}</span>` : '');
   return `<div class="mini ${full ? 'full' : q ? 'parc' : ''} ${atual ? 'atual' : ''}" onclick="abrirLoteManual('${escH(num)}')">
-    <div class="tx"><b>${full ? '✔ ' : ''}${escH(rot)}</b><small>${escH(sub || '—')}</small></div><span class="num">${q}/${esp || '?'}</span></div>`;
+    <div class="tx"><b>${full ? '✔ ' : ''}${escH(rot)}${tags}</b><small>${escH(sub || '—')}</small></div><span class="num">${q}/${esp || '?'}</span></div>`;
 }
 function renderNota(c) {
   const l = st.lote;
@@ -602,6 +767,7 @@ function renderNota(c) {
       <div class="barra"><div style="width:${l.esp ? Math.min(100, q / l.esp * 100) : 0}%"></div></div>
       ${chips ? `<div class="vols">${chips}</div>` : ''}
       ${semNum && chips ? `<div class="info" style="margin-top:8px">${semNum} leitura${semNum > 1 ? 's' : ''} sem nº de volume (DANFE / código do cliente)</div>` : ''}
+      ${htmlAcoesLote(l, full)}
       ${l.avisoAnterior ? `<div class="aviso">⚠ ${escH(l.avisoAnterior)}</div>` : ''}</div>`;
     st.ultimoVol = null;
     // outras notas do mesmo cliente no dia
@@ -676,7 +842,7 @@ function abrirModal(html) {
   m.addEventListener('click', e => { if (e.target === m) fecharModal(); });
   document.body.appendChild(m); fecharModal._aberto = true;
 }
-function fecharModal() { const m = $('modal'); if (m) m.remove(); fecharModal._aberto = false; setTimeout(foco, 50); }
+function fecharModal() { const m = $('modal'); if (m) m.remove(); fecharModal._aberto = false; fecharModal._onScan = null; setTimeout(foco, 50); }
 
 // ── Leitor: campo + captura global (leitor funciona como teclado) ──
 function foco() {
@@ -692,9 +858,9 @@ let _buf = '', _bufT = 0;
 document.addEventListener('keydown', e => {
   const ae = document.activeElement;
   if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
-  if (fecharModal._aberto) return;
+  if (fecharModal._aberto && !fecharModal._onScan) return;
   const agora = Date.now(); if (agora - _bufT > 300) _buf = ''; _bufT = agora;
-  if (e.key === 'Enter') { const v = _buf; _buf = ''; if (v.length >= 3) { e.preventDefault(); processar(v); } }
+  if (e.key === 'Enter') { const v = _buf; _buf = ''; if (v.length >= 2) { e.preventDefault(); if (fecharModal._aberto) fecharModal._onScan(v); else processar(v); } }
   else if (e.key.length === 1) _buf += e.key;
 });
 document.addEventListener('click', e => { if (!e.target.closest('input,select,button,.modal')) foco(); });

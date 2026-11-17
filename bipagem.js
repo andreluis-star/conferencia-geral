@@ -137,3 +137,27 @@ function bipLidasDaNota(lista, placa, tipo, nota) {
 function bipLidasDoLote(lista, tipo, num) {
   return bipValidas(lista).filter(b => b.tipo === tipo && b.lote === num);
 }
+
+// ── Lotes (notas) bipados: finalidade, veículo vinculado e endereço ──
+// Coleção "bipagem_lotes", doc `${dia}_${tipo}_${lote}`:
+//   dia, tipo, lote, nf, dest, finalidade ('CONFERENCIA'|'CARREGAMENTO'|'ENTRADA'),
+//   placa (vinculada), placaPor, placaEm, enderecos [códigos], enderecoPor, enderecoEm
+const LOTE_COL = 'bipagem_lotes';
+const BIP_FINALIDADES = {
+  CONFERENCIA:  { rot: 'Simples conferência', ic: '✔' },
+  CARREGAMENTO: { rot: 'Carregamento',        ic: '🚚' },
+  ENTRADA:      { rot: 'Entrada / endereço',  ic: '📍' },
+};
+function bipLoteId(dia, tipo, lote) { return `${dia}_${tipo}_${String(lote).replace(/[\/\s.#$\[\]]/g, '-')}`; }
+function bipOuvirLotes(dia, cb) {
+  return db.collection(LOTE_COL).where('dia', '==', dia).onSnapshot(snap => {
+    const m = {}; snap.docs.forEach(d => { const v = d.data(); m[bipLoteId(v.dia, v.tipo, v.lote)] = v; }); cb(m);
+  }, e => console.warn('bipOuvirLotes:', e.message));
+}
+async function bipBuscarLotesPeriodo(de, ate) {
+  const snap = await db.collection(LOTE_COL).where('dia', '>=', de).where('dia', '<=', ate).get();
+  const m = {}; snap.docs.forEach(d => { const v = d.data(); m[bipLoteId(v.dia, v.tipo, v.lote)] = v; }); return m;
+}
+function bipSalvarLote(dia, tipo, lote, dados) {
+  return db.collection(LOTE_COL).doc(bipLoteId(dia, tipo, lote)).set({ dia, tipo, lote, ...dados }, { merge: true });
+}

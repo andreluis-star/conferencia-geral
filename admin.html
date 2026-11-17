@@ -1281,7 +1281,7 @@ auth.onAuthStateChanged(async user => {
 // ═══════════════════════════════════════════════════════
 //  BIPAGEM — devolutivas do bipador.html (coleção bipagens)
 // ═══════════════════════════════════════════════════════
-const bipAdm = { aba: 'vivo', lista: [], unsub: null, grupos: [], dia: null, ops: {}, aberta: null };
+const bipAdm = { aba: 'vivo', lista: [], lotes: {}, unsubL: null, unsub: null, grupos: [], dia: null, ops: {}, aberta: null };
 const escB = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 async function loadBipagem() {
@@ -1302,9 +1302,12 @@ async function loadBipagem() {
       snap.docs.forEach(d => { const o = d.data(), k = `${o.placa}_${o.tipoExecucao}`; if (!bipAdm.ops[k] || o.status === 'CONCLUIDA') bipAdm.ops[k] = o.status; });
     } catch (e) { console.warn('bipagem ops:', e.message); }
   }
+  if (bipAdm.unsubL) { bipAdm.unsubL(); bipAdm.unsubL = null; }
   if (de === ate) {
+    bipAdm.unsubL = bipOuvirLotes(de, m => { bipAdm.lotes = m; renderBipagem(); });
     bipAdm.unsub = bipOuvirDia(de, lista => { bipAdm.lista = lista; renderBipagem(); });
   } else {
+    try { bipAdm.lotes = await bipBuscarLotesPeriodo(de, ate); } catch (e) { bipAdm.lotes = {}; }
     try { bipAdm.lista = await bipBuscarPeriodo(de, ate); } catch (e) { bipAdm.lista = []; showToast('Erro ao buscar leituras: ' + e.message, 'error'); }
     renderBipagem();
   }
@@ -1378,7 +1381,7 @@ function _bipHtmlVivo(placas) {
 function _bipHtmlNotas(lista) {
   const por = {};
   bipValidas(lista).forEach(b => {
-    const chave = b.tipo + '|' + (b.lote || b.k || b.nf), x = por[chave] = por[chave] || { dia: b.dia, tipo: b.tipo, nf: b.nf || ('NF ' + b.lote), dest: b.dest || '', esp: 0, q: 0,
+    const chave = b.tipo + '|' + (b.lote || b.k || b.nf), x = por[chave] = por[chave] || { dia: b.dia, tipo: b.tipo, lote: b.lote, nf: b.nf || ('NF ' + b.lote), dest: b.dest || '', esp: 0, q: 0,
       placas: new Set(), confs: new Set(), ini: Infinity, fim: 0 };
     x.q++; if (b.esp) x.esp = Math.max(x.esp, b.esp); if (b.placa) x.placas.add(b.placa); if (b.conferenteNome) x.confs.add(b.conferenteNome.split(' ')[0]);
     if (b.tms) { x.ini = Math.min(x.ini, b.tms); x.fim = Math.max(x.fim, b.tms); }
@@ -1386,10 +1389,13 @@ function _bipHtmlNotas(lista) {
   const ls = Object.values(por).sort((a, b) => ((a.esp && a.q >= a.esp) - (b.esp && b.q >= b.esp)) || b.fim - a.fim);
   if (!ls.length) return '<div class="p-4 text-muted">Nenhuma nota bipada no período.</div>';
   const h = ms => ms === Infinity || !ms ? '—' : new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return `<table class="tbl"><thead><tr><th>Dia</th><th>Nota</th><th>Cliente</th><th>Tipo</th><th>Volumes</th><th>Situação</th><th>Placa(s)</th><th>Início–fim</th><th>Conferentes</th></tr></thead><tbody>
-    ${ls.map(x => { const full = x.esp && x.q >= x.esp;
+  return `<table class="tbl"><thead><tr><th>Dia</th><th>Nota</th><th>Cliente</th><th>Tipo</th><th>Volumes</th><th>Situação</th><th>Finalidade</th><th>Veículo vinculado</th><th>Endereço</th><th>Placa(s) da leitura</th><th>Início–fim</th><th>Conferentes</th></tr></thead><tbody>
+    ${ls.map(x => { const full = x.esp && x.q >= x.esp, inf = (x.lote && bipAdm.lotes[bipLoteId(x.dia, x.tipo, x.lote)]) || {};
       return `<tr><td>${_bipDia(x)}</td><td><b>${escB(x.nf)}</b></td><td class="small">${escB(x.dest)}</td><td>${x.tipo === 'SAIDA' ? 'Saída' : 'Entrada'}</td>
         <td><b>${x.q}</b>/${x.esp || '?'}</td><td>${full ? '<span class="badge-ok">Completa</span>' : x.esp ? `<span class="badge-naook">Faltam ${x.esp - x.q}</span>` : '<span class="badge-pendente">Sem total</span>'}</td>
+        <td class="small">${escB((BIP_FINALIDADES[inf.finalidade] || {}).rot || '—')}</td>
+        <td>${inf.placa ? `<span class="bip-placa">${escB(inf.placa)}</span>` : '<span class="text-muted small">—</span>'}</td>
+        <td class="small">${escB((inf.enderecos || []).join(', ') || '—')}</td>
         <td>${[...x.placas].map(p => `<span class="bip-placa">${escB(p)}</span>`).join(' ') || '<span class="text-muted small">sem placa</span>'}</td>
         <td class="small">${h(x.ini)}–${h(x.fim)}</td><td class="small">${escB([...x.confs].join(', '))}</td></tr>`; }).join('')}</tbody></table>
     <div class="px-3 py-2 small text-muted">Total da nota = o "VOL i/n" da etiqueta ou a coluna Volume da planilha. Notas bipadas pelo modo POR NOTA podem não ter placa.</div>`;
@@ -1482,7 +1488,7 @@ function showSection(id) {
   if (id==='tfa')                loadTFA();
   if (id==='config')             loadConfig();
   if (id==='bipagem')            loadBipagem();
-  else if (bipAdm.unsub)         { bipAdm.unsub(); bipAdm.unsub = null; }
+  else { if (bipAdm.unsub) { bipAdm.unsub(); bipAdm.unsub = null; } if (bipAdm.unsubL) { bipAdm.unsubL(); bipAdm.unsubL = null; } }
 }
 
 // ── CONFIGURAÇÕES ──────────────────────────────────────────────
@@ -4789,7 +4795,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-5';
+const APP_VERSION = '2026.11.17-6';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
