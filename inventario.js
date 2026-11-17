@@ -13,6 +13,9 @@
 
 const INV_DB = 'https://portoex-inventario-default-rtdb.firebaseio.com';
 const INV_CAMPOS = ['nf', 'end', 'cliente', 'operador', 'vol', 'obs'];
+// Só valem as leituras do inventário dos últimos INV_DIAS dias (romaneio, bipador e admin).
+const INV_DIAS = 5;
+function invRecentes(itens) { const lim = Date.now() - INV_DIAS * 864e5; return (itens || []).filter(it => (it.ts || 0) >= lim); }
 
 async function _invJson(caminho, opts, timeoutMs = 20000) {
   const c = new AbortController(); const t = setTimeout(() => c.abort(), timeoutMs);
@@ -100,7 +103,7 @@ function _invNorm(d) { return /^\d+$/.test(String(d)) ? String(+d) : String(d).t
  */
 async function invMapaSeguro(limite = 80) {
   try { await invSincronizar({ limite }); } catch (e) { console.warn('inventário (sincronizar):', e.message); }
-  try { return { mapa: invMapa(await invItens()) }; }
+  try { return { mapa: invMapa(invRecentes(await invItens())) }; }
   catch (e) { console.warn('inventário (ler):', e.message); return { mapa: new Map(), erro: e.message }; }
 }
 

@@ -697,7 +697,7 @@
   <div class="section" id="sec-enderecados">
     <div class="table-card mb-3">
       <div class="tc-head" style="flex-wrap:wrap;gap:10px;">
-        <span class="tc-title">📍 Itens endereçados</span>
+        <span class="tc-title">📍 Itens endereçados <small class="text-muted" style="font-size:.75rem;font-weight:600">· lançados nos últimos 5 dias</small></span>
         <div class="d-flex gap-2 flex-wrap align-items-center">
           <input id="end-busca" class="form-control form-control-sm" style="width:220px" placeholder="Buscar NF, cliente, endereço" oninput="clearTimeout(window._endBT);window._endBT=setTimeout(renderEnderecados,250)">
           <select id="end-filtro-end" class="form-select form-select-sm" style="width:150px" onchange="renderEnderecados()"><option value="">Todos os endereços</option></select>
@@ -1519,7 +1519,7 @@ async function loadEnderecados(forcarSync) {
 
   const hoje = hojeIso(), de30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [itens, endConf, bips, prog] = await Promise.all([
-    invItens().catch(() => []),
+    invItens().then(invRecentes).catch(() => []),
     db.collection('enderecamentos').where('ativo', '==', true).get().then(s => s.docs.map(d => d.data())).catch(() => []),
     bipBuscarPeriodo(de30, hoje).catch(() => []),
     fetchSheetVehicles(abaDoDia(hoje)).then(agruparProgramacao).catch(() => []),
@@ -1550,6 +1550,7 @@ async function loadEnderecados(forcarSync) {
     if (!tk.length || tk.some(t => ja.has(t))) return;
     const atuais = (d.enderecos || []).map(s => (s.historico || []).slice(-1)[0]).filter(Boolean);
     const ts = d.atualizadoEm && d.atualizadoEm.toMillis ? d.atualizadoEm.toMillis() : (d.criadoEm && d.criadoEm.toMillis ? d.criadoEm.toMillis() : 0);
+    if (ts < Date.now() - INV_DIAS * 864e5) return;   // mesma janela do inventário
     linhas.push({ nf: d.nf || d.ident, tokens: tk, cliente: d.destinatario || '', end: atuais.join(', '), ts, por: d.atualizadoPor || d.criadoPor || '', vol: '', origem: 'Conferência', placa: d.placa });
   });
   linhas.forEach(l => {
@@ -4951,7 +4952,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-9';
+const APP_VERSION = '2026.11.17-10';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
