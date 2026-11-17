@@ -123,3 +123,17 @@ function bipOuvirPlaca(dia, placa, cb) {
     cb(lista);
   }, e => console.warn('bipOuvirPlaca:', e.message));
 }
+
+/**
+ * Leituras válidas de uma nota da programação: as feitas para a placa + chave
+ * da nota, e as feitas por NOTA (campo lote = número da NF), em qualquer placa.
+ */
+function bipLidasDaNota(lista, placa, tipo, nota) {
+  return bipValidas(lista).filter(b => b.tipo === tipo &&
+    ((b.placa === placa && b.k === nota.k) || (b.lote && nota.docs.includes(b.lote) && (!b.placa || b.placa === placa))));
+}
+
+/** Leituras válidas de um lote (número da NF), em qualquer placa. */
+function bipLidasDoLote(lista, tipo, num) {
+  return bipValidas(lista).filter(b => b.tipo === tipo && b.lote === num);
+}

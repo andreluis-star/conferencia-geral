@@ -714,6 +714,7 @@
         </div>
         <div class="d-flex gap-2 flex-wrap mb-3" id="bip-abas">
           <button class="btn btn-sm bip-aba on" data-aba="vivo" onclick="bipAba('vivo')">🟢 Ao vivo</button>
+          <button class="btn btn-sm bip-aba" data-aba="notas" onclick="bipAba('notas')">📦 Notas</button>
           <button class="btn btn-sm bip-aba" data-aba="div" onclick="bipAba('div')">⚠️ Divergências</button>
           <button class="btn btn-sm bip-aba" data-aba="hist" onclick="bipAba('hist')">📋 Histórico</button>
           <button class="btn btn-sm bip-aba" data-aba="rank" onclick="bipAba('rank')">🏆 Ranking</button>
@@ -1328,10 +1329,9 @@ function _bipPlacasDoDia() {
   const out = [];
   bipAdm.grupos.forEach(g => tipos.forEach(t => {
     const ns = notasParaBipagem(g.vehicles, t); if (!ns.length) return;
-    const porK = bipPorNota(bipAdm.lista, g.placa, t);
     const evts = bipAdm.lista.filter(b => b.placa === g.placa && b.tipo === t && !b.removida);
-    const ok = evts.filter(b => b.resultado === 'OK');
-    const notas = ns.map(n => ({ ...n, q: (porK[n.k] || []).length }));
+    const notas = ns.map(n => ({ ...n, q: bipLidasDaNota(bipAdm.lista, g.placa, t, n).length }));
+    const ok = bipAdm.lista.filter(b => b.tipo === t && !b.removida && b.resultado === 'OK' && notas.some(n => (b.placa === g.placa && b.k === n.k) || (b.lote && n.docs.includes(b.lote))));
     out.push({ placa: g.placa, tipo: t, notas, esp: notas.reduce((s, n) => s + n.esp, 0), q: notas.reduce((s, n) => s + n.q, 0),
       completas: notas.filter(n => n.esp && n.q >= n.esp).length, alertas: evts.length - ok.length, ult: ok[ok.length - 1], op: bipAdm.ops[`${g.placa}_${t}`] });
   }));
@@ -1348,6 +1348,7 @@ function renderBipagem() {
   document.getElementById('bip-k-conf').textContent = new Set(lista.map(b => b.conferenteNome).filter(Boolean)).size;
   const corpo = document.getElementById('bip-corpo');
   if (bipAdm.aba === 'vivo') corpo.innerHTML = _bipHtmlVivo(placas);
+  else if (bipAdm.aba === 'notas') corpo.innerHTML = _bipHtmlNotas(lista);
   else if (bipAdm.aba === 'div') corpo.innerHTML = _bipHtmlDiv(lista, placas);
   else if (bipAdm.aba === 'hist') corpo.innerHTML = _bipHtmlHist(lista);
   else corpo.innerHTML = _bipHtmlRank(lista);
@@ -1371,6 +1372,27 @@ function _bipHtmlVivo(placas) {
   }).join('');
   return `<table class="tbl"><thead><tr><th>Placa</th><th>Tipo</th><th>Volumes</th><th>Progresso</th><th>NFs completas</th><th>Alertas</th><th>Último bipe</th><th>Conferência</th></tr></thead><tbody>${linhas}</tbody></table>
     <div class="px-3 py-2 small text-muted">Clique numa placa para ver as notas. Atualiza sozinho enquanto o bipador lê.</div>`;
+}
+
+/** Uma linha por nota (lote) bipada: volumes lidos x total da etiqueta/planilha, placas e conferentes. */
+function _bipHtmlNotas(lista) {
+  const por = {};
+  bipValidas(lista).forEach(b => {
+    const chave = b.tipo + '|' + (b.lote || b.k || b.nf), x = por[chave] = por[chave] || { dia: b.dia, tipo: b.tipo, nf: b.nf || ('NF ' + b.lote), dest: b.dest || '', esp: 0, q: 0,
+      placas: new Set(), confs: new Set(), ini: Infinity, fim: 0 };
+    x.q++; if (b.esp) x.esp = Math.max(x.esp, b.esp); if (b.placa) x.placas.add(b.placa); if (b.conferenteNome) x.confs.add(b.conferenteNome.split(' ')[0]);
+    if (b.tms) { x.ini = Math.min(x.ini, b.tms); x.fim = Math.max(x.fim, b.tms); }
+  });
+  const ls = Object.values(por).sort((a, b) => ((a.esp && a.q >= a.esp) - (b.esp && b.q >= b.esp)) || b.fim - a.fim);
+  if (!ls.length) return '<div class="p-4 text-muted">Nenhuma nota bipada no período.</div>';
+  const h = ms => ms === Infinity || !ms ? '—' : new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `<table class="tbl"><thead><tr><th>Dia</th><th>Nota</th><th>Cliente</th><th>Tipo</th><th>Volumes</th><th>Situação</th><th>Placa(s)</th><th>Início–fim</th><th>Conferentes</th></tr></thead><tbody>
+    ${ls.map(x => { const full = x.esp && x.q >= x.esp;
+      return `<tr><td>${_bipDia(x)}</td><td><b>${escB(x.nf)}</b></td><td class="small">${escB(x.dest)}</td><td>${x.tipo === 'SAIDA' ? 'Saída' : 'Entrada'}</td>
+        <td><b>${x.q}</b>/${x.esp || '?'}</td><td>${full ? '<span class="badge-ok">Completa</span>' : x.esp ? `<span class="badge-naook">Faltam ${x.esp - x.q}</span>` : '<span class="badge-pendente">Sem total</span>'}</td>
+        <td>${[...x.placas].map(p => `<span class="bip-placa">${escB(p)}</span>`).join(' ') || '<span class="text-muted small">sem placa</span>'}</td>
+        <td class="small">${h(x.ini)}–${h(x.fim)}</td><td class="small">${escB([...x.confs].join(', '))}</td></tr>`; }).join('')}</tbody></table>
+    <div class="px-3 py-2 small text-muted">Total da nota = o "VOL i/n" da etiqueta ou a coluna Volume da planilha. Notas bipadas pelo modo POR NOTA podem não ter placa.</div>`;
 }
 
 function _bipHtmlDiv(lista, placas) {
@@ -4767,7 +4789,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-3';
+const APP_VERSION = '2026.11.17-4';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');

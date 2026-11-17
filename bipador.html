@@ -104,6 +104,30 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 @keyframes pisca{0%{background:#DDF3E4}100%{background:#fff}}
 .vazio{text-align:center;color:var(--mut);padding:30px 10px;font-size:.88rem;background:#fff;border:1px dashed var(--line);border-radius:var(--r)}
 
+/* Lote (nota aberta) */
+.lote{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.lote .cab{display:flex;gap:12px;align-items:flex-start}
+.lote .cab .tx{flex:1;min-width:0}
+.lote .cli{font-size:.72rem;font-weight:800;letter-spacing:1px;color:var(--orange);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lote h3{margin:2px 0 4px;font-size:1.3rem;color:var(--navy)}
+.lote .info{font-size:.76rem;color:var(--mut)}
+.lote .big{text-align:right;line-height:1}
+.lote .big b{font-size:2.6rem;color:var(--navy)}
+.lote .big small{display:block;font-size:.66rem;color:var(--mut);font-weight:600;margin-top:3px}
+.lote.full{border-color:#BFE6CB;background:#FAFEFB}.lote.full .big b{color:var(--ok)}
+.vols{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px;margin-top:12px}
+.vols span{height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font:700 .95rem 'Barlow Condensed',sans-serif;background:#EEF1F6;color:#9AA3B2;border:1px dashed #D3D9E3}
+.vols span.ok{background:var(--ok);color:#fff;border:1px solid var(--ok)}
+.vols span.novo{animation:pop .6s}
+@keyframes pop{0%{transform:scale(1.3);box-shadow:0 0 0 4px rgba(30,158,74,.3)}100%{transform:scale(1)}}
+.lote .aviso{margin-top:10px;font-size:.78rem;background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:7px 10px;font-weight:600}
+.mini{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.mini .tx{flex:1;min-width:0}.mini .tx b{display:block;color:var(--navy);font-size:.86rem}
+.mini .tx small{display:block;color:var(--mut);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .num{font-size:1.25rem;color:var(--navy)}
+.mini.full{border-color:#BFE6CB}.mini.full .num{color:var(--ok)}.mini.parc .num{color:var(--orange)}
+.mini.atual{outline:2px solid var(--orange)}
+
 /* Barra inferior */
 .acoes{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:8px 10px calc(8px + var(--safe-b));display:flex;gap:8px;justify-content:center}
 .acoes button{flex:1;max-width:240px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font-weight:700;font-size:.78rem;color:var(--navy);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -140,7 +164,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
       <button class="entrada" data-v="ENTRADA" onclick="trocarTipo('ENTRADA')">ENTRADA</button>
     </div>
     <div class="seg" id="seg-modo">
-      <button class="on" data-v="LIVRE" onclick="trocarModo('LIVRE')">LIVRE</button>
+      <button class="on" data-v="NOTA" onclick="trocarModo('NOTA')">POR NOTA</button>
       <button data-v="PLACA" onclick="trocarModo('PLACA')">POR PLACA</button>
     </div>
   </div>
@@ -157,7 +181,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 
   <div id="retorno" class="retorno">
     <div class="ic">📟</div>
-    <div class="tx"><div class="tit">Pronto para bipar</div><div class="sub">Etiqueta da Conferência Geral (QR), DANFE ou número da NF</div></div>
+    <div class="tx"><div class="tit">Pronto para bipar</div><div class="sub">Bipe a primeira etiqueta da nota: ela abre o lote com todos os volumes</div></div>
   </div>
 
   <div id="conteudo"><div class="carregando">Carregando programação…</div></div>
@@ -166,7 +190,7 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 <div class="acoes">
   <button onclick="desfazerUltimo()"><span>↩</span>Desfazer</button>
   <button onclick="verLeituras()"><span>📋</span>Leituras</button>
-  <button onclick="abrirConferencia()"><span>✔</span>Conferência</button>
+  <button id="bt-3" onclick="botao3()"><span>✔</span>Conferência</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -178,19 +202,22 @@ main{max-width:980px;margin:0 auto;padding:12px 12px calc(86px + var(--safe-b))}
 <script>
 // ═══════════════════════════════════════════════════════
 //  BIPADOR DE VOLUMES
-//  LIVRE: cada etiqueta vai para a sua placa (mostra em que caminhão vai).
+//  POR NOTA (padrão): a 1ª etiqueta abre o lote (a NF) com os volumes
+//    1..n; as próximas vão marcando. Não amarra placa: a nota pode sair
+//    parcial num veículo. Etiqueta de outra nota abre aquela nota.
 //  POR PLACA: trava num veículo; volume de outra placa = CARGA ERRADA.
 // ═══════════════════════════════════════════════════════
 const st = {
-  user: null, dia: hojeIso(), tipo: 'SAIDA', modo: 'LIVRE', placa: null,
+  user: null, dia: hojeIso(), tipo: 'SAIDA', modo: 'NOTA', placa: null, lote: null,
   grupos: [], notas: {},          // notas[tipo][placa] = [nota]
   porNum: {},                     // porNum[tipo] = Map(numero → [{placa, nota}])
   bips: [], pend: [], vinc: {}, ops: {},
-  unsub: [], ultimoK: null,
+  unsub: [], ultimoK: null, ultimoVol: null,
 };
 const $ = id => document.getElementById(id);
 const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function aviso(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+const nomeTipo = t => t === 'SAIDA' ? 'saída' : 'entrada';
 
 // ── Login ──
 auth.onAuthStateChanged(async user => {
@@ -220,14 +247,13 @@ function menuUsuario() {
 // ── Carregar o dia: planilha + operações + leituras ao vivo ──
 async function carregarDia() {
   st.unsub.forEach(f => f()); st.unsub = [];
-  st.bips = []; st.pend = []; st.vinc = {};
+  st.bips = []; st.pend = []; st.vinc = {}; st.lote = null;
   $('conteudo').innerHTML = '<div class="carregando">Carregando programação…</div>';
   try {
-    const linhas = await fetchSheetVehicles(abaDoDia(st.dia));
-    st.grupos = agruparProgramacao(linhas);
+    st.grupos = agruparProgramacao(await fetchSheetVehicles(abaDoDia(st.dia)));
   } catch (e) {
     st.grupos = [];
-    $('conteudo').innerHTML = `<div class="vazio">Não consegui ler a planilha do dia ${escH(abaDoDia(st.dia))}.<br><small>${escH(e.message)}</small></div>`;
+    aviso('Planilha do dia não lida: ' + e.message);
   }
   indexar();
   carregarOps();
@@ -261,79 +287,150 @@ async function carregarOps() {
 }
 
 // ── Contagem ──
-function todasLeituras() { return st.bips.concat(st.pend); }
-function validasDe(placa, k) { return bipValidas(todasLeituras()).filter(b => b.placa === placa && b.tipo === st.tipo && b.k === k); }
+function todas() { return st.bips.concat(st.pend); }
+function lidasNotaPlaca(placa, nota) { return bipLidasDaNota(todas(), placa, st.tipo, nota); }
+function lidasLote(num) { return bipLidasDoLote(todas(), st.tipo, num); }
 function resumoPlaca(placa) {
   const ns = st.notas[st.tipo][placa] || [];
   let esp = 0, lid = 0, completas = 0;
-  ns.forEach(n => { const c = validasDe(placa, n.k).length; esp += n.esp; lid += c; if (n.esp && c >= n.esp) completas++; });
-  const alertas = todasLeituras().filter(b => b.placa === placa && b.tipo === st.tipo && b.resultado !== 'OK' && !b.removida).length;
+  ns.forEach(n => { const c = lidasNotaPlaca(placa, n).length; esp += n.esp; lid += c; if (n.esp && c >= n.esp) completas++; });
+  const alertas = todas().filter(b => b.placa === placa && b.tipo === st.tipo && b.resultado !== 'OK' && !b.removida).length;
   return { ns, esp, lid, completas, alertas };
 }
+
+/** Monta o lote (nota) de um número de NF: total de volumes, cliente, placas programadas. */
+function montarLote(num, deQr) {
+  const cands = st.porNum[st.tipo].get(num) || [];
+  const n0 = cands[0] && cands[0].nota;
+  const placas = [...new Set(cands.map(c => c.placa))];
+  return {
+    num, esp: deQr ? +deQr : (n0 ? cands.reduce((s, c) => s + c.nota.esp, 0) : 0),
+    rot: n0 ? n0.rot : 'NF ' + num, dest: n0 ? n0.dest : '', cidade: n0 ? n0.cidade : '',
+    placas, placa: placas.length === 1 ? placas[0] : '', k: cands.length === 1 ? n0.k : '',
+    naProgramacao: !!cands.length,
+  };
+}
+function lotePronto(l) { return l && l.esp && lidasLote(l.num).length >= l.esp; }
 
 // ── Leitura ──
 function processar(raw) {
   const i = interpretarCodigo(raw);
   if (!i.cod || i.cod.length < 3) return;
-  if (!st.grupos.length) return retorno('warn', '⚠', 'Programação do dia não carregada', 'Confira a data e a planilha', null);
   if (fecharModal._aberto) return;
-
-  if (i.tipo !== 'OUTRO') {
-    let cands = st.porNum[st.tipo].get(i.num) || [];
-    if (!cands.length) {
-      const outro = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA';
-      const noOutro = st.porNum[outro].get(i.num);
-      if (i.tipo === 'NUMERO' && !noOutro) return codigoDesconhecido(i);
-      const motivo = noOutro ? `NF ${i.num} está na ${outro === 'SAIDA' ? 'SAÍDA' : 'ENTRADA'} da placa ${noOutro[0].placa}` : `NF ${i.num} não está na programação de ${abaDoDia(st.dia)}`;
-      return recusar('FORA_PROGRAMACAO', i, { nf: 'NF ' + i.num, motivo, placa: st.placa || '' }, '✖ FORA DA PROGRAMAÇÃO', motivo);
-    }
-    let alvo;
-    if (st.modo === 'PLACA') {
-      if (!st.placa) { st.placa = cands[0].placa; render(); }
-      alvo = cands.find(c => c.placa === st.placa);
-      if (!alvo) return recusar('CARGA_ERRADA', i, { nf: cands[0].nota.rot, k: cands[0].nota.k, placa: st.placa, placaCerta: cands[0].placa,
-        motivo: `Volume da placa ${cands[0].placa}` }, '✖ CARGA ERRADA', `${cands[0].nota.rot} — este volume vai nesta placa`, cands[0].placa);
-    } else {
-      alvo = cands.find(c => { const n = c.nota; return !n.esp || validasDe(c.placa, n.k).length < n.esp; }) || cands[0];
-    }
-    return contar(alvo.placa, alvo.nota, i);
-  }
-  return codigoDesconhecido(i);
+  return st.modo === 'PLACA' ? processarPlaca(i) : processarNota(i);
 }
 
-function codigoDesconhecido(i) {
+/* POR NOTA: a etiqueta abre (ou continua) o lote dela */
+function processarNota(i) {
+  const outroT = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA';
+  if (i.tipo === 'OUTRO' || (i.tipo === 'NUMERO' && !st.porNum[st.tipo].get(i.num) && !st.porNum[outroT].get(i.num))) {
+    const v = st.vinc[i.cod];
+    if (v && v.tipo === st.tipo && v.lote) return contarLote(abrirLote(v.lote, null), i);
+    if (st.lote) return confirmarVinculo(i);
+    return recusar('NAO_RECONHECIDO', i, { motivo: 'Código sem NF' }, '⚠ CÓDIGO NÃO RECONHECIDO',
+      'Bipe primeiro a etiqueta da nota (QR) ou a DANFE', null, 'warn');
+  }
+  const outro = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA';
+  if (!st.porNum[st.tipo].get(i.num) && st.porNum[outro].get(i.num)) {
+    const c = st.porNum[outro].get(i.num)[0];
+    return recusar('FORA_PROGRAMACAO', i, { lote: i.num, nf: c.nota.rot, motivo: `NF está na ${nomeTipo(outro).toUpperCase()} (placa ${c.placa})` },
+      '⚠ NOTA DE ' + nomeTipo(outro).toUpperCase(), `${c.nota.rot} está programada como ${nomeTipo(outro)} — troque o tipo no topo`, c.placa, 'warn');
+  }
+  if (!st.porNum[st.tipo].get(i.num) && !i.de)
+    return recusar('FORA_PROGRAMACAO', i, { lote: i.num, nf: 'NF ' + i.num, motivo: `Não está na programação de ${abaDoDia(st.dia)}` },
+      '✖ FORA DA PROGRAMAÇÃO', `NF ${i.num} não está na programação de ${abaDoDia(st.dia)}`);
+  contarLote(abrirLote(i.num, i.de), i);
+}
+
+/** Abre o lote da NF; se o anterior ficou incompleto, guarda o aviso. */
+function abrirLote(num, deQr) {
+  if (st.lote && st.lote.num === num) { if (deQr && !st.lote.esp) st.lote.esp = +deQr; return st.lote; }
+  const ant = st.lote;
+  st.lote = montarLote(num, deQr);
+  st.lote.avisoAnterior = ant && ant.esp && !lotePronto(ant) ? `${ant.rot} ficou parcial: ${lidasLote(ant.num).length}/${ant.esp}` : '';
+  return st.lote;
+}
+
+function contarLote(lote, i) {
+  const lidas = lidasLote(lote.num);
+  const volTxt = i.tipo === 'QR' && i.vol ? (i.de ? `${i.vol}/${i.de}` : i.vol) : '';
+  const base = { cod: i.cod, lote: lote.num, nf: lote.rot, dest: lote.dest, placa: lote.placa, k: lote.k, esp: lote.esp || null, vol: volTxt };
+  if (i.tipo === 'QR' && i.de && lidas.some(b => b.cod === i.cod))
+    return recusar('DUPLICADO', i, { ...base, motivo: 'Volume já bipado' }, '✖ VOLUME JÁ BIPADO', `${lote.rot} · VOL ${volTxt}`, null);
+  if (lote.esp && lidas.length >= lote.esp)
+    return recusar('EXCEDENTE', i, { ...base, motivo: `Nota já tinha ${lidas.length}/${lote.esp}` }, '✖ VOLUME EXCEDENTE', `${lote.rot} já tem os ${lote.esp} volumes`, null);
+  gravarOk({ ...base, motivo: lote.naProgramacao ? '' : 'Fora da programação do dia' });
+  const n = lidas.length + 1, completa = lote.esp && n >= lote.esp;
+  bipSom(completa ? 'completa' : 'ok');
+  st.ultimoVol = i.tipo === 'QR' ? i.vol : null;
+  retorno('ok', completa ? '✔' : '✓', completa ? `${lote.rot} COMPLETA` : lote.rot,
+    [lote.dest, volTxt ? 'VOL ' + volTxt : '', lote.naProgramacao ? '' : 'fora da programação'].filter(Boolean).join(' · '),
+    null, `${n}<span style="font-size:1.3rem;opacity:.6">/${lote.esp || '?'}</span>`);
+  render();
+}
+
+/** Código de cliente com um lote aberto: um toque liga ao lote. */
+function confirmarVinculo(i) {
+  bipSom('aviso');
+  retorno('warn', '?', 'Código de cliente', 'Confirme se a caixa é da nota aberta', null);
+  abrirModal(`<h3>Esta caixa é da ${escH(st.lote.rot)}?</h3><p>Lido: <code>${escH(i.cod)}</code>${st.lote.dest ? '<br>Cliente: ' + escH(st.lote.dest) : ''}<br>As próximas caixas com este código contam nesta nota sozinhas.</p>
+    <button class="btn-pri" style="width:100%" onclick="vincularLote()">Sim, é da ${escH(st.lote.rot)}</button>
+    <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Não</button>`);
+  confirmarVinculo._i = i;
+}
+function vincularLote() {
+  const i = confirmarVinculo._i, l = st.lote; fecharModal();
+  if (!i || !l) return;
+  st.vinc[i.cod] = { cod: i.cod, tipo: st.tipo, lote: l.num };
+  db.collection(VINC_COL).doc(st.dia + '_' + _bipHash(i.cod)).set({ dia: st.dia, cod: i.cod, tipo: st.tipo, lote: l.num, placa: l.placa, k: l.k, nf: l.rot,
+    por: st.user.nome || st.user.email || '', tms: Date.now() }).catch(e => aviso('Vínculo não gravado: ' + e.message));
+  contarLote(l, i);
+}
+
+/* POR PLACA: trava num veículo */
+function processarPlaca(i) {
+  if (!st.grupos.length) return retorno('warn', '⚠', 'Programação do dia não carregada', 'Confira a data e a planilha', null);
+  if (i.tipo !== 'OUTRO') {
+    const cands = st.porNum[st.tipo].get(i.num) || [];
+    if (!cands.length) {
+      const outro = st.tipo === 'SAIDA' ? 'ENTRADA' : 'SAIDA', noOutro = st.porNum[outro].get(i.num);
+      if (i.tipo === 'NUMERO' && !noOutro) return codigoDesconhecidoPlaca(i);
+      const motivo = noOutro ? `NF ${i.num} está na ${nomeTipo(outro).toUpperCase()} da placa ${noOutro[0].placa}` : `NF ${i.num} não está na programação de ${abaDoDia(st.dia)}`;
+      return recusar('FORA_PROGRAMACAO', i, { lote: i.num, nf: 'NF ' + i.num, motivo, placa: st.placa || '' }, '✖ FORA DA PROGRAMAÇÃO', motivo);
+    }
+    if (!st.placa) { st.placa = cands[0].placa; render(); }
+    const alvo = cands.find(c => c.placa === st.placa);
+    if (!alvo) return recusar('CARGA_ERRADA', i, { lote: i.num, nf: cands[0].nota.rot, k: cands[0].nota.k, placa: st.placa, placaCerta: cands[0].placa,
+      motivo: `Volume da placa ${cands[0].placa}` }, '✖ CARGA ERRADA', `${cands[0].nota.rot} — este volume vai nesta placa`, cands[0].placa);
+    return contarPlaca(alvo.placa, alvo.nota, i);
+  }
+  return codigoDesconhecidoPlaca(i);
+}
+function codigoDesconhecidoPlaca(i) {
   const v = st.vinc[i.cod];
   if (v && v.tipo === st.tipo) {
-    const nota = (st.notas[st.tipo][v.placa] || []).find(n => n.k === v.k);
-    if (nota) {
-      if (st.modo === 'PLACA' && st.placa && v.placa !== st.placa)
-        return recusar('CARGA_ERRADA', i, { nf: nota.rot, k: nota.k, placa: st.placa, placaCerta: v.placa, motivo: `Código ligado à placa ${v.placa}` },
-          '✖ CARGA ERRADA', `${nota.rot} — este volume vai nesta placa`, v.placa);
-      return contar(v.placa, nota, i);
-    }
+    const ns = st.notas[st.tipo][st.placa] || [];
+    const nota = ns.find(n => (v.k && n.k === v.k) || (v.lote && n.docs.includes(v.lote)));
+    if (nota) return contarPlaca(st.placa, nota, i);
+    if (v.placa && v.placa !== st.placa) return recusar('CARGA_ERRADA', i, { lote: v.lote || '', nf: v.nf || '', placa: st.placa, placaCerta: v.placa,
+      motivo: `Código ligado à placa ${v.placa}` }, '✖ CARGA ERRADA', `${v.nf || 'Nota'} — este volume vai nesta placa`, v.placa);
   }
-  if (st.modo === 'PLACA' && st.placa) return escolherNota(i);
-  return recusar('NAO_RECONHECIDO', i, { placa: '', motivo: 'Código sem NF' }, '⚠ CÓDIGO NÃO RECONHECIDO',
-    'Use o modo POR PLACA para ligar este código a uma NF', null, 'warn');
+  if (st.placa) return escolherNota(i);
+  return recusar('NAO_RECONHECIDO', i, { motivo: 'Código sem NF' }, '⚠ CÓDIGO NÃO RECONHECIDO', 'Escolha a placa primeiro', null, 'warn');
 }
-
-function contar(placa, nota, i) {
-  const lidas = validasDe(placa, nota.k);
+function contarPlaca(placa, nota, i) {
+  const lidas = lidasNotaPlaca(placa, nota);
   const volTxt = i.tipo === 'QR' && i.vol ? (i.de ? `${i.vol}/${i.de}` : i.vol) : '';
+  const lote = nota.docs.find(d => /^\d+$/.test(d)) || '';
+  const base = { cod: i.cod, lote, nf: nota.rot, k: nota.k, placa, dest: nota.dest, esp: nota.esp || null, vol: volTxt };
   if (i.tipo === 'QR' && i.de) {
-    const ja = bipValidas(todasLeituras()).find(b => b.cod === i.cod && b.tipo === st.tipo);
-    if (ja) return recusar('DUPLICADO', i, { nf: nota.rot, k: nota.k, placa, vol: volTxt, motivo: `Já bipado às ${bipHora(ja)} por ${(ja.conferenteNome || '').split(' ')[0]}` },
+    const ja = bipValidas(todas()).find(b => b.cod === i.cod && b.tipo === st.tipo);
+    if (ja) return recusar('DUPLICADO', i, { ...base, motivo: `Já bipado às ${bipHora(ja)} por ${(ja.conferenteNome || '').split(' ')[0]}` },
       '✖ VOLUME JÁ BIPADO', `${nota.rot} · VOL ${volTxt} — às ${bipHora(ja)}`, placa);
   }
   if (nota.esp && lidas.length >= nota.esp)
-    return recusar('EXCEDENTE', i, { nf: nota.rot, k: nota.k, placa, vol: volTxt, motivo: `Já tinha ${lidas.length}/${nota.esp}` },
-      '✖ VOLUME EXCEDENTE', `${nota.rot} já tem ${lidas.length}/${nota.esp} volumes`, placa);
-
-  const evt = { dia: st.dia, placa, tipo: st.tipo, k: nota.k, nf: nota.rot, dest: nota.dest, cod: i.cod, vol: volTxt,
-    resultado: 'OK', motivo: '', modo: st.modo, cid: Math.random().toString(36).slice(2, 10) };
-  st.pend.push({ ...evt, tms: Date.now(), conferenteNome: st.user.nome || st.user.email, conferenteId: st.user.uid });
-  bipRegistrar(evt, st.user).catch(e => { st.pend = st.pend.filter(p => p.cid !== evt.cid); render();
-    retorno('err', '✖', 'Leitura NÃO gravada', e.message, null); bipSom('erro'); });
+    return recusar('EXCEDENTE', i, { ...base, motivo: `Já tinha ${lidas.length}/${nota.esp}` }, '✖ VOLUME EXCEDENTE', `${nota.rot} já tem ${lidas.length}/${nota.esp} volumes`, placa);
+  gravarOk(base);
   const n = lidas.length + 1, completa = nota.esp && n >= nota.esp;
   bipSom(completa ? 'completa' : 'ok');
   const conf = st.ops[`${placa}_${st.tipo}`] === 'CONCLUIDA' ? ' · placa já confirmada no Conferência' : '';
@@ -342,29 +439,11 @@ function contar(placa, nota, i) {
   st.ultimoK = nota.k;
   render();
 }
-
-function recusar(resultado, i, extra, titulo, sub, placaMostrar, cls) {
-  const evt = { dia: st.dia, tipo: st.tipo, cod: i.cod, resultado, k: '', nf: '', placa: '', vol: '', modo: st.modo, cid: Math.random().toString(36).slice(2, 10), ...extra };
-  bipRegistrar(evt, st.user).catch(() => {});
-  bipSom(cls === 'warn' ? 'aviso' : 'erro');
-  retorno(cls || 'err', cls === 'warn' ? '!' : '✖', titulo, sub, placaMostrar);
-}
-
-function retorno(cls, ic, tit, sub, placa, cont) {
-  const r = $('retorno');
-  r.className = 'retorno ' + cls;
-  r.innerHTML = `<div class="ic">${ic}</div><div class="tx"><div class="tit">${escH(tit)}</div>
-    <div class="sub">${placa ? `<span class="placa-tag num">${escH(placa)}</span>` : ''}${escH(sub || '')}</div></div>
-    ${cont ? `<div class="cont"><b class="num">${cont}</b><small>volumes da nota</small></div>` : ''}`;
-  void r.offsetWidth; r.classList.add('flash');
-}
-
-// ── Código do cliente: escolher a NF (modo POR PLACA) ──
 function escolherNota(i) {
   bipSom('aviso');
   retorno('warn', '?', 'De qual NF é esta caixa?', 'Código de cliente ainda não ligado a uma NF', st.placa);
   const ns = st.notas[st.tipo][st.placa] || [];
-  const ops = ns.map((n, x) => { const c = validasDe(st.placa, n.k).length;
+  const ops = ns.map((n, x) => { const c = lidasNotaPlaca(st.placa, n).length;
     return `<button class="opc" onclick="escolheu(${x})"><div><b>${escH(n.rot)}</b><br><small style="color:var(--mut)">${escH(n.dest)}</small></div><span class="num">${c}/${n.esp || '?'}</span></button>`; }).join('');
   abrirModal(`<h3>De qual NF é esta caixa?</h3><p>Lido: <code>${escH(i.cod)}</code><br>As próximas caixas com este mesmo código contam nesta NF sozinhas.</p>${ops}
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Cancelar</button>`);
@@ -374,9 +453,33 @@ function escolheu(x) {
   const i = escolherNota._i, nota = (st.notas[st.tipo][st.placa] || [])[x];
   fecharModal();
   if (!i || !nota) return;
-  st.vinc[i.cod] = { cod: i.cod, placa: st.placa, tipo: st.tipo, k: nota.k };
-  bipVincular(st.dia, i.cod, nota, st.placa, st.tipo, st.user).catch(e => aviso('Vínculo não gravado: ' + e.message));
-  contar(st.placa, nota, i);
+  const lote = nota.docs.find(d => /^\d+$/.test(d)) || '';
+  st.vinc[i.cod] = { cod: i.cod, placa: st.placa, tipo: st.tipo, k: nota.k, lote };
+  db.collection(VINC_COL).doc(st.dia + '_' + _bipHash(i.cod)).set({ dia: st.dia, cod: i.cod, tipo: st.tipo, lote, placa: st.placa, k: nota.k, nf: nota.rot,
+    por: st.user.nome || st.user.email || '', tms: Date.now() }).catch(e => aviso('Vínculo não gravado: ' + e.message));
+  contarPlaca(st.placa, nota, i);
+}
+
+// ── Gravação ──
+function gravarOk(base) {
+  const evt = { dia: st.dia, tipo: st.tipo, cod: '', resultado: 'OK', modo: st.modo, cid: Math.random().toString(36).slice(2, 10), ...base };
+  st.pend.push({ ...evt, tms: Date.now(), conferenteNome: st.user.nome || st.user.email, conferenteId: st.user.uid });
+  bipRegistrar(evt, st.user).catch(e => { st.pend = st.pend.filter(p => p.cid !== evt.cid); render();
+    retorno('err', '✖', 'Leitura NÃO gravada', e.message, null); bipSom('erro'); });
+}
+function recusar(resultado, i, extra, titulo, sub, placaMostrar, cls) {
+  const evt = { dia: st.dia, tipo: st.tipo, cod: i.cod, resultado, k: '', nf: '', placa: '', vol: '', lote: '', modo: st.modo, cid: Math.random().toString(36).slice(2, 10), ...extra };
+  bipRegistrar(evt, st.user).catch(() => {});
+  bipSom(cls === 'warn' ? 'aviso' : 'erro');
+  retorno(cls || 'err', cls === 'warn' ? '!' : '✖', titulo, sub, placaMostrar);
+}
+function retorno(cls, ic, tit, sub, placa, cont) {
+  const r = $('retorno');
+  r.className = 'retorno ' + cls;
+  r.innerHTML = `<div class="ic">${ic}</div><div class="tx"><div class="tit">${escH(tit)}</div>
+    <div class="sub">${placa ? `<span class="placa-tag num">${escH(placa)}</span>` : ''}${escH(sub || '')}</div></div>
+    ${cont ? `<div class="cont"><b class="num">${cont}</b><small>volumes da nota</small></div>` : ''}`;
+  void r.offsetWidth; r.classList.add('flash');
 }
 
 // ── Ações ──
@@ -384,14 +487,14 @@ function desfazerUltimo() {
   const minhas = bipValidas(st.bips).filter(b => b.conferenteId === st.user.uid && b.tipo === st.tipo);
   const u = minhas[minhas.length - 1];
   if (!u) return aviso('Nenhuma leitura sua para desfazer.');
-  abrirModal(`<h3>Desfazer a última leitura?</h3><p><span class="placa-tag num" style="font-size:.95rem;padding:1px 7px">${escH(u.placa)}</span>
+  abrirModal(`<h3>Desfazer a última leitura?</h3><p>${u.placa ? `<span class="placa-tag num" style="font-size:.95rem;padding:1px 7px">${escH(u.placa)}</span> ` : ''}
     ${escH(u.nf)} · <code>${escH(u.cod)}</code> · ${bipHora(u)}</p>
     <button class="btn-pri" style="width:100%" onclick="fecharModal();bipRemover('${u.id}',st.user).then(()=>aviso('Leitura desfeita')).catch(e=>aviso(e.message))">Desfazer</button>
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Cancelar</button>`);
 }
 function verLeituras() {
-  const lista = todasLeituras().filter(b => b.tipo === st.tipo && (!st.placa || st.modo !== 'PLACA' || b.placa === st.placa || b.placaCerta === st.placa))
-    .slice().reverse().slice(0, 200);
+  const filtro = b => b.tipo === st.tipo && (st.modo === 'PLACA' ? (!st.placa || b.placa === st.placa || b.placaCerta === st.placa) : (!st.lote || b.lote === st.lote.num));
+  const lista = todas().filter(filtro).slice().reverse().slice(0, 200);
   const linhas = lista.map(b => {
     const r = BIP_RESULTADOS[b.resultado] || { rot: b.resultado, cor: '#666' };
     return `<div class="lin" style="${b.removida ? 'opacity:.45;text-decoration:line-through' : ''}"><div><b style="color:${r.cor}">${escH(r.rot)}</b>
@@ -399,81 +502,133 @@ function verLeituras() {
       <code>${escH(b.cod)}</code>${b.vol ? ' · VOL ' + escH(b.vol) : ''}<br><small style="color:var(--mut)">${bipHora(b)} · ${escH((b.conferenteNome || '').split(' ')[0])}${b.motivo ? ' · ' + escH(b.motivo) : ''}</small></div>
       ${b.resultado === 'OK' && !b.removida && b.id ? `<button class="x" onclick="removerLeitura('${b.id}')">Remover</button>` : ''}</div>`;
   }).join('') || '<p>Nenhuma leitura ainda.</p>';
-  abrirModal(`<h3>Leituras ${st.modo === 'PLACA' && st.placa ? 'da placa ' + escH(st.placa) : 'do dia'}</h3><p>${st.tipo === 'SAIDA' ? 'Saída' : 'Entrada'} · ${abaDoDia(st.dia)} · últimas 200</p>${linhas}
+  const titulo = st.modo === 'PLACA' && st.placa ? 'da placa ' + escH(st.placa) : st.modo === 'NOTA' && st.lote ? 'da ' + escH(st.lote.rot) : 'do dia';
+  abrirModal(`<h3>Leituras ${titulo}</h3><p>${st.tipo === 'SAIDA' ? 'Saída' : 'Entrada'} · ${abaDoDia(st.dia)} · últimas 200</p>${linhas}
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
 }
 function removerLeitura(id) {
   bipRemover(id, st.user).then(() => { aviso('Leitura removida'); fecharModal(); verLeituras(); }).catch(e => aviso(e.message));
 }
-function abrirConferencia() {
-  const p = st.modo === 'PLACA' && st.placa ? `?placa=${encodeURIComponent(st.placa)}&tipo=${st.tipo}&dia=${st.dia}` : '';
+function botao3() {
+  fecharModal();
+  if (st.modo === 'NOTA') { st.lote = null; render(); retorno('', '📟', 'Pronto para a próxima nota', 'Bipe a primeira etiqueta da nota', null); return foco(); }
+  const p = st.placa ? `?placa=${encodeURIComponent(st.placa)}&tipo=${st.tipo}&dia=${st.dia}` : '';
   location.href = 'conferente.html' + p;
 }
+function abrirLoteManual(num) { abrirLote(num, null); st.lote.avisoAnterior = ''; render(); foco(); scrollTo({ top: 0, behavior: 'smooth' }); }
 
 // ── Troca de dia / tipo / modo / placa ──
 function marcarSegs() {
   document.querySelectorAll('#seg-tipo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.tipo));
   document.querySelectorAll('#seg-modo button').forEach(b => b.classList.toggle('on', b.dataset.v === st.modo));
+  $('bt-3').innerHTML = st.modo === 'NOTA' ? '<span>＋</span>Nova nota' : '<span>✔</span>Conferência';
 }
-function trocarDia(v) { if (!v) return; st.dia = v; carregarDia(); carregarOps(); }
-function trocarTipo(t) { st.tipo = t; marcarSegs(); if (st.placa && !st.notas[t][st.placa]) st.placa = null; render(); foco(); }
-function trocarModo(m) { st.modo = m; if (m === 'LIVRE') st.placa = null; marcarSegs(); render(); if (m === 'PLACA' && !st.placa) escolherPlaca(); else foco(); }
+function trocarDia(v) { if (!v) return; st.dia = v; carregarDia(); }
+function trocarTipo(t) { st.tipo = t; st.lote = null; marcarSegs(); if (st.placa && !st.notas[t][st.placa]) st.placa = null; render(); foco(); }
+function trocarModo(m) { st.modo = m; if (m === 'NOTA') st.placa = null; marcarSegs(); render(); if (m === 'PLACA' && !st.placa) escolherPlaca(); else foco(); }
 function travar(placa) { st.modo = 'PLACA'; st.placa = placa; marcarSegs(); fecharModal(); render(); foco(); scrollTo({ top: 0, behavior: 'smooth' }); }
 function escolherPlaca() {
   const placas = Object.keys(st.notas[st.tipo]).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
   const ops = placas.map(p => { const r = resumoPlaca(p);
     return `<button class="opc" onclick="travar('${escH(p)}')"><span class="placa-tag num" style="font-size:1rem;padding:2px 8px">${escH(p)}</span>
       <small style="color:var(--mut)">${r.ns.length} NF${r.ns.length > 1 ? 's' : ''}</small><span class="num">${r.lid}/${r.esp || '?'}</span></button>`; }).join('')
-    || '<p>Nenhum veículo com notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + ' neste dia.</p>';
+    || `<p>Nenhum veículo com notas de ${nomeTipo(st.tipo)} neste dia.</p>`;
   abrirModal(`<h3>Escolha o veículo</h3><p>Ou bipe uma etiqueta: o bipador trava na placa dela.</p>${ops}
     <button class="opc" style="justify-content:center;color:var(--mut)" onclick="fecharModal()">Fechar</button>`);
 }
 
 // ── Desenho da tela ──
-function render() {
-  // placa travada
-  const pt = $('placa-trava');
-  if (st.modo === 'PLACA') {
-    pt.style.display = 'flex';
-    if (st.placa) {
-      const r = resumoPlaca(st.placa), conf = st.ops[`${st.placa}_${st.tipo}`];
-      pt.innerHTML = `<span class="placa-tag num">${escH(st.placa)}</span><div class="info"><b class="num" style="font-size:1.25rem">${r.lid}/${r.esp || '?'}</b> volumes ·
-        ${r.completas}/${r.ns.length} NFs completas${conf ? ` · <span class="badge ${conf === 'CONCLUIDA' ? 'conf' : 'parc'}">${conf === 'CONCLUIDA' ? 'Confirmada' : 'Parcial'}</span>` : ''}</div>
-        <button class="btn-sec" onclick="escolherPlaca()">Trocar</button>`;
-    } else pt.innerHTML = `<div class="info"><b>Nenhum veículo travado</b><br>Bipe uma etiqueta ou escolha a placa</div><button class="btn-pri" onclick="escolherPlaca()">Escolher placa</button>`;
-  } else pt.style.display = 'none';
-
-  const c = $('conteudo');
-  if (!st.grupos.length) { if (!c.querySelector('.vazio')) c.innerHTML = '<div class="vazio">Sem programação para este dia.</div>'; return; }
-
-  if (st.modo === 'PLACA' && st.placa) {
-    const r = resumoPlaca(st.placa);
-    const ordem = r.ns.slice().sort((a, b) => {
-      const fa = a.esp && validasDe(st.placa, a.k).length >= a.esp, fb = b.esp && validasDe(st.placa, b.k).length >= b.esp;
-      return fa - fb;
-    });
-    c.innerHTML = `<div class="sec-h"><h2>Notas do veículo</h2><span>${r.alertas ? `<span class="badge alerta">${r.alertas} alerta${r.alertas > 1 ? 's' : ''}</span>` : ''}</span></div>` +
-      (ordem.map(n => { const q = validasDe(st.placa, n.k).length, full = n.esp && q >= n.esp;
-        return `<div class="nota ${full ? 'full' : q ? 'parc' : ''}" data-k="${n.k}"><div class="tx"><b>${full ? '✔ ' : ''}${escH(n.rot)}</b><small>${escH([n.dest, n.cidade].filter(Boolean).join(' · ') || '—')}</small>
-          <div class="barra"><div style="width:${n.esp ? Math.min(100, q / n.esp * 100) : 0}%"></div></div></div>
-          <div class="cnt num">${q}/${n.esp || '?'}<small>${full ? 'completa' : n.esp ? `faltam ${n.esp - q}` : 'sem volume na planilha'}</small></div></div>`; }).join('')
-        || '<div class="vazio">Esta placa não tem notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + '.</div>');
-    if (st.ultimoK) { const el = c.querySelector(`.nota[data-k="${st.ultimoK}"]`); if (el) { el.classList.add('pisca'); st.ultimoK = null; } }
-    return;
+function htmlMini(num, rot, sub, q, esp, atual) {
+  const full = esp && q >= esp;
+  return `<div class="mini ${full ? 'full' : q ? 'parc' : ''} ${atual ? 'atual' : ''}" onclick="abrirLoteManual('${escH(num)}')">
+    <div class="tx"><b>${full ? '✔ ' : ''}${escH(rot)}</b><small>${escH(sub || '—')}</small></div><span class="num">${q}/${esp || '?'}</span></div>`;
+}
+function renderNota(c) {
+  const l = st.lote;
+  let html = '';
+  if (l) {
+    const lidas = lidasLote(l.num), q = lidas.length, full = l.esp && q >= l.esp;
+    const volsLidos = new Set(lidas.map(b => (b.vol || '').split('/')[0]).filter(Boolean));
+    const semNum = lidas.filter(b => !b.vol).length;
+    let chips = '';
+    if (l.esp && l.esp <= 300) {
+      let livres = semNum;   // leituras sem nº de volume preenchem os primeiros quadrados vazios
+      for (let v = 1; v <= l.esp; v++) {
+        const ok = volsLidos.has(String(v)) || (!volsLidos.has(String(v)) && livres > 0 && livres--);
+        chips += `<span class="${ok ? 'ok' : ''}${String(v) === st.ultimoVol ? ' novo' : ''}">${v}</span>`;
+      }
+    }
+    const placas = l.placas.length ? `Programada: ${l.placas.join(', ')}` : 'Fora da programação do dia';
+    html += `<div class="lote ${full ? 'full' : ''}"><div class="cab"><div class="tx"><div class="cli">${escH(l.dest || 'Cliente não informado')}</div>
+      <h3>${full ? '✔ ' : ''}${escH(l.rot)}</h3><div class="info">${escH([l.cidade, placas].filter(Boolean).join(' · '))}</div></div>
+      <div class="big"><b class="num">${q}</b><b class="num" style="font-size:1.3rem;opacity:.55">/${l.esp || '?'}</b><small>${full ? 'nota completa' : l.esp ? `faltam ${l.esp - q}` : 'total desconhecido'}</small></div></div>
+      <div class="barra"><div style="width:${l.esp ? Math.min(100, q / l.esp * 100) : 0}%"></div></div>
+      ${chips ? `<div class="vols">${chips}</div>` : ''}
+      ${semNum && chips ? `<div class="info" style="margin-top:8px">${semNum} leitura${semNum > 1 ? 's' : ''} sem nº de volume (DANFE / código do cliente)</div>` : ''}
+      ${l.avisoAnterior ? `<div class="aviso">⚠ ${escH(l.avisoAnterior)}</div>` : ''}</div>`;
+    st.ultimoVol = null;
+    // outras notas do mesmo cliente no dia
+    if (l.dest) {
+      const outras = [];
+      Object.entries(st.notas[st.tipo]).forEach(([p, ns]) => ns.forEach(n => {
+        const num = n.docs.find(d => /^\d+$/.test(d));
+        if (n.dest === l.dest && num && num !== l.num && !outras.some(o => o.num === num)) outras.push({ num, n, p });
+      }));
+      if (outras.length) html += `<div class="sec-h"><h2>Mesmo cliente hoje</h2><span>${outras.length} nota${outras.length > 1 ? 's' : ''}</span></div>` +
+        outras.map(o => htmlMini(o.num, o.n.rot, [o.n.cidade, 'placa ' + o.p].filter(Boolean).join(' · '), lidasLote(o.num).length, o.n.esp, false)).join('');
+    }
+  } else {
+    html += `<div class="vazio" style="margin-bottom:12px">Bipe a primeira etiqueta de uma nota.<br><small>O lote abre com todos os volumes dela; as próximas etiquetas vão marcando.</small></div>`;
   }
-
-  const placas = Object.keys(st.notas[st.tipo]);
-  const cards = placas.map(p => ({ p, r: resumoPlaca(p) }))
-    .sort((a, b) => (b.r.lid > 0) - (a.r.lid > 0) || ((a.r.esp && a.r.lid >= a.r.esp) - (b.r.esp && b.r.lid >= b.r.esp)) || a.p.localeCompare(b.p, 'pt-BR', { numeric: true }));
-  const tot = cards.reduce((s, x) => ({ e: s.e + x.r.esp, l: s.l + x.r.lid }), { e: 0, l: 0 });
-  c.innerHTML = `<div class="sec-h"><h2>Veículos · ${st.tipo === 'SAIDA' ? 'saída' : 'entrada'}</h2><span><b class="num" style="font-size:1rem;color:var(--navy)">${tot.l}/${tot.e}</b> volumes</span></div>` +
-    (cards.length ? '<div class="grid">' + cards.map(({ p, r }) => {
+  // notas já iniciadas hoje
+  const porLote = {};
+  bipValidas(todas()).filter(b => b.tipo === st.tipo && b.lote).forEach(b => {
+    const x = porLote[b.lote] = porLote[b.lote] || { num: b.lote, rot: b.nf, dest: b.dest, esp: b.esp, q: 0, ult: 0 };
+    x.q++; x.ult = Math.max(x.ult, b.tms || 0); if (b.esp) x.esp = b.esp;
+  });
+  const ls = Object.values(porLote).sort((a, b) => ((a.esp && a.q >= a.esp) - (b.esp && b.q >= b.esp)) || b.ult - a.ult);
+  if (ls.length) {
+    const parc = ls.filter(x => !(x.esp && x.q >= x.esp)).length;
+    html += `<div class="sec-h"><h2>Notas bipadas hoje</h2><span>${ls.length - parc} completa${ls.length - parc === 1 ? '' : 's'} · ${parc} em aberto</span></div>` +
+      ls.map(x => htmlMini(x.num, x.rot || 'NF ' + x.num, x.dest, x.q, x.esp, l && l.num === x.num)).join('');
+  }
+  c.innerHTML = html;
+}
+function renderPlaca(c) {
+  const pt = $('placa-trava');
+  pt.style.display = 'flex';
+  if (!st.placa) {
+    pt.innerHTML = `<div class="info"><b>Nenhum veículo travado</b><br>Bipe uma etiqueta ou escolha a placa</div><button class="btn-pri" onclick="escolherPlaca()">Escolher placa</button>`;
+    const placas = Object.keys(st.notas[st.tipo]);
+    const cards = placas.map(p => ({ p, r: resumoPlaca(p) }))
+      .sort((a, b) => (b.r.lid > 0) - (a.r.lid > 0) || a.p.localeCompare(b.p, 'pt-BR', { numeric: true }));
+    c.innerHTML = `<div class="sec-h"><h2>Veículos · ${nomeTipo(st.tipo)}</h2></div>` + (cards.length ? '<div class="grid">' + cards.map(({ p, r }) => {
       const pct = r.esp ? Math.min(100, Math.round(r.lid / r.esp * 100)) : 0, full = r.esp && r.lid >= r.esp, conf = st.ops[`${p}_${st.tipo}`];
       return `<div class="vcard ${full ? 'full' : ''}" onclick="travar('${escH(p)}')"><div class="topo"><span class="placa-tag num">${escH(p)}</span><span class="pct num">${pct}%</span></div>
         <div class="barra"><div style="width:${pct}%"></div></div>
         <div class="meta"><span><b>${r.lid}/${r.esp || '?'}</b> vol · ${r.completas}/${r.ns.length} NFs</span>
         <span>${r.alertas ? `<span class="badge alerta">${r.alertas} ⚠</span> ` : ''}${conf === 'CONCLUIDA' ? '<span class="badge conf">Confirmada</span>' : conf ? '<span class="badge parc">Parcial</span>' : ''}</span></div></div>`;
-    }).join('') + '</div>' : '<div class="vazio">Nenhum veículo com notas de ' + (st.tipo === 'SAIDA' ? 'saída' : 'entrada') + ' neste dia.</div>');
+    }).join('') + '</div>' : `<div class="vazio">Nenhum veículo com notas de ${nomeTipo(st.tipo)} neste dia.</div>`);
+    return;
+  }
+  const r = resumoPlaca(st.placa), conf = st.ops[`${st.placa}_${st.tipo}`];
+  pt.innerHTML = `<span class="placa-tag num">${escH(st.placa)}</span><div class="info"><b class="num" style="font-size:1.25rem">${r.lid}/${r.esp || '?'}</b> volumes ·
+    ${r.completas}/${r.ns.length} NFs completas${conf ? ` · <span class="badge ${conf === 'CONCLUIDA' ? 'conf' : 'parc'}">${conf === 'CONCLUIDA' ? 'Confirmada' : 'Parcial'}</span>` : ''}</div>
+    <button class="btn-sec" onclick="escolherPlaca()">Trocar</button>`;
+  const ordem = r.ns.slice().sort((a, b) => (a.esp && lidasNotaPlaca(st.placa, a).length >= a.esp) - (b.esp && lidasNotaPlaca(st.placa, b).length >= b.esp));
+  c.innerHTML = `<div class="sec-h"><h2>Notas do veículo</h2><span>${r.alertas ? `<span class="badge alerta">${r.alertas} alerta${r.alertas > 1 ? 's' : ''}</span>` : ''}</span></div>` +
+    (ordem.map(n => { const q = lidasNotaPlaca(st.placa, n).length, full = n.esp && q >= n.esp;
+      return `<div class="nota ${full ? 'full' : q ? 'parc' : ''}" data-k="${n.k}"><div class="tx"><b>${full ? '✔ ' : ''}${escH(n.rot)}</b><small>${escH([n.dest, n.cidade].filter(Boolean).join(' · ') || '—')}</small>
+        <div class="barra"><div style="width:${n.esp ? Math.min(100, q / n.esp * 100) : 0}%"></div></div></div>
+        <div class="cnt num">${q}/${n.esp || '?'}<small>${full ? 'completa' : n.esp ? `faltam ${n.esp - q}` : 'sem volume na planilha'}</small></div></div>`; }).join('')
+      || `<div class="vazio">Esta placa não tem notas de ${nomeTipo(st.tipo)}.</div>`);
+  if (st.ultimoK) { const el = c.querySelector(`.nota[data-k="${st.ultimoK}"]`); if (el) el.classList.add('pisca'); st.ultimoK = null; }
+}
+function render() {
+  const c = $('conteudo');
+  if (st.modo === 'PLACA') return renderPlaca(c);
+  $('placa-trava').style.display = 'none';
+  renderNota(c);
 }
 
 // ── Janela ──

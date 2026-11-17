@@ -4476,11 +4476,12 @@ function bipInit() {
   });
   bipRender();
   const dia = document.getElementById('sel-date').value;
-  bipUnsubConf = bipOuvirPlaca(dia, placa, lista => {
+  // Leituras do dia todo: as feitas por placa e as feitas por NOTA (lote = nº da NF, sem placa)
+  bipUnsubConf = bipOuvirDia(dia, lista => {
     if (!bipCtx || bipCtx.placa !== currentPlaca || bipCtx.tipo !== currentTipo) return;
     const antes = {}; bipCtx.notas.forEach(n => antes[n.k] = (bipCtx.leit[n.k] || []).length);
-    bipCtx.leit = bipPorNota(lista, placa, tipo);
-    bipCtx.alertas = lista.filter(b => b.tipo === tipo && b.resultado !== 'OK' && !b.removida);
+    bipCtx.leit = {}; bipCtx.notas.forEach(n => { bipCtx.leit[n.k] = bipLidasDaNota(lista, placa, tipo, n); });
+    bipCtx.alertas = lista.filter(b => b.placa === placa && b.tipo === tipo && b.resultado !== 'OK' && !b.removida);
     bipRender();
     bipCtx.notas.forEach(n => { if ((bipCtx.leit[n.k] || []).length !== antes[n.k]) _bipAutoStatus(n); });
   });
@@ -4660,7 +4661,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-3';
+const APP_VERSION = '2026.11.17-4';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
