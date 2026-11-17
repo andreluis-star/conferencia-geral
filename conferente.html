@@ -1094,8 +1094,11 @@ function renderCadeiaEndereco(historico) {
 // ═══════════════════════════════════════════════════════
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href='index.html'; return; }
-  const data = await getCurrentUserData();
-  if (!data) { await auth.signOut(); window.location.href='index.html'; return; }
+  const _r = await carregarUsuarioLogado();
+  if (_r.inexistente) { await auth.signOut(); window.location.href='index.html'; return; }
+  if (!_r.data) { showToast('Sem conexão com o servidor: ' + (_r.erro || '') + ' — recarregue a página.', 'error'); return; }
+  if (_r.doCache) showToast('Servidor lento — usando seu cadastro salvo no aparelho.', 'warning');
+  const data = _r.data;
   if (!data.ativo) {
     showToast('Conta desativada. Contate o admin.','error');
     await auth.signOut();
@@ -4661,7 +4664,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-6';
+const APP_VERSION = '2026.11.17-7';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');

@@ -247,10 +247,28 @@ function aviso(msg) { const t = document.createElement('div'); t.className = 'to
 const nomeTipo = t => t === 'SAIDA' ? 'saída' : 'entrada';
 
 // ── Login ──
+function statusCarga(txt, erro) {
+  const c = $('conteudo');
+  c.innerHTML = `<div class="${erro ? 'vazio' : 'carregando'}" style="${erro ? 'border-color:var(--err);color:var(--err)' : ''}">${txt}</div>`;
+}
+window.addEventListener('error', e => statusCarga(`⚠ Erro no bipador: ${escH(e.message)}<br><small>${escH((e.filename || '').split('/').pop())}:${e.lineno || ''}</small><br><br>
+  <button class="btn-pri" onclick="location.reload()">Recarregar</button>`, true));
+statusCarga('Verificando login…');
 auth.onAuthStateChanged(async user => {
   if (!user) { location.href = 'index.html'; return; }
-  const u = await getCurrentUserData();
-  if (!u || u.ativo === false) { await auth.signOut(); location.href = 'index.html'; return; }
+  statusCarga('Carregando seu usuário…');
+  const r = await carregarUsuarioLogado();
+  if (r.inexistente) { await auth.signOut(); location.href = 'index.html'; return; }
+  if (!r.data) {
+    statusCarga(`⚠ Não consegui falar com o servidor.<br><small>${escH(r.erro || '')}</small><br><br>
+      <button class="btn-pri" onclick="location.reload()">Tentar de novo</button>
+      <button class="btn-sec" style="margin-left:6px" onclick="voltarConferencia()">◀ Conferência</button>`, true);
+    $('u-nome').textContent = 'sem conexão';
+    return;
+  }
+  if (r.data.ativo === false) { await auth.signOut(); location.href = 'index.html'; return; }
+  if (r.doCache) aviso('Servidor lento — usando seu cadastro salvo no aparelho');
+  const u = r.data;
   st.user = u;
   const nome = u.nome || u.email || '';
   $('u-nome').textContent = nome.split(' ')[0];
@@ -275,7 +293,7 @@ function menuUsuario() {
 async function carregarDia() {
   st.unsub.forEach(f => f()); st.unsub = [];
   st.bips = []; st.pend = []; st.vinc = {}; st.lote = null;
-  $('conteudo').innerHTML = '<div class="carregando">Carregando programação…</div>';
+  statusCarga('Carregando a programação de ' + abaDoDia(st.dia) + '…');
   try {
     st.grupos = agruparProgramacao(await fetchSheetVehicles(abaDoDia(st.dia)));
   } catch (e) {

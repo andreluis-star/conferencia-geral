@@ -22,6 +22,10 @@ if (!firebase.apps.length) {
 }
 const auth    = firebase.auth();
 const db      = firebase.firestore();
+// Long polling: mais estável em rede de celular / Wi-Fi de galpão, onde a conexão
+// contínua do Firestore às vezes trava e a leitura falha com "client is offline".
+try { db.settings({ experimentalForceLongPolling: true, experimentalAutoDetectLongPolling: false, merge: true }); }
+catch (e) { console.warn('Firestore settings:', e.message); }
 // Storage não utilizado — fotos salvas comprimidas no Firestore
 
 // ============================================================
@@ -183,6 +187,9 @@ function parseGvizTable(table) {
  * se a aba ainda não estiver no cache (aba nova do dia), lê a lista de novo.
  */
 const _gidCache = {};
+// O mapa aba→gid também fica guardado no aparelho: a página /htmlview da planilha
+// é grande e lenta no celular; só é baixada de novo quando aparece uma aba nova.
+try { Object.assign(_gidCache, JSON.parse(localStorage.getItem('cgGidCache') || '{}')); } catch (e) {}
 async function _gidDaAba(sheetId, tabName) {
   const ler = async () => {
     const resp = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/htmlview?_t=${Date.now()}`, { cache: 'no-store' });
@@ -199,7 +206,10 @@ async function _gidDaAba(sheetId, tabName) {
     return mapa;
   };
   const alvo = String(tabName).trim();
-  if (!_gidCache[sheetId] || !(alvo in _gidCache[sheetId])) _gidCache[sheetId] = await ler();
+  if (!_gidCache[sheetId] || !(alvo in _gidCache[sheetId])) {
+    _gidCache[sheetId] = await ler();
+    try { localStorage.setItem('cgGidCache', JSON.stringify({ [sheetId]: _gidCache[sheetId] })); } catch (e) {}
+  }
   return (alvo in _gidCache[sheetId]) ? _gidCache[sheetId][alvo] : null;
 }
 
@@ -436,6 +446,30 @@ async function getCurrentUserData() {
     return doc.exists ? { ...doc.data(), uid: user.uid, email: user.email } : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Lê o usuário logado sem derrubar o login por falha de rede.
+ * Devolve { data } (ok), { data, doCache:true, erro } (rede falhou, usa a cópia do aparelho),
+ * { inexistente:true } (conta sem cadastro) ou { erro } (falhou e não há cópia).
+ */
+async function carregarUsuarioLogado(timeoutMs = 15000) {
+  const user = auth.currentUser;
+  if (!user) return { erro: 'sem login' };
+  const chave = 'cgUser_' + user.uid;
+  let cache = null; try { cache = JSON.parse(localStorage.getItem(chave) || 'null'); } catch (e) {}
+  try {
+    const doc = await Promise.race([
+      db.collection('users').doc(user.uid).get(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('o servidor demorou mais de ' + Math.round(timeoutMs / 1000) + 's para responder')), timeoutMs)),
+    ]);
+    if (!doc.exists) return { inexistente: true };
+    const data = { ...doc.data(), uid: user.uid, email: user.email };
+    try { localStorage.setItem(chave, JSON.stringify(data)); } catch (e) {}
+    return { data };
+  } catch (e) {
+    return cache ? { data: cache, doCache: true, erro: e.message } : { erro: e.message };
   }
 }
 
