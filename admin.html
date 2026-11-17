@@ -702,7 +702,7 @@
           <input id="end-busca" class="form-control form-control-sm" style="width:220px" placeholder="Buscar NF, cliente, endereço" oninput="clearTimeout(window._endBT);window._endBT=setTimeout(renderEnderecados,250)">
           <select id="end-filtro-end" class="form-select form-select-sm" style="width:150px" onchange="renderEnderecados()"><option value="">Todos os endereços</option></select>
           <select id="end-filtro-sit" class="form-select form-select-sm" style="width:190px" onchange="renderEnderecados()">
-            <option value="ARMAZEM">No armazém (sem saída)</option><option value="PROG">Programada p/ sair hoje</option><option value="PARADA">Parada há +3 dias</option><option value="SAIU">Já saiu (bipada)</option><option value="">Todas</option>
+            <option value="ARMAZEM">No armazém (sem saída)</option><option value="HOJE">Lidas hoje</option><option value="PROG">Programada p/ sair hoje</option><option value="PARADA">Parada há +3 dias</option><option value="SAIU">Já saiu (bipada)</option><option value="">Todas</option>
           </select>
           <button class="btn btn-sm btn-outline-secondary" onclick="loadEnderecados(true)">↻ Sincronizar inventário</button>
           <button class="btn btn-sm btn-success" onclick="exportarEnderecados()">⬇ Excel</button>
@@ -711,10 +711,11 @@
       <div class="px-3 pt-3">
         <div id="end-sync" class="small text-muted mb-2"></div>
         <div class="row g-3 mb-3">
-          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('ARMAZEM')"><div class="value" id="end-k-arm">—</div><div class="label">Notas no armazém</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PROG')"><div class="value text-warning" id="end-k-prog">—</div><div class="label">Programadas p/ sair hoje</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PARADA')"><div class="value text-danger" id="end-k-par">—</div><div class="label">Paradas há +3 dias</div></div></div>
-          <div class="col-6 col-md-3"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('SAIU')"><div class="value text-success" id="end-k-saiu">—</div><div class="label">Saíram (bipadas, 30 dias)</div></div></div>
+          <div class="col-6 col-lg"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('HOJE')"><div class="value text-primary" id="end-k-hoje">—</div><div class="label">Notas lidas hoje</div><div class="small fw-bold mt-1" id="end-k-hoje-v"></div></div></div>
+          <div class="col-6 col-lg"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PROG')"><div class="value text-warning" id="end-k-prog">—</div><div class="label">Programadas p/ sair hoje</div><div class="small fw-bold mt-1" id="end-k-prog-v"></div></div></div>
+          <div class="col-6 col-lg"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('ARMAZEM')"><div class="value" id="end-k-arm">—</div><div class="label">Notas no armazém</div><div class="small fw-bold mt-1" id="end-k-arm-v"></div></div></div>
+          <div class="col-6 col-lg"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('PARADA')"><div class="value text-danger" id="end-k-par">—</div><div class="label">Paradas há +3 dias</div><div class="small fw-bold mt-1" id="end-k-par-v"></div></div></div>
+          <div class="col-6 col-lg"><div class="stat-card" style="cursor:pointer" onclick="endFiltrarStatus('SAIU')"><div class="value text-success" id="end-k-saiu">—</div><div class="label">Saíram (bipadas)</div><div class="small fw-bold mt-1" id="end-k-saiu-v"></div></div></div>
         </div>
         <div id="end-por-endereco" class="d-flex flex-wrap gap-2 mb-3"></div>
       </div>
@@ -1533,7 +1534,11 @@ async function loadEnderecados(forcarSync) {
   });
   // Programação de saída de hoje
   endAdm.progHoje = new Map();
-  prog.forEach(g => notasParaBipagem(g.vehicles, 'SAIDA').forEach(n => n.docs.forEach(d => endAdm.progHoje.set(d, g.placa))));
+  endAdm.progTot = { notas: 0, vol: 0 };
+  prog.forEach(g => notasParaBipagem(g.vehicles, 'SAIDA').forEach(n => {
+    endAdm.progTot.notas++; endAdm.progTot.vol += n.esp || 0;
+    n.docs.forEach(d => endAdm.progHoje.set(d, { placa: g.placa, esp: n.esp || 0, k: n.k }));
+  }));
 
   // Uma linha por nota: a leitura mais recente do inventário
   const porNf = new Map();
@@ -1557,7 +1562,10 @@ async function loadEnderecados(forcarSync) {
     const s = l.tokens.map(t => endAdm.saidas.get(t)).filter(Boolean).sort((a, b) => b.tms - a.tms)[0];
     const p = l.tokens.map(t => endAdm.progHoje.get(t)).find(Boolean);
     l.saida = s && s.tms > l.ts ? s : null;
-    l.progPlaca = p || '';
+    l.progPlaca = p ? p.placa : '';
+    l.progVol = p ? p.esp : 0;
+    l.volN = parseInt(String(l.vol).replace(/\D/g, '')) || 0;
+    l.hoje = l.ts && new Date(l.ts).toDateString() === new Date().toDateString();
     l.sit = l.saida ? 'SAIU' : p ? 'PROG' : 'ARMAZEM';
     l.dias = l.ts ? Math.floor((Date.now() - l.ts) / 864e5) : null;
   });
@@ -1583,17 +1591,25 @@ function endFiltrarStatus(v) { document.getElementById('end-filtro-sit').value =
 function _endFiltradas() {
   const q = (document.getElementById('end-busca').value || '').trim().toUpperCase();
   const fe = document.getElementById('end-filtro-end').value, fs = document.getElementById('end-filtro-sit').value;
-  const okSit = l => !fs || (fs === 'ARMAZEM' ? l.sit !== 'SAIU' : fs === 'PARADA' ? _endParada(l) : l.sit === fs);
+  const okSit = l => !fs || (fs === 'ARMAZEM' ? l.sit !== 'SAIU' : fs === 'PARADA' ? _endParada(l) : fs === 'HOJE' ? l.hoje : l.sit === fs);
   return endAdm.linhas.filter(l => (!fe || l.end === fe) && okSit(l) &&
     (!q || [l.nf, l.cliente, l.end, l.por, l.progPlaca].some(x => String(x || '').toUpperCase().includes(q))));
 }
 
 function renderEnderecados() {
   const L = endAdm.linhas, arm = L.filter(l => l.sit !== 'SAIU');
-  document.getElementById('end-k-arm').textContent = arm.length;
-  document.getElementById('end-k-prog').textContent = L.filter(l => l.sit === 'PROG').length;
-  document.getElementById('end-k-par').textContent = L.filter(_endParada).length;
-  document.getElementById('end-k-saiu').textContent = L.filter(l => l.sit === 'SAIU').length;
+  const kpi = (id, lista, volDe, extra) => {
+    document.getElementById('end-k-' + id).textContent = lista.length;
+    const v = lista.reduce((t, l) => t + (volDe(l) || 0), 0);
+    document.getElementById('end-k-' + id + '-v').textContent = `${v} volume${v === 1 ? '' : 's'}${extra || ''}`;
+  };
+  const volInv = l => l.volN, volProg = l => l.progVol || l.volN;
+  kpi('hoje', L.filter(l => l.hoje), volInv);
+  const pt = endAdm.progTot || { notas: 0, vol: 0 };
+  kpi('prog', L.filter(l => l.sit === 'PROG'), volProg, pt.notas ? ` · de ${pt.notas} notas / ${pt.vol} vol na programação` : '');
+  kpi('arm', arm, volInv);
+  kpi('par', L.filter(_endParada), volInv);
+  kpi('saiu', L.filter(l => l.sit === 'SAIU'), volInv);
   const porEnd = {}; arm.forEach(l => { const e = l.end || '—'; porEnd[e] = (porEnd[e] || 0) + 1; });
   document.getElementById('end-por-endereco').innerHTML = Object.entries(porEnd).sort((a, b) => b[1] - a[1]).map(([e, n]) =>
     `<span class="bip-res" style="background:#eef1f6;color:#1a3a5c;cursor:pointer" onclick="document.getElementById('end-filtro-end').value='${escB(e)}';renderEnderecados()">${escB(e)} <b>${n}</b></span>`).join('');
@@ -1602,7 +1618,7 @@ function renderEnderecados() {
     return `<span class="end-st" style="background:${x.fundo};color:${x.cor};border-color:${x.cor}55">${escB(x.rot)}</span>${x.det ? `<small class="d-block text-muted mt-1">${escB(x.det)}</small>` : ''}`; };
   document.getElementById('end-corpo').innerHTML = fil.length ? `<table class="tbl"><thead><tr><th>Status</th><th>NF</th><th>Cliente</th><th>Endereço</th><th>Desde</th><th>Por</th><th>Vol</th><th>Origem</th></tr></thead><tbody>
     ${fil.slice(0, 800).map(l => `<tr style="box-shadow:inset 4px 0 0 ${_endStatus(l).cor}"><td>${stHtml(l)}</td><td><b>${escB(l.nf)}</b></td><td class="small">${escB(l.cliente)}</td><td><b>${escB(l.end || '—')}</b></td>
-      <td class="small">${escB(invQuando(l.ts))}</td><td class="small">${escB(String(l.por).split(' ')[0])}</td><td>${escB(l.vol)}</td>
+      <td class="small">${escB(invQuando(l.ts))}</td><td class="small">${escB(String(l.por).split(' ')[0])}</td><td>${escB(l.vol)}${l.sit === 'PROG' && l.progVol && l.progVol !== l.volN ? `<small class="d-block text-muted">prog. ${l.progVol}</small>` : ''}</td>
       <td class="small">${escB(l.origem)}</td></tr>`).join('')}</tbody></table>
     ${fil.length > 800 ? `<div class="px-3 py-2 small text-muted">Mostrando 800 de ${fil.length}. A exportação leva todas.</div>` : ''}`
     : '<div class="p-4 text-muted">Nenhum item com esse filtro.</div>';
@@ -4952,7 +4968,7 @@ async function loadNotificacoes() {
 // ═══════════════════════════════════════════════════════
 //  ATUALIZAÇÃO DO APP (PWA) — mesmo mecanismo do conferente
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.17-10';
+const APP_VERSION = '2026.11.17-11';
 
 (function registrarServiceWorkerAdmin() {
   const tag = document.getElementById('app-version-tag');
