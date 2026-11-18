@@ -1205,8 +1205,8 @@ async function loadContatosErro() {
 //  a escolha manual de quem desce fica em config/transferenciaSP.descidas[dd-mm-aaaa].
 // ═══════════════════════════════════════════════════════
 const TRF_SP_PADRAO = [
-  { placa: 'AJQ3G51/NVR6H65', motorista: 'RICARDO' },
-  { placa: 'QSU6I78/SUR8B97', motorista: 'RENATO'  },
+  { placa: 'AJQ3G51/NVR6H65', motorista: 'RENATO'  },
+  { placa: 'QSU6I78/SUR8B97', motorista: 'RICARDO' },
 ];
 let trfSP = { veiculos: TRF_SP_PADRAO, doc: null, erro: '', sobe: null, desce: null, placaDescidaManual: '' };
 let _trfVeiculosCarregados = false;
@@ -2337,6 +2337,11 @@ function _qrTexto(e) {
   return `${tipoDoc}:${e.nf || ''};VOL:${vol}`;
 }
 
+/** Contador da nota na etiqueta: volume i/n (por volume) ou etiqueta i/n da nota (por nota). */
+function _etqContNota(e) {
+  return { rot: e.modo === 'VOL' ? 'VOLUME DA NOTA' : 'ETIQUETA DA NOTA', val: `${e.copia}/${e.copias}` };
+}
+
 /** Texto da linha de volume na etiqueta. */
 function _etqTextoVol(e) {
   if (e.modo === 'VOL') return `VOLUME ${e.copia}/${e.copias}`;
@@ -2379,26 +2384,25 @@ function _qrSvg(texto) {
 
 function _htmlEtiqueta(e) {
   const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
-  const fDoc   = _fonteQueCabe(e.doc, 70, 10);
-  const fPlaca = _fonteQueCabe(e.placa, 89, 8.5, 0.5);
+  const serv = e.servico || '—';
+  const fServ = _fonteQueCabe(serv, 70, 8);
+  const fDoc  = _fonteQueCabe(e.doc, 89, 10, 0.5);
   const qr = _qrSvg(_qrTexto(e));
-  const tv = _etqTextoVol(e);
-  const extras = [tv ? `<b>${escConf(tv)}</b>` : '', e.servico ? `SERVIÇO: ${escConf(e.servico)}` : '']
-    .filter(Boolean).join(' &nbsp;·&nbsp; ');
+  const vol = e.vol ? `VOL: ${e.vol}` : '';
+  const cn = _etqContNota(e);
   return `<div class="lbl">
     <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
     <div class="lbl-meio">
       <div class="lbl-info">
-        <div class="lbl-doc" style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</div>
+        <div class="lbl-serv" style="font-size:${fServ.toFixed(2)}mm;">${escConf(serv)}</div>
         <div class="lbl-cli">${escConf(e.cliente)}</div>
-        <div class="lbl-extra">${extras}</div>
+        <div class="lbl-extra">${vol ? `<b>${escConf(vol)}</b>` : ''}</div>
       </div>
       ${qr ? `<div class="lbl-qr">${qr}</div>` : ''}
     </div>
-    <div class="lbl-placa"><span style="font-size:${fPlaca.toFixed(2)}mm;">${escConf(e.placa)}</span></div>
+    <div class="lbl-placa"><span style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</span></div>
     <div class="lbl-cont">
-      <div class="lbl-box"><small>CLIENTE</small><b>${e.cliSeq}/${e.cliTot}</b></div>
-      <div class="lbl-box"><small>VEÍCULO</small><b>${e.veiSeq}/${e.veiTot}</b></div>
+      <div class="lbl-box"><small>${cn.rot}</small><b>${cn.val}</b></div>
     </div>
   </div>`;
 }
@@ -2412,8 +2416,9 @@ const _ETQ_CSS = `
   .lbl-qr { width:20mm; height:20mm; flex-shrink:0; }
   .lbl-qr svg { width:100%; height:100%; display:block; }
   .lbl-doc { text-align:center; font-size:10mm; line-height:11mm; height:11mm; font-weight:900; white-space:nowrap; overflow:hidden; }
+  .lbl-serv { text-align:center; line-height:10mm; height:10mm; font-weight:900; white-space:nowrap; overflow:hidden; }
   .lbl-cli { font-size:4.6mm; font-weight:900; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
-  .lbl-extra { font-size:3mm; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+  .lbl-extra { font-size:3.6mm; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
   .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; height:12mm; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:0.5mm; border-radius:1.5mm; margin-top:1mm; white-space:nowrap; overflow:hidden; padding:0 2mm; }
   .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
   .lbl-box { flex:1; border:0.8mm solid #000; border-radius:1.5mm; text-align:center; padding:0.5mm 0 0; }
@@ -2473,21 +2478,19 @@ function _zplEtiqueta(e) {
     '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
     `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
     `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
-    // NF / MD — centralizada na área à esquerda do QR, fonte que cabe
-    (() => { const f = _zplFonte(e.doc, 570, 80, 72); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
+    // Tipo de serviço — no lugar onde ficava a NF (centralizado à esquerda do QR, fonte que cabe)
+    (() => { const sv = e.servico || '-'; const f = _zplFonte(sv, 570, 72, 64); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(sv)}^FS`; })(),
     `^FO20,142^FB580,1,0,C^A0N,36,34^FD${z(e.cliente)}^FS`,
-    `^FO20,186^FB580,1,0,C^A0N,24,22^FD${[z(_etqTextoVol(e)).replace('CÓPIA', 'COPIA'), e.servico ? 'SERVICO: ' + z(e.servico) : ''].filter(Boolean).join('  -  ')}^FS`,
+    `^FO20,186^FB580,1,0,C^A0N,28,26^FD${e.vol ? 'VOL: ' + z(e.vol) : ''}^FS`,
     // QR Code (nota e volumes) à direita
     `^FO612,44^BQN,2,5^FDMA,${z(_qrTexto(e))}^FS`,
-    // Placa — fundo cinza (grifado) e texto que sempre cabe na faixa
+    // NF — na faixa cinza (onde ficava a placa), texto que sempre cabe
     '^FO20,222^XGR:CINZA.GRF,1,1^FS',
-    (() => { const f = _zplFonte(e.placa, 720, 72, 64); return `^FO20,${222 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.placa)}^FS`; })(),
-    '^FO20,332^GB370,210,5^FS',
-    '^FO410,332^GB370,210,5^FS',
-    '^FO20,346^FB370,1,0,C^A0N,32,32^FDCLIENTE^FS',
-    '^FO410,346^FB370,1,0,C^A0N,32,32^FDVEICULO^FS',
-    `^FO20,390^FB370,1,0,C^A0N,130,110^FD${e.cliSeq}/${e.cliTot}^FS`,
-    `^FO410,390^FB370,1,0,C^A0N,130,110^FD${e.veiSeq}/${e.veiTot}^FS`,
+    (() => { const f = _zplFonte(e.doc, 720, 80, 70); return `^FO20,${222 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
+    // Contador da nota (o do veículo saiu)
+    '^FO20,332^GB760,210,5^FS',
+    `^FO20,346^FB760,1,0,C^A0N,32,32^FD${_etqContNota(e).rot}^FS`,
+    `^FO20,390^FB760,1,0,C^A0N,130,110^FD${_etqContNota(e).val}^FS`,
     '^PQ1', '^XZ'
   ].join('\n');
 }
@@ -4946,7 +4949,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.18-2';
+const APP_VERSION = '2026.11.18-3';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
