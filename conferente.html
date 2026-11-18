@@ -255,6 +255,25 @@
   /* ── MODAL FOTOS TFA ── */
   .tfa-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:3000; align-items:center; justify-content:center; padding:20px; }
   .tfa-modal-overlay.open { display:flex; }
+  /* ── AVISO DE DIVERGÊNCIA DE PALETES (WhatsApp) ── */
+  .pal-wz { background:#fff; border-radius:14px; padding:16px; width:100%; max-width:460px; max-height:90vh; overflow:auto; }
+  .pal-wz-tit { font-weight:800; color:#b02a37; font-size:1rem; margin-bottom:8px; }
+  .pal-wz-tab { width:100%; border-collapse:collapse; font-size:0.82rem; margin-bottom:8px; }
+  .pal-wz-tab th, .pal-wz-tab td { border-bottom:1px solid #eee; padding:4px; text-align:center; }
+  .pal-wz-tab td:first-child, .pal-wz-tab th:first-child { text-align:left; }
+  .pal-wz-tab tr.f td { color:#b02a37; } .pal-wz-tab tr.s td { color:#b07a00; }
+  .pal-wz-sub { font-size:0.75rem; color:#777; margin:8px 0 4px; font-weight:700; }
+  #pal-wz-msg { width:100%; font-size:0.78rem; border:1px solid #ccd; border-radius:8px; padding:6px; box-sizing:border-box; }
+  .pal-wz-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
+  .pal-wz-row > span:first-child { flex:1; min-width:0; }
+  .pal-wz-row small { color:#888; } .pal-wz-tag { background:#eee; border-radius:6px; padding:0 5px; }
+  .pal-wz-ok { color:#1a7f37; font-size:0.75rem; font-weight:700; }
+  .pal-wz-btn { background:#25d366; color:#fff; border:none; border-radius:8px; padding:7px 12px; font-weight:800; }
+  .pal-wz-add { display:flex; gap:6px; margin-top:8px; }
+  .pal-wz-add input { flex:1; min-width:0; font-size:0.8rem; padding:6px; border:1px solid #ccd; border-radius:8px; }
+  .pal-wz-add button { font-size:0.78rem; border:1px solid #ccd; background:#f7f7f7; border-radius:8px; padding:0 8px; }
+  .pal-wz-fechar { width:100%; margin-top:12px; background:var(--navy); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:800; }
+
   .tfa-modal-box { background:#fff; border-radius:14px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; }
   .tfa-modal-head { background:var(--navy); color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-radius:14px 14px 0 0; }
   .tfa-modal-close { background:rgba(255,255,255,0.18); border:none; color:#fff; border-radius:50%; width:28px; height:28px; cursor:pointer; }
@@ -1033,7 +1052,8 @@ let clientesPaleteCache = [];   // clientes de destino de paletes (controle para
 let allContatosErro   = [];     // contatos p/ WhatsApp de divergência (NÃO OK)
 let fotosBase64       = [];
 let insAv_fotosBase64 = [];
-let paletesUltimaSaida = [];    // paletes da última SAÍDA desta placa (para checar retorno)
+let paletesUltimaSaida = [];
+let _palSaidaOp = null;            // operação da última SAÍDA com paletes desta placa (aviso de divergência)    // paletes da última SAÍDA desta placa (para checar retorno)
 let enderecosExistentes = {};   // idx do nf-block → doc de enderecamento já existente (Firestore)
 
 // ── TFA — Termo de Falta e Avaria ──
@@ -3618,15 +3638,16 @@ function renderPaleteCards(retorno) {
 // ── PALETES: SETUP ──────────────────────────────────────────────
 async function setupPaletes(placa, tipo) {
   paletesUltimaSaida = [];
+  _palSaidaOp = null;
 
   if (tipo === 'ENTRADA') {
     try {
       const snap = await db.collection('operacoes').where('placa', '==', placa).get();
       const saidas = snap.docs
-        .map(d => d.data())
+        .map(d => Object.assign({ id: d.id }, d.data()))
         .filter(op => op.tipoExecucao === 'SAIDA' && op.paletes?.length > 0)
         .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
-      if (saidas.length > 0) paletesUltimaSaida = saidas[0].paletes || [];
+      if (saidas.length > 0) { paletesUltimaSaida = saidas[0].paletes || []; _palSaidaOp = saidas[0]; }
     } catch(e) { console.warn('setupPaletes:', e.message); }
   }
 
@@ -4357,6 +4378,16 @@ async function submeterConferencia() {
     } else {
       showToast('Conferência parcial salva. Os campos pendentes podem ser preenchidos depois.', 'warning');
     }
+    // Paletes que voltaram diferentes do que saiu → oferece aviso por WhatsApp (envio manual)
+    if (currentTipo === 'ENTRADA' && paletesUltimaSaida.length) {
+      const linhasDiv = _compararPaletes(paletesUltimaSaida, paletes);
+      if (linhasDiv.some(l => l.diff !== 0)) {
+        try {
+          await oferecerWhatsPaletes({ placa, saidaOp: _palSaidaOp, entradaOpId: opRef.id, linhas: linhasDiv,
+            motorista: currentVehicles[0]['Motorista'] || '', nfsEntrada: nfsData, dataRef });
+        } catch (e) { console.warn('aviso paletes:', e.message); }
+      }
+    }
     await loadPlacas();
     // Se o veículo ainda tem outro bloco pendente (ex.: SAÍDA), já abre ele; senão volta à lista
     const g = groupedByPlate.find(x => x.placa === placa);
@@ -4372,6 +4403,134 @@ async function submeterConferencia() {
     showToast('Erro ao salvar. Tente novamente.','error');
     btn.disabled=false;
   }
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  AVISO DE DIVERGÊNCIA DE PALETES POR WHATSAPP (no CONFIRMAR ENTRADA)
+//  Mesmos contatos (config/contatosPaletes, padrão Mirian) e mesmo modelo
+//  (config/mensagemPaletesInterno) do Apontamento por Veículo do admin.
+//  Envio sempre manual: abre o wa.me com o texto pronto.
+// ═══════════════════════════════════════════════════════
+const _PAL_CONTATOS_PADRAO = [{ nome: 'Mirian', telefone: '+555599645438', padrao: true }];
+const _PAL_TEMPLATE_PADRAO =
+`⚠ *Divergência de paletes* — veículo placa *{{placa}}*
+Motorista: {{motorista}} {{telefone}}
+
+Saída em {{data_saida}} — visitou: {{clientes_saida}} — retirado(s):
+{{itens_saida}}
+
+Retorno em {{data_retorno}} — visitou: {{clientes_entrada}} — conferido(s) com divergência:
+{{itens_faltando}}{{itens_sobra}}
+
+Favor verificar e tratar a regularização.`;
+let _palAviso = null;
+
+function _tipoPalete(p) { return (p.tipo === 'OUTROS' && p.tipoCustom) ? p.tipoCustom : (p.tipo || 'Item não especificado'); }
+function _mapaPaletes(lista) { const m = {}; (lista || []).forEach(p => { const t = _tipoPalete(p); m[t] = (m[t] || 0) + (p.quantidade || 0); }); return m; }
+function _compararPaletes(saiu, voltou) {
+  const a = _mapaPaletes(saiu), b = _mapaPaletes(voltou);
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].map(t => ({ tipo: t, saida: a[t] || 0, entrada: b[t] || 0, diff: (b[t] || 0) - (a[t] || 0) }));
+}
+function _telE164(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('55') && d.length >= 12) return '+' + d;
+  if (d.length === 10 || d.length === 11) return '+55' + d;
+  return '+' + d;
+}
+function _fmtDataHora(ts) {
+  const d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : new Date());
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function _clientesDasNfs(nfs, cliente) {
+  const s = new Set();
+  if (cliente) s.add(String(cliente).trim().split(/\s+/)[0].toUpperCase());
+  (nfs || []).forEach(n => {
+    const c = (n.tituloOp && typeof getOperationInfo === 'function' ? (getOperationInfo({ 'Coleta/Entrega/processo/cliente': n.tituloOp }).cliente || '') : '') || n.destinatario || '';
+    const w = String(c).trim().split(/\s+/)[0];
+    if (w) s.add(w.toUpperCase());
+  });
+  return [...s].slice(0, 8).join(', ') || '—';
+}
+
+async function oferecerWhatsPaletes(ctx) {
+  let contatos = _PAL_CONTATOS_PADRAO.slice(), tpl = _PAL_TEMPLATE_PADRAO;
+  try {
+    const [c, t] = await Promise.all([db.collection('config').doc('contatosPaletes').get(), db.collection('config').doc('mensagemPaletesInterno').get()]);
+    if (c.exists && Array.isArray(c.data().contatos) && c.data().contatos.length) contatos = c.data().contatos;
+    if (t.exists && t.data().template) tpl = t.data().template;
+  } catch (e) { console.warn('config paletes:', e.message); }
+
+  const L = ctx.linhas, so = ctx.saidaOp || {};
+  const falt = L.filter(l => l.diff < 0), sobra = L.filter(l => l.diff > 0);
+  const vars = {
+    placa: ctx.placa, motorista: ctx.motorista || '(não informado)', telefone: '',
+    data_saida: so.timestamp ? _fmtDataHora(so.timestamp) : (so.dataRef || '—'),
+    clientes_saida: _clientesDasNfs(so.nfs, so.clienteUnico ? so.cliente : ''),
+    itens_saida: L.filter(l => l.saida).map(l => `• ${l.tipo}: ${l.saida} un.`).join('\n') || '—',
+    data_retorno: _fmtDataHora(new Date()),
+    clientes_entrada: _clientesDasNfs(ctx.nfsEntrada),
+    itens_faltando: falt.map(l => `• ${l.tipo}: saiu ${l.saida}, voltou ${l.entrada} — faltam ${-l.diff} un.`).join('\n') || '(sem itens faltando)',
+    itens_sobra: sobra.length ? '\n\nItens a mais (verificar):\n' + sobra.map(l => `• ${l.tipo}: saiu ${l.saida}, voltou ${l.entrada} — ${l.diff} un. a mais`).join('\n') : ''
+  };
+  const msg = tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => vars[k] != null ? vars[k] : '');
+
+  return new Promise(resolve => {
+    _palAviso = { ctx, contatos, avulsos: [], enviados: {}, resolve };
+    let ov = document.getElementById('pal-whats-ov');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'pal-whats-ov'; ov.className = 'tfa-modal-overlay'; document.body.appendChild(ov); }
+    ov.innerHTML = `<div class="pal-wz">
+      <div class="pal-wz-tit">⚠ Divergência de paletes — ${escConf(ctx.placa)}</div>
+      <table class="pal-wz-tab"><thead><tr><th>Tipo</th><th>Saiu</th><th>Voltou</th><th>Dif.</th></tr></thead><tbody>
+        ${L.map(l => `<tr class="${l.diff < 0 ? 'f' : l.diff > 0 ? 's' : ''}"><td>${escConf(l.tipo)}</td><td>${l.saida}</td><td>${l.entrada}</td><td><b>${l.diff > 0 ? '+' : ''}${l.diff}</b></td></tr>`).join('')}
+      </tbody></table>
+      <div class="pal-wz-sub">Mensagem (pode editar antes de enviar):</div>
+      <textarea id="pal-wz-msg" rows="9">${escConf(msg)}</textarea>
+      <div class="pal-wz-sub">Enviar para:</div>
+      <div id="pal-wz-dest"></div>
+      <div class="pal-wz-add"><input id="pal-wz-nome" placeholder="Outro: nome"><input id="pal-wz-tel" placeholder="WhatsApp c/ DDD" inputmode="tel"><button type="button" onclick="_palAddAvulso()">+ Adicionar</button></div>
+      <button type="button" class="pal-wz-fechar" onclick="_palFechar()">Concluir (não enviar mais)</button>
+    </div>`;
+    ov.classList.add('open');
+    _palRenderDest();
+  });
+}
+function _palRenderDest() {
+  const a = _palAviso; if (!a) return;
+  const linha = (c, i, av) => { const tel = _telE164(c.telefone);
+    return `<div class="pal-wz-row"><span><b>${escConf(c.nome || '—')}</b> <small>${escConf(tel)}</small>${av ? ' <small class="pal-wz-tag">só este envio</small>' : ''}</span>
+      ${a.enviados[tel] ? '<span class="pal-wz-ok">✔ aberto</span>' : ''}<button type="button" class="pal-wz-btn" onclick="_palEnviar(${av ? 1 : 0},${i})">📲 Enviar</button></div>`; };
+  document.getElementById('pal-wz-dest').innerHTML = a.contatos.map((c, i) => linha(c, i, false)).join('') + a.avulsos.map((c, i) => linha(c, i, true)).join('');
+}
+function _palAddAvulso() {
+  const nome = document.getElementById('pal-wz-nome').value.trim(), tel = document.getElementById('pal-wz-tel').value.trim();
+  if (!nome || tel.replace(/\D/g, '').length < 10) { showToast('Informe o nome e o WhatsApp com DDD.', 'warning'); return; }
+  _palAviso.avulsos.push({ nome, telefone: _telE164(tel) });
+  document.getElementById('pal-wz-nome').value = ''; document.getElementById('pal-wz-tel').value = '';
+  _palRenderDest();
+}
+function _palEnviar(av, i) {
+  const a = _palAviso; if (!a) return;
+  const c = av ? a.avulsos[i] : a.contatos[i]; if (!c) return;
+  const msg = document.getElementById('pal-wz-msg').value;
+  const tel = _telE164(c.telefone), num = tel.replace(/\D/g, '');
+  if (!num || !msg.trim()) { showToast('Telefone ou mensagem inválidos.', 'warning'); return; }
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+  a.enviados[tel] = true; _palRenderDest();
+  db.collection('notificacoes_whatsapp').add({
+    placa: a.ctx.placa, motoristaNome: a.ctx.motorista || '(não informado)', destinatarioNome: c.nome || '',
+    telefone: tel, tipoEnvio: 'INTERNO', origem: 'CONFERENTE',
+    saidaOpId: (a.ctx.saidaOp && a.ctx.saidaOp.id) || null, entradaOpId: a.ctx.entradaOpId || null,
+    mensagem: msg, status: 'ABERTO_WHATSAPP',
+    criadoPor: (currentUser && currentUser.uid) || null, criadoPorNome: (currentUser && (currentUser.nome || currentUser.email)) || '—',
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(e => console.warn('notificacoes_whatsapp:', e.message));
+}
+function _palFechar() {
+  const a = _palAviso; _palAviso = null;
+  document.getElementById('pal-whats-ov')?.classList.remove('open');
+  if (a) a.resolve();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4957,7 +5116,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.18-5';
+const APP_VERSION = '2026.11.18-6';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
