@@ -2391,7 +2391,7 @@ function _htmlEtiqueta(e) {
   const vol = e.vol ? `VOL: ${e.vol}` : '';
   const cn = _etqContNota(e);
   return `<div class="lbl">
-    <div class="lbl-top"><span>${t} · ${escConf(e.dia)}</span><span>Conf.: ${escConf(e.conferente)}</span></div>
+    <div class="lbl-top"><span>${t} · ${escConf(e.dia)}${e.placa ? ` · <b class="lbl-pl">${escConf(e.placa)}</b>` : ''}</span><span>Conf.: ${escConf(e.placa ? String(e.conferente || '').split(' ')[0] : e.conferente)}</span></div>
     <div class="lbl-meio">
       <div class="lbl-info">
         <div class="lbl-serv" style="font-size:${fServ.toFixed(2)}mm;">${escConf(serv)}</div>
@@ -2411,6 +2411,7 @@ const _ETQ_CSS = `
   .lbl { -webkit-print-color-adjust:exact; print-color-adjust:exact; width:100mm; height:70mm; box-sizing:border-box; padding:2.5mm 3.5mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:#000; background:#fff; overflow:hidden; }
   .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
   .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
+  .lbl-pl { font-weight:900; letter-spacing:0.2mm; }
   .lbl-meio { display:flex; align-items:center; gap:2mm; margin-top:1mm; height:21mm; }
   .lbl-info { flex:1; min-width:0; }
   .lbl-qr { width:20mm; height:20mm; flex-shrink:0; }
@@ -2476,8 +2477,8 @@ function _zplEtiqueta(e) {
   const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAIDA';
   return [
     '^XA', '^CI28', '^PW800', '^LL560', '^LH0,0',
-    `^FO24,16^A0N,28,28^FD${z(t)} - ${z(e.dia)}^FS`,
-    `^FO330,16^FB446,1,0,R^A0N,28,28^FDConf.: ${z(e.conferente)}^FS`,
+    `^FO24,16^A0N,26,24^FD${z(t)} - ${z(e.dia)}${e.placa ? ' - ' + z(e.placa) : ''}^FS`,
+    `^FO556,16^FB220,1,0,R^A0N,24,22^FDConf.: ${z(String(e.conferente || '').split(' ')[0])}^FS`,
     // Tipo de serviço — no lugar onde ficava a NF (centralizado à esquerda do QR, fonte que cabe)
     (() => { const sv = e.servico || '-'; const f = _zplFonte(sv, 570, 72, 64); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(sv)}^FS`; })(),
     `^FO20,142^FB580,1,0,C^A0N,36,34^FD${z(e.cliente)}^FS`,
@@ -4949,7 +4950,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.18-3';
+const APP_VERSION = '2026.11.18-4';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
