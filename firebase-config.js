@@ -208,7 +208,7 @@ async function _gidDaAba(sheetId, tabName) {
   const alvo = String(tabName).trim();
   if (!_gidCache[sheetId] || !(alvo in _gidCache[sheetId])) {
     _gidCache[sheetId] = await ler();
-    try { localStorage.setItem('cgGidCache', JSON.stringify({ [sheetId]: _gidCache[sheetId] })); } catch (e) {}
+    try { localStorage.setItem('cgGidCache', JSON.stringify(_gidCache)); } catch (e) {}
   }
   return (alvo in _gidCache[sheetId]) ? _gidCache[sheetId][alvo] : null;
 }

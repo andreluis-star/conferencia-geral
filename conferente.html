@@ -572,7 +572,9 @@
   .trf-chips span { font-size:0.66rem; background:#f1f3f7; border-radius:10px; padding:2px 8px; }
   .trf-btn-nfs { background:none; border:1px solid #ccd; border-radius:8px; padding:5px 10px; font-size:0.74rem; font-weight:700; color:var(--navy); margin-top:4px; }
   .trf-tbl { max-height:260px; overflow:auto; margin-top:6px; }
-  .trf-tbl table { width:100%; border-collapse:collapse; font-size:0.68rem; }
+  .trf-tbl table { width:100%; border-collapse:collapse; font-size:0.68rem; table-layout:fixed; }
+  .trf-tbl th:nth-child(1){width:17%} .trf-tbl th:nth-child(2){width:28%} .trf-tbl th:nth-child(3){width:26%} .trf-tbl th:nth-child(4){width:19%} .trf-tbl th:nth-child(5){width:10%}
+  .trf-tbl td { overflow-wrap:anywhere; vertical-align:top; }
   .trf-tbl th, .trf-tbl td { border-bottom:1px solid #eee; padding:3px 4px; text-align:left; }
   .trf-tbl td.n { text-align:right; }
   .trf-troca { font-size:0.7rem; color:#777; margin-top:6px; }
@@ -1197,9 +1199,10 @@ async function loadContatosErro() {
 //  TRANSFERÊNCIA SP ⇄ ITAJAÍ
 //  • SOBE (Itajaí → SP): o veículo da transferência que tem SAÍDA na planilha do dia.
 //  • DESCE (SP → Itajaí): o outro veículo, trazendo a última transferência importada
-//    no PROGRAMAÇÃO-ALINHAMENTO (Firestore "transferencias", 1 doc por data dd-mm-aaaa).
+//    da planilha TRANSFERÊNCIAS 2026 (aba = dia de saída de SP; aparece aqui no dia seguinte).
 //  As NFs que descem viram linhas de ENTRADA do veículo que desce (descarga aqui).
-//  Veículos padrão podem ser trocados em config/transferenciaSP { veiculos:[{placa,motorista}] }.
+//  Veículos padrão podem ser trocados em config/transferenciaSP { veiculos:[{placa,motorista}] };
+//  a escolha manual de quem desce fica em config/transferenciaSP.descidas[dd-mm-aaaa].
 // ═══════════════════════════════════════════════════════
 const TRF_SP_PADRAO = [
   { placa: 'AJQ3G51/NVR6H65', motorista: 'RICARDO' },
@@ -1217,31 +1220,89 @@ function _ehVeiculoTrfSP(placa) { return !!_trfVeiculoDaPlaca(placa); }
 async function _trfCarregarVeiculos() {
   if (_trfVeiculosCarregados) return;
   _trfVeiculosCarregados = true;
+  trfSP.descidas = {};
   try {
     const s = await db.collection('config').doc('transferenciaSP').get();
     const l = s.exists && Array.isArray(s.data().veiculos) ? s.data().veiculos.filter(v => v && _trfPlacas(v.placa).length) : [];
     if (l.length) trfSP.veiculos = l;
+    trfSP.descidas = (s.exists && s.data().descidas) || {};
   } catch (e) { console.warn('config/transferenciaSP:', e.message); }
 }
 
-/** Busca a transferência SP do dia: a do próprio dia; senão a mais recente até amanhã (máx. 3 dias atrás). */
+// Planilha "TRANSFERÊNCIAS 2026" (Google Sheets, link público). Cada aba = dia de SAÍDA de SP
+// (nome dd/mm/aa). A carga chega aqui no dia seguinte → no dia D o conferente vê a aba D-1.
+// Sem aba de D-1 (fim de semana/feriado) usa a mais recente dos 3 dias anteriores, com aviso.
+const TRF_SP_SHEET_ID = '14ipcQRxkqDgnencSVmk9wlQtwt5zEZpPkuHNlmcn-Zw';
+
+function _trfNum(v) {
+  const s = String(v == null ? '' : v).replace(/[^\d.,-]/g, '');
+  if (!s) return 0;
+  return parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0;
+}
+
+/** Lê a aba da transferência (CSV) → { itens, info, tot } */
+function _trfInterpretarCsv(text) {
+  const M = _csvParaLinhas(text || '').map(l => l.map(c => (c || '').trim()));
+  const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const hi = M.findIndex(l => l.some(c => /^nf\b|nota/.test(norm(c))) && l.some(c => /^md\b|minuta|remet/.test(norm(c))));
+  if (hi < 0) throw new Error('cabeçalho NF / MD não encontrado na aba');
+  const H = M[hi].map(norm), col = {};
+  const COLS = { nf:/^nf\b|nota/, md:/^md\b|minuta/, rem:/remet/, dest:/destinat/, cidade:/cidade|destino/, vol:/^vol/, peso:/^peso/, valor:/valor/, serv:/servi/ };
+  Object.keys(COLS).forEach(k => { const j = H.findIndex((x, i) => x && COLS[k].test(x) && !Object.values(col).includes(i)); if (j >= 0) col[k] = j; });
+  if (col.cidade === col.dest) delete col.cidade;
+  const g = (L, k) => col[k] == null ? '' : (L[col[k]] || '');
+  // Informações acima do cabeçalho: rótulo (col. A ou E) → 1º valor preenchido nas 3 colunas seguintes
+  const info = [];
+  for (let i = 0; i < hi; i++) {
+    const L = M[i] || [];
+    [0, 4].forEach(j => {
+      const k = L[j]; if (!k || !/[a-z]{3}/i.test(k)) return;
+      const v = [L[j + 1], L[j + 2], L[j + 3]].find(x => x && x.trim());
+      if (v) info.push({ k: k.replace(/\s+/g, ' '), v: v.trim() });
+    });
+  }
+  const itens = [], vistos = new Set();
+  for (let i = hi + 1; i < M.length; i++) {
+    const L = M[i] || [];
+    const nf = g(L, 'nf'), md = g(L, 'md');
+    if (!nf && !md) continue;                         // linha de total / legenda
+    const sig = (nf + '|' + md).toUpperCase();
+    if (vistos.has(sig)) continue;
+    vistos.add(sig);
+    itens.push({ nf, md, rem: g(L, 'rem'), dest: g(L, 'dest'), cidade: g(L, 'cidade'),
+      vol: _trfNum(g(L, 'vol')), peso: Math.round(_trfNum(g(L, 'peso')) * 100) / 100,
+      valor: Math.round(_trfNum(g(L, 'valor')) * 100) / 100, serv: g(L, 'serv'), lin: i + 1 });
+  }
+  const tot = itens.reduce((t, x) => ({ qt: t.qt + 1, vol: t.vol + x.vol, peso: t.peso + x.peso, valor: t.valor + x.valor }), { qt: 0, vol: 0, peso: 0, valor: 0 });
+  return { itens, info, tot };
+}
+
+/** Busca a transferência que CHEGA no dia tabName (dd/mm/aaaa) = aba do dia anterior. */
 async function carregarTransferenciaSP(tabName) {
   trfSP.doc = null; trfSP.erro = '';
   await _trfCarregarVeiculos();
   const [d, m, y] = tabName.split('/').map(Number);
-  const dia = new Date(y, m - 1, d).getTime(), DIA = 86400000;
+  const p2 = n => String(n).padStart(2, '0');
   try {
-    const snap = await db.collection('transferencias').where('dataTs', '>=', dia - 3 * DIA).get();
-    const docs = snap.docs.map(x => Object.assign({ id: x.id }, x.data()))
-      .filter(t => Number(t.dataTs) <= dia + DIA)
-      .sort((a, b) => b.dataTs - a.dataTs);
-    trfSP.doc = docs.find(t => t.data === tabName) || docs[0] || null;
+    let gids = null, achou = null;
+    for (let k = 1; k <= 4 && !achou; k++) {
+      const dt = new Date(y, m - 1, d - k);
+      const aba = `${p2(dt.getDate())}/${p2(dt.getMonth() + 1)}/${String(dt.getFullYear()).slice(2)}`;
+      if (!gids) { await _gidDaAba(TRF_SP_SHEET_ID, aba); gids = _gidCache[TRF_SP_SHEET_ID] || {}; }
+      if (aba in gids) achou = { aba, gid: gids[aba], data: `${p2(dt.getDate())}/${p2(dt.getMonth() + 1)}/${dt.getFullYear()}`, dias: k };
+    }
+    if (achou) {
+      const resp = await fetch(`https://docs.google.com/spreadsheets/d/${TRF_SP_SHEET_ID}/export?format=csv&gid=${achou.gid}&_t=${Date.now()}`, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('planilha de transferências respondeu ' + resp.status);
+      trfSP.doc = Object.assign({ id: tabName.replace(/\//g, '-'), data: achou.data, aba: achou.aba, dias: achou.dias }, _trfInterpretarCsv(await resp.text()));
+    }
   } catch (e) {
-    console.warn('transferencias:', e.message);
-    trfSP.erro = /permission|insufficient/i.test(e.message) ? 'sem permissão para ler as transferências no Firestore' : e.message;
+    console.warn('transferências SP:', e.message);
+    trfSP.erro = e.message;
   }
   try { trfSP.placaDescidaManual = localStorage.getItem('trfDescida_' + tabName) || ''; } catch (e) { trfSP.placaDescidaManual = ''; }
-  if (trfSP.doc && trfSP.doc.placaDescida) trfSP.placaDescidaManual = trfSP.doc.placaDescida;
+  const dsc = (trfSP.descidas || {})[tabName.replace(/\//g, '-')];
+  if (dsc) trfSP.placaDescidaManual = dsc;
 }
 
 /** Decide quem sobe e quem desce e injeta as NFs que descem como ENTRADA do veículo que desce. */
@@ -1271,7 +1332,7 @@ function aplicarTransferenciaSP(sheetVehicles) {
     tokensDoc(_colConf(r, 'M', 'NF', 'Nº NF')).forEach(t => nfsPlanilha.add(t));
   });
   const placaTxt = _trfPlacas(desce.placa).join('/');
-  const titulo = `TRANSFERÊNCIA SP → ITAJAÍ (${String(trfSP.doc.data || '').slice(0, 5)})`;
+  const titulo = `TRANSFERÊNCIA SP → ITAJAÍ (saída ${String(trfSP.doc.data || '').slice(0, 5)})`;
   const extras = [];
   trfSP.doc.itens.forEach((it, i) => {
     const toks = tokensDoc(it.nf);
@@ -1321,11 +1382,11 @@ function renderTransferenciaSP(tabName) {
   // ⬇ DESCE
   let det;
   if (trfSP.erro) det = `⚠ Não consegui ler a transferência: ${escConf(trfSP.erro)}`;
-  else if (!t) det = 'Nenhuma transferência SP importada para esta data (PROGRAMAÇÃO-ALINHAMENTO).';
+  else if (!t) det = 'Nenhuma aba de saída de SP na planilha TRANSFERÊNCIAS para o dia anterior.';
   else {
     const T = t.tot || {};
     const qt = T.qt || (t.itens || []).length;
-    det = `Transferência de <b>${escConf(String(t.data || '').slice(0, 5))}</b>${t.data !== tabName ? ' <span class="trf-st pend">outro dia</span>' : ''}: <b>${qt}</b> NF${qt === 1 ? '' : 's'} · <b>${_trfFmtN(T.vol)}</b> vol · <b>${_trfFmtN(T.peso)}</b> kg`;
+    det = `Saiu de SP <b>${escConf(String(t.data || '').slice(0, 5))}</b>${t.dias > 1 ? ` <span class="trf-st pend">há ${t.dias} dias</span>` : ''}: <b>${qt}</b> NF${qt === 1 ? '' : 's'} · <b>${_trfFmtN(T.vol)}</b> vol · <b>${_trfFmtN(T.peso)}</b> kg`;
   }
   const opcoes = trfSP.veiculos.map(v => `<option value="${escConf(v.placa)}" ${desce && _trfMesmoVeiculo(v.placa, desce.placa) ? 'selected' : ''}>${escConf(v.placa)} · ${escConf(v.motorista || '')}</option>`).join('');
   const hDesce = `<div class="trf-linha desce" ${gD ? `onclick="_trfAbrir('D')"` : ''}>
@@ -1355,12 +1416,12 @@ function _trfAbrir(q) {
 }
 
 async function trocarDescidaSP(placa, tabName) {
+  const id = tabName.replace(/\//g, '-');
   try { placa ? localStorage.setItem('trfDescida_' + tabName, placa) : localStorage.removeItem('trfDescida_' + tabName); } catch (e) {}
-  if (trfSP.doc) {
-    try {
-      await db.collection('transferencias').doc(trfSP.doc.id).set({ placaDescida: placa || '' }, { merge: true });
-    } catch (e) { console.warn('placaDescida:', e.message); }
-  }
+  trfSP.descidas = Object.assign({}, trfSP.descidas, { [id]: placa || '' });
+  try {
+    await db.collection('config').doc('transferenciaSP').set({ descidas: { [id]: placa || '' } }, { merge: true });
+  } catch (e) { console.warn('descida SP:', e.message); }
   loadPlacas();
 }
 
@@ -4885,7 +4946,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.18-1';
+const APP_VERSION = '2026.11.18-2';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
