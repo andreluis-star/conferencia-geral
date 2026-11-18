@@ -2339,7 +2339,8 @@ function _qrTexto(e) {
 
 /** Contador da nota na etiqueta: volume i/n (por volume) ou etiqueta i/n da nota (por nota). */
 function _etqContNota(e) {
-  return { rot: e.modo === 'VOL' ? 'VOLUME DA NOTA' : 'ETIQUETA DA NOTA', val: `${e.copia}/${e.copias}` };
+  if (e.modo === 'VOL') return { rot: 'VOLUME DA NOTA', val: `${e.copia}/${e.copias}` };
+  return { rot: '', val: '1 ETIQ. P/ TODO VOL. DA NF', copia: e.copias > 1 ? `CÓPIA ${e.copia}/${e.copias}` : '' };
 }
 
 /** Texto da linha de volume na etiqueta. */
@@ -2385,7 +2386,7 @@ function _qrSvg(texto) {
 function _htmlEtiqueta(e) {
   const t = e.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA';
   const serv = e.servico || '—';
-  const fServ = _fonteQueCabe(serv, 70, 8);
+  const fServ = _fonteQueCabe(serv, 70, 7.5);
   const fDoc  = _fonteQueCabe(e.doc, 89, 10, 0.5);
   const qr = _qrSvg(_qrTexto(e));
   const vol = e.vol ? `VOL: ${e.vol}` : '';
@@ -2396,13 +2397,14 @@ function _htmlEtiqueta(e) {
       <div class="lbl-info">
         <div class="lbl-serv" style="font-size:${fServ.toFixed(2)}mm;">${escConf(serv)}</div>
         <div class="lbl-cli">${escConf(e.cliente)}</div>
-        <div class="lbl-extra">${vol ? `<b>${escConf(vol)}</b>` : ''}</div>
+        <div class="lbl-vol">${vol ? escConf(vol) : ''}</div>
       </div>
       ${qr ? `<div class="lbl-qr">${qr}</div>` : ''}
     </div>
     <div class="lbl-placa"><span style="font-size:${fDoc.toFixed(2)}mm;">${escConf(e.doc)}</span></div>
     <div class="lbl-cont">
-      <div class="lbl-box"><small>${cn.rot}</small><b>${cn.val}</b></div>
+      ${cn.rot ? `<div class="lbl-box"><small>${cn.rot}</small><b>${cn.val}</b></div>`
+        : `<div class="lbl-box lbl-box-nf"><b style="font-size:${_fonteQueCabe(cn.val, 88, 7.5).toFixed(2)}mm;">${cn.val}</b>${cn.copia ? `<small>${cn.copia}</small>` : ''}</div>`}
     </div>
   </div>`;
 }
@@ -2412,13 +2414,17 @@ const _ETQ_CSS = `
   .lbl-top { display:flex; justify-content:space-between; gap:3mm; font-size:3.2mm; font-weight:700; white-space:nowrap; }
   .lbl-top span:last-child { overflow:hidden; text-overflow:ellipsis; }
   .lbl-pl { font-weight:900; letter-spacing:0.2mm; }
-  .lbl-meio { display:flex; align-items:center; gap:2mm; margin-top:1mm; height:21mm; }
+  .lbl-meio { display:flex; align-items:center; gap:2mm; margin-top:1mm; height:22mm; }
   .lbl-info { flex:1; min-width:0; }
   .lbl-qr { width:20mm; height:20mm; flex-shrink:0; }
   .lbl-qr svg { width:100%; height:100%; display:block; }
   .lbl-doc { text-align:center; font-size:10mm; line-height:11mm; height:11mm; font-weight:900; white-space:nowrap; overflow:hidden; }
-  .lbl-serv { text-align:center; line-height:10mm; height:10mm; font-weight:900; white-space:nowrap; overflow:hidden; }
-  .lbl-cli { font-size:4.6mm; font-weight:900; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+  .lbl-serv { text-align:center; line-height:8.5mm; height:8.5mm; font-weight:900; white-space:nowrap; overflow:hidden; }
+  .lbl-vol { text-align:center; font-size:7mm; line-height:7.5mm; height:7.5mm; font-weight:900; margin-top:0.5mm; white-space:nowrap; }
+  .lbl-box-nf { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:17.5mm; }
+  .lbl-box-nf b { line-height:1.15; }
+  .lbl-box-nf small { font-size:3.6mm; margin-top:1mm; }
+  .lbl-cli { font-size:4.2mm; font-weight:900; margin-top:0.3mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
   .lbl-extra { font-size:3.6mm; margin-top:0.8mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
   .lbl-placa { background:#c4c4c4; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; height:12mm; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:0.5mm; border-radius:1.5mm; margin-top:1mm; white-space:nowrap; overflow:hidden; padding:0 2mm; }
   .lbl-cont { display:flex; gap:3mm; margin-top:auto; }
@@ -2480,9 +2486,9 @@ function _zplEtiqueta(e) {
     `^FO24,16^A0N,26,24^FD${z(t)} - ${z(e.dia)}${e.placa ? ' - ' + z(e.placa) : ''}^FS`,
     `^FO556,16^FB220,1,0,R^A0N,24,22^FDConf.: ${z(String(e.conferente || '').split(' ')[0])}^FS`,
     // Tipo de serviço — no lugar onde ficava a NF (centralizado à esquerda do QR, fonte que cabe)
-    (() => { const sv = e.servico || '-'; const f = _zplFonte(sv, 570, 72, 64); return `^FO20,${52 + Math.round((86 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(sv)}^FS`; })(),
-    `^FO20,142^FB580,1,0,C^A0N,36,34^FD${z(e.cliente)}^FS`,
-    `^FO20,186^FB580,1,0,C^A0N,28,26^FD${e.vol ? 'VOL: ' + z(e.vol) : ''}^FS`,
+    (() => { const sv = e.servico || '-'; const f = _zplFonte(sv, 570, 64, 58); return `^FO20,${50 + Math.round((70 - f.h) / 2)}^FB580,1,0,C^A0N,${f.h},${f.w}^FD${z(sv)}^FS`; })(),
+    `^FO20,124^FB580,1,0,C^A0N,32,30^FD${z(e.cliente)}^FS`,
+    `^FO20,162^FB580,1,0,C^A0N,54,50^FD${e.vol ? 'VOL: ' + z(e.vol) : ''}^FS`,
     // QR Code (nota e volumes) à direita
     `^FO612,44^BQN,2,5^FDMA,${z(_qrTexto(e))}^FS`,
     // NF — na faixa cinza (onde ficava a placa), texto que sempre cabe
@@ -2490,8 +2496,9 @@ function _zplEtiqueta(e) {
     (() => { const f = _zplFonte(e.doc, 720, 80, 70); return `^FO20,${222 + Math.round((96 - f.h) / 2)}^FB760,1,0,C^A0N,${f.h},${f.w}^FD${z(e.doc)}^FS`; })(),
     // Contador da nota (o do veículo saiu)
     '^FO20,332^GB760,210,5^FS',
-    `^FO20,346^FB760,1,0,C^A0N,32,32^FD${_etqContNota(e).rot}^FS`,
-    `^FO20,390^FB760,1,0,C^A0N,130,110^FD${_etqContNota(e).val}^FS`,
+    ...(() => { const cn = _etqContNota(e);
+      if (cn.rot) return [`^FO20,346^FB760,1,0,C^A0N,32,32^FD${cn.rot}^FS`, `^FO20,390^FB760,1,0,C^A0N,130,110^FD${cn.val}^FS`];
+      return [`^FO20,${cn.copia ? 390 : 410}^FB760,1,0,C^A0N,58,44^FD${cn.val}^FS`].concat(cn.copia ? [`^FO20,465^FB760,1,0,C^A0N,34,32^FD${z(cn.copia).replace('CÓPIA', 'COPIA')}^FS`] : []); })(),
     '^PQ1', '^XZ'
   ].join('\n');
 }
@@ -4950,7 +4957,7 @@ function goBack() {
 //  atualizado online; aqui detectamos quando há versão nova
 //  e oferecemos o botão de atualizar / reciclar.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = '2026.11.18-4';
+const APP_VERSION = '2026.11.18-5';
 
 function registrarServiceWorker() {
   const tag = document.getElementById('app-version-tag');
